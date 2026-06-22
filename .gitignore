@@ -33,3 +33,15 @@ yarn-error.log*
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# one-off local dataset downloads / investigation scratch files
+# (food/exercise import scripts fetch these at runtime — never commit them)
+.usda_sr.zip
+.usda_sr_extracted/
+.usda_foundation*
+.wger_*.json
+.fedb_*.json
+.gh_search.json
+.repo_*.json
+*_log.txt
+*_dry.txt

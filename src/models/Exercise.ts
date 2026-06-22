@@ -14,6 +14,9 @@ export interface IExercise {
   gifUrl?: string;
   gifPublicId?: string;
   youtubeUrl?: string;
+  /** Static start/end-of-movement photos (used when no animated GIF exists). */
+  imageUrlStart?: string;
+  imageUrlEnd?: string;
   isSystemExercise: boolean;
   createdByCoach?: Types.ObjectId | null;
   /** Provenance for imported system exercises (ExerciseDB / WGER). */
@@ -46,6 +49,8 @@ const ExerciseSchema = new Schema<IExercise>(
     gifUrl: { type: String },
     gifPublicId: { type: String },
     youtubeUrl: { type: String },
+    imageUrlStart: { type: String },
+    imageUrlEnd: { type: String },
     isSystemExercise: { type: Boolean, default: false, index: true },
     createdByCoach: {
       type: Schema.Types.ObjectId,

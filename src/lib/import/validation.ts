@@ -4,7 +4,7 @@ import { EXERCISE_CATEGORIES } from "@/lib/constants";
 /** Validation layer for normalized import exercises. */
 export const normalizedExerciseSchema = z.object({
   externalId: z.string().optional(),
-  source: z.enum(["exercisedb", "wger", "manual"]),
+  source: z.enum(["exercisedb", "wger", "free-exercise-db", "manual"]),
   nameAr: z.string().min(1, "nameAr required").max(160),
   nameEn: z.string().min(1, "nameEn required").max(160),
   category: z.enum(EXERCISE_CATEGORIES),
@@ -13,6 +13,8 @@ export const normalizedExerciseSchema = z.object({
   instructions: z.object({ ar: z.string().optional(), en: z.string().optional() }).optional(),
   gifUrl: z.string().url().optional().or(z.literal("")),
   youtubeUrl: z.string().url().optional().or(z.literal("")),
+  imageUrlStart: z.string().url().optional().or(z.literal("")),
+  imageUrlEnd: z.string().url().optional().or(z.literal("")),
 });
 
 export type ValidatedExercise = z.infer<typeof normalizedExerciseSchema>;

@@ -1,6 +1,6 @@
 import type { ExerciseCategory } from "@/lib/constants";
 
-export type ImportSource = "exercisedb" | "wger" | "manual";
+export type ImportSource = "exercisedb" | "wger" | "free-exercise-db" | "manual";
 
 /**
  * Normalized exercise shape that all import adapters must produce. The import
@@ -18,6 +18,9 @@ export interface NormalizedExercise {
   instructions?: { ar?: string; en?: string };
   gifUrl?: string;
   youtubeUrl?: string;
+  /** Static start/end-of-movement photos (used when no animated GIF exists). */
+  imageUrlStart?: string;
+  imageUrlEnd?: string;
 }
 
 export interface ImportResult {

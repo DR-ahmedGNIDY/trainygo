@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Image from "next/image";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   Search,
@@ -64,7 +65,69 @@ export interface ExerciseItem {
   coachTips?: { ar?: string; en?: string };
   gifUrl?: string;
   youtubeUrl?: string;
+  imageUrlStart?: string;
+  imageUrlEnd?: string;
   isSystemExercise: boolean;
+}
+
+/**
+ * Simulates an animated GIF from two static photos (start/end of the
+ * movement) by alternating which one is visible every ~300ms. Runs
+ * automatically and continuously — no hover/tap required — so it behaves
+ * the same on desktop hover and on mobile.
+ */
+function ExerciseMotionImage({
+  start,
+  end,
+  alt,
+  className,
+}: {
+  start?: string;
+  end?: string;
+  alt: string;
+  className?: string;
+}) {
+  const [frame, setFrame] = useState(0);
+  const canAnimate = !!start && !!end && start !== end;
+
+  useEffect(() => {
+    if (!canAnimate) return;
+    const id = setInterval(() => setFrame((f) => (f === 0 ? 1 : 0)), 300);
+    return () => clearInterval(id);
+  }, [canAnimate]);
+
+  if (!start) {
+    return (
+      <div className={className}>
+        <Dumbbell className="h-10 w-10 text-muted-foreground/40" />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`relative ${className ?? ""}`}>
+      <Image
+        src={start}
+        alt={alt}
+        fill
+        sizes="(max-width: 768px) 50vw, 25vw"
+        className="object-cover transition-opacity duration-0"
+        style={{ opacity: frame === 0 ? 1 : 0 }}
+        unoptimized
+      />
+      {end && end !== start && (
+        <Image
+          src={end}
+          alt={alt}
+          fill
+          sizes="(max-width: 768px) 50vw, 25vw"
+          className="object-cover transition-opacity duration-0"
+          style={{ opacity: frame === 1 ? 1 : 0 }}
+          unoptimized
+        />
+      )}
+    </div>
+  );
 }
 
 export function ExerciseLibrary({
@@ -94,6 +157,7 @@ export function ExerciseLibrary({
   const [isPending, startTransition] = useTransition();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ExerciseItem | null>(null);
+  const [viewing, setViewing] = useState<ExerciseItem | null>(null);
 
   function pushParams(next: Record<string, string | undefined>) {
     const sp = new URLSearchParams(params.toString());
@@ -171,10 +235,22 @@ export function ExerciseLibrary({
           <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${isPending ? "opacity-60" : ""}`}>
             {items.map((e) => (
               <Card key={e._id} className="overflow-hidden transition-shadow hover:shadow-md">
-                <div className="relative flex aspect-video items-center justify-center bg-muted">
-                  <Dumbbell className="h-10 w-10 text-muted-foreground/40" />
-                  <Badge variant="secondary" className="absolute end-2 top-2 gap-1"><Film className="h-3 w-3" /> GIF</Badge>
-                  {!e.isSystemExercise && <Badge className="absolute start-2 top-2">{locale === "ar" ? "مخصص" : "Custom"}</Badge>}
+                <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-muted">
+                  <button
+                    type="button"
+                    onClick={() => setViewing(e)}
+                    className="absolute inset-0 flex h-full w-full items-center justify-center"
+                    aria-label={t.common.view}
+                  >
+                    <ExerciseMotionImage
+                      start={e.imageUrlStart}
+                      end={e.imageUrlEnd}
+                      alt={locale === "ar" ? e.nameAr : e.nameEn}
+                      className="absolute inset-0 flex h-full w-full items-center justify-center"
+                    />
+                  </button>
+                  <Badge variant="secondary" className="pointer-events-none absolute end-2 top-2 gap-1"><Film className="h-3 w-3" /> GIF</Badge>
+                  {!e.isSystemExercise && <Badge className="pointer-events-none absolute start-2 top-2">{locale === "ar" ? "مخصص" : "Custom"}</Badge>}
                   {canMutate(e) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -223,7 +299,50 @@ export function ExerciseLibrary({
           onSaved={() => { setDialogOpen(false); router.refresh(); }}
         />
       )}
+
+      <ExerciseViewDialog exercise={viewing} onOpenChange={(o) => !o && setViewing(null)} />
     </div>
+  );
+}
+
+/** Read-only single-exercise detail view (available for every exercise,
+ * including system ones coaches can't edit). */
+function ExerciseViewDialog({
+  exercise,
+  onOpenChange,
+}: {
+  exercise: ExerciseItem | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t, locale } = useI18n();
+  if (!exercise) return null;
+  const name = locale === "ar" ? exercise.nameAr : exercise.nameEn;
+  const instructions = locale === "ar" ? exercise.instructions?.ar : exercise.instructions?.en;
+
+  return (
+    <Dialog open={!!exercise} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{name}</DialogTitle>
+        </DialogHeader>
+        <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
+          <ExerciseMotionImage
+            start={exercise.imageUrlStart}
+            end={exercise.imageUrlEnd}
+            alt={name}
+            className="absolute inset-0 flex h-full w-full items-center justify-center"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant="outline">{label(EXERCISE_CATEGORY_LABELS, exercise.category, locale)}</Badge>
+          {exercise.youtubeUrl && <Youtube className="h-4 w-4 text-destructive" />}
+        </div>
+        {exercise.targetMuscles && exercise.targetMuscles.length > 0 && (
+          <p className="text-sm text-muted-foreground">{exercise.targetMuscles.join("، ")}</p>
+        )}
+        {instructions && <p className="text-sm leading-relaxed">{instructions}</p>}
+      </DialogContent>
+    </Dialog>
   );
 }
 

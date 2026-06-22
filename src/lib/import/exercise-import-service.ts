@@ -63,6 +63,8 @@ export async function importExercises(
           instructions: item.instructions,
           gifUrl: item.gifUrl || undefined,
           youtubeUrl: item.youtubeUrl || undefined,
+          imageUrlStart: item.imageUrlStart || undefined,
+          imageUrlEnd: item.imageUrlEnd || undefined,
           isSystemExercise: true,
           createdByCoach: null,
           importSource: item.source,
