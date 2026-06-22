@@ -1,0 +1,75 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { getClientCtx } from "./guards";
+import { runAction, ok, fail, type ActionResult } from "./result";
+import { getOwnCoachId, updateOwnProfile, changeOwnPassword } from "@/lib/services/client-self";
+import { submitCheckin } from "@/lib/services/checkins";
+import { addMeasurement, type MeasurementInput } from "@/lib/services/progress";
+import { logExercise, type LogExerciseInput } from "@/lib/services/workout-logs";
+
+export async function submitCheckinAction(
+  answers: { key: string; value: string }[],
+): Promise<ActionResult> {
+  return runAction(async () => {
+    const { clientId } = await getClientCtx();
+    await submitCheckin(clientId, answers);
+    revalidatePath("/client/checkin");
+    return ok();
+  });
+}
+
+export async function addMeasurementAction(
+  input: MeasurementInput,
+): Promise<ActionResult> {
+  return runAction(async () => {
+    const { clientId } = await getClientCtx();
+    const coachId = await getOwnCoachId(clientId);
+    if (!coachId) return fail("لا يوجد مدرب", "NO_COACH");
+    await addMeasurement(clientId, coachId, input);
+    revalidatePath("/client/progress");
+    return ok();
+  });
+}
+
+export async function updateOwnProfileAction(input: {
+  name?: string;
+  phone?: string;
+  height?: number;
+  weight?: number;
+}): Promise<ActionResult> {
+  return runAction(async () => {
+    const { clientId } = await getClientCtx();
+    await updateOwnProfile(clientId, input);
+    revalidatePath("/client/profile");
+    revalidatePath("/client");
+    return ok();
+  });
+}
+
+export async function changeOwnPasswordAction(
+  current: string,
+  next: string,
+): Promise<ActionResult> {
+  return runAction(async () => {
+    if (!next || next.length < 8) return fail("كلمة المرور 8 أحرف على الأقل", "WEAK");
+    const { clientId } = await getClientCtx();
+    const res = await changeOwnPassword(clientId, current, next);
+    if (!res.ok) return fail("كلمة المرور الحالية غير صحيحة", res.error);
+    return ok();
+  });
+}
+
+export async function logExerciseAction(
+  input: LogExerciseInput,
+): Promise<ActionResult<{ oneRm: number }>> {
+  return runAction(async () => {
+    const { clientId } = await getClientCtx();
+    const coachId = await getOwnCoachId(clientId);
+    if (!coachId) return fail("لا يوجد مدرب", "NO_COACH");
+    await logExercise(clientId, coachId, input);
+    revalidatePath("/client/workout");
+    const { bestOneRm } = await import("@/lib/services/workout-logs");
+    return ok({ oneRm: bestOneRm(input.sets) });
+  });
+}

@@ -1,0 +1,63 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { getCoachWriteCtx } from "./guards";
+import { runAction, ok, fail, type ActionResult } from "./result";
+import {
+  clientCreateSchema,
+  clientUpdateSchema,
+  type ClientCreateInput,
+  type ClientUpdateInput,
+} from "@/lib/validations/client";
+import * as clients from "@/lib/services/clients";
+import type { GeneratedCredentials } from "@/lib/services/clients";
+
+export async function createClientAction(
+  input: ClientCreateInput,
+): Promise<ActionResult<{ clientId: string; credentials: GeneratedCredentials }>> {
+  return runAction(async () => {
+    const parsed = clientCreateSchema.safeParse(input);
+    if (!parsed.success) return fail("بيانات غير صالحة", "VALIDATION");
+    const { coachId } = await getCoachWriteCtx();
+    const res = await clients.createClient(coachId, parsed.data);
+    revalidatePath("/coach/clients");
+    revalidatePath("/coach");
+    return ok(res);
+  });
+}
+
+export async function updateClientAction(
+  clientId: string,
+  input: ClientUpdateInput,
+): Promise<ActionResult> {
+  return runAction(async () => {
+    const parsed = clientUpdateSchema.safeParse(input);
+    if (!parsed.success) return fail("بيانات غير صالحة", "VALIDATION");
+    const { coachId } = await getCoachWriteCtx();
+    const okUpdate = await clients.updateClient(coachId, clientId, parsed.data);
+    if (!okUpdate) return fail("غير موجود", "NOT_FOUND");
+    revalidatePath("/coach/clients");
+    revalidatePath(`/coach/clients/${clientId}`);
+    return ok();
+  });
+}
+
+export async function archiveClientAction(clientId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const { coachId } = await getCoachWriteCtx();
+    await clients.archiveClient(coachId, clientId);
+    revalidatePath("/coach/clients");
+    return ok();
+  });
+}
+
+export async function deleteClientAction(clientId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const { coachId } = await getCoachWriteCtx();
+    const deleted = await clients.deleteClient(coachId, clientId);
+    if (!deleted) return fail("غير موجود", "NOT_FOUND");
+    revalidatePath("/coach/clients");
+    revalidatePath("/coach");
+    return ok();
+  });
+}

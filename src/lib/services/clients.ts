@@ -1,0 +1,192 @@
+import { Types } from "mongoose";
+import { connectToDatabase } from "@/lib/db";
+import { User } from "@/models/User";
+import { ClientProgram } from "@/models/ClientProgram";
+import { NutritionPlan } from "@/models/NutritionPlan";
+import { WorkoutLog } from "@/models/WorkoutLog";
+import { ProgressEntry } from "@/models/ProgressEntry";
+import { CheckinResponse } from "@/models/Checkin";
+import { Conversation, Message } from "@/models/Message";
+import { hashPassword } from "@/lib/auth/password";
+import { nextClientCode } from "@/lib/codes";
+import { randomString } from "@/lib/utils";
+import { serialize } from "@/lib/serialize";
+import { createNotification } from "./notifications";
+import type {
+  ClientCreateData,
+  ClientUpdateData,
+} from "@/lib/validations/client";
+
+export interface GeneratedCredentials {
+  username: string;
+  password: string;
+  code: string;
+}
+
+const monthsToMs = (m: number) => m * 30 * 86_400_000;
+
+/** List a coach's clients, scoped, with optional search + status filter. */
+export async function listClients(
+  coachId: string,
+  opts: { query?: string; status?: "active" | "expired" | "all"; includeArchived?: boolean } = {},
+) {
+  await connectToDatabase();
+  const filter: Record<string, unknown> = {
+    role: "client",
+    "clientProfile.coach": new Types.ObjectId(coachId),
+  };
+  if (!opts.includeArchived) filter["clientProfile.active"] = true;
+  if (opts.status && opts.status !== "all") filter.status = opts.status;
+  if (opts.query) {
+    const rx = new RegExp(opts.query.trim(), "i");
+    filter.$or = [{ name: rx }, { "clientProfile.clientCode": rx }, { username: rx }];
+  }
+  const docs = await User.find(filter)
+    .select("name username status clientProfile lastLoginAt createdAt")
+    .sort({ createdAt: -1 })
+    .lean();
+  return serialize(docs);
+}
+
+/** Fetch one client, scoped to the coach (returns null if not theirs). */
+export async function getClient(coachId: string, clientId: string) {
+  await connectToDatabase();
+  if (!Types.ObjectId.isValid(clientId)) return null;
+  const doc = await User.findOne({
+    _id: clientId,
+    role: "client",
+    "clientProfile.coach": new Types.ObjectId(coachId),
+  }).lean();
+  return doc ? serialize(doc) : null;
+}
+
+/**
+ * Create a client under a coach. Generates the next sequential code (TRG00001),
+ * derives the username from it (trg00001 — NOT random), and a temp password.
+ */
+export async function createClient(
+  coachId: string,
+  input: ClientCreateData,
+): Promise<{ clientId: string; credentials: GeneratedCredentials }> {
+  await connectToDatabase();
+
+  const code = await nextClientCode(); // TRG00001
+  const username = code.toLowerCase(); // trg00001
+  const password = randomString(8);
+  const now = new Date();
+  const subEnd = input.subscriptionMonths
+    ? new Date(now.getTime() + monthsToMs(input.subscriptionMonths))
+    : null;
+
+  const client = await User.create({
+    name: input.name,
+    username,
+    email: input.email || undefined,
+    phone: input.phone,
+    passwordHash: await hashPassword(password),
+    role: "client",
+    status: "active",
+    locale: "ar",
+    mustChangePassword: true,
+    clientProfile: {
+      coach: new Types.ObjectId(coachId),
+      clientCode: code,
+      age: input.age,
+      gender: input.gender,
+      height: input.height,
+      startWeight: input.weight,
+      currentWeight: input.weight,
+      goal: input.goal,
+      subscriptionStartDate: now,
+      subscriptionEndDate: subEnd,
+      active: true,
+    },
+  });
+
+  await createNotification({
+    recipient: coachId,
+    type: "new_client",
+    titleAr: `عميل جديد: ${input.name}`,
+    titleEn: `New client: ${input.name}`,
+    link: `/coach/clients/${client._id.toString()}`,
+  });
+
+  return {
+    clientId: client._id.toString(),
+    credentials: { username, password, code },
+  };
+}
+
+/** Update a client's editable fields, scoped to the coach. */
+export async function updateClient(
+  coachId: string,
+  clientId: string,
+  input: ClientUpdateData,
+) {
+  await connectToDatabase();
+  const set: Record<string, unknown> = {};
+  if (input.name !== undefined) set.name = input.name;
+  if (input.phone !== undefined) set.phone = input.phone;
+  if (input.email !== undefined) set.email = input.email || undefined;
+  if (input.age !== undefined) set["clientProfile.age"] = input.age;
+  if (input.gender !== undefined) set["clientProfile.gender"] = input.gender;
+  if (input.height !== undefined) set["clientProfile.height"] = input.height;
+  if (input.weight !== undefined) set["clientProfile.currentWeight"] = input.weight;
+  if (input.goal !== undefined) set["clientProfile.goal"] = input.goal;
+  if (input.active !== undefined) set["clientProfile.active"] = input.active;
+
+  const res = await User.updateOne(
+    { _id: clientId, role: "client", "clientProfile.coach": new Types.ObjectId(coachId) },
+    { $set: set },
+  );
+  return res.matchedCount > 0;
+}
+
+/** Archive (soft-deactivate) a client. */
+export async function archiveClient(coachId: string, clientId: string) {
+  return updateClient(coachId, clientId, { active: false });
+}
+
+/** Restore an archived client. */
+export async function restoreClient(coachId: string, clientId: string) {
+  return updateClient(coachId, clientId, { active: true });
+}
+
+/** Hard-delete a client and all of their owned records (coach-scoped). */
+export async function deleteClient(coachId: string, clientId: string) {
+  await connectToDatabase();
+  const coach = new Types.ObjectId(coachId);
+  const owned = await User.findOne({
+    _id: clientId,
+    role: "client",
+    "clientProfile.coach": coach,
+  });
+  if (!owned) return false;
+
+  const cid = new Types.ObjectId(clientId);
+  const conversations = await Conversation.find({ client: cid }).select("_id").lean();
+  const convoIds = conversations.map((c) => c._id);
+
+  await Promise.all([
+    ClientProgram.deleteMany({ client: cid, coach }),
+    NutritionPlan.deleteMany({ client: cid, coach }),
+    WorkoutLog.deleteMany({ client: cid }),
+    ProgressEntry.deleteMany({ client: cid }),
+    CheckinResponse.deleteMany({ client: cid }),
+    Message.deleteMany({ conversation: { $in: convoIds } }),
+    Conversation.deleteMany({ client: cid }),
+    User.deleteOne({ _id: cid }),
+  ]);
+  return true;
+}
+
+/** Lightweight stats for the coach dashboard. */
+export async function coachClientStats(coachId: string) {
+  await connectToDatabase();
+  const coach = new Types.ObjectId(coachId);
+  const [total, active] = await Promise.all([
+    User.countDocuments({ role: "client", "clientProfile.coach": coach }),
+    User.countDocuments({ role: "client", "clientProfile.coach": coach, "clientProfile.active": true, status: "active" }),
+  ]);
+  return { total, active };
+}

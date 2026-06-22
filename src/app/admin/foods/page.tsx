@@ -1,0 +1,30 @@
+import { requireRole } from "@/lib/auth/session";
+import { listFoods } from "@/lib/services/foods";
+import { FoodLibrary, type FoodItem } from "@/components/library/food-library";
+
+export const dynamic = "force-dynamic";
+
+export default async function AdminFoodsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; category?: string; page?: string }>;
+}) {
+  await requireRole("super_admin");
+  const sp = await searchParams;
+  const res = await listFoods(
+    { role: "super_admin" },
+    { query: sp.q, category: sp.category, page: Number(sp.page) || 1 },
+  );
+  return (
+    <FoodLibrary
+      role="super_admin"
+      items={res.items as unknown as FoodItem[]}
+      total={res.total}
+      page={res.page}
+      pages={res.pages}
+      query={sp.q ?? ""}
+      category={sp.category ?? "all"}
+      canWrite
+    />
+  );
+}
