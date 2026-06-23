@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { Dumbbell, Youtube, CheckCircle2, Circle, Loader2, Film } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Dumbbell, Play } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -17,17 +15,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useI18n } from "@/components/providers/i18n-provider";
-import { logExerciseAction } from "@/lib/actions/client";
+import { ExerciseMedia } from "@/components/library/exercise-media";
+import { WorkoutSession, type SessionExerciseSource } from "@/components/client/workout-session";
 
-interface Ex {
-  exercise?: string | null;
-  nameAr: string;
-  nameEn: string;
-  sets: number;
-  reps: string;
-  restSeconds?: number;
-  youtubeUrl?: string;
-}
+type Ex = SessionExerciseSource;
 interface Day { dayNumber: number; name: { ar: string; en: string }; exercises: Ex[] }
 interface Week { weekNumber: number; days: Day[] }
 
@@ -39,8 +30,15 @@ export function WorkoutExecution({
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [wi, setWi] = useState(0);
   const [di, setDi] = useState(0);
+  const [sessionActive, setSessionActive] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("autostart") === "1") setSessionActive(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!program) {
     return (
@@ -58,6 +56,21 @@ export function WorkoutExecution({
   const { id: programId, name: programName, weeks } = program;
   const week = weeks[wi];
   const day = week?.days[di];
+
+  if (sessionActive && day) {
+    return (
+      <WorkoutSession
+        exercises={day.exercises}
+        programId={programId}
+        weekNumber={week.weekNumber}
+        dayNumber={day.dayNumber}
+        dayNameAr={day.name.ar}
+        dayNameEn={day.name.en}
+        onExit={() => setSessionActive(false)}
+        onSubmitted={() => router.refresh()}
+      />
+    );
+  }
 
   return (
     <div>
@@ -78,95 +91,32 @@ export function WorkoutExecution({
         <Card><CardContent className="py-12 text-center text-muted-foreground">{t.client.noWorkoutToday}</CardContent></Card>
       ) : (
         <div className="space-y-4">
-          {day.exercises.map((ex, ei) => (
-            <ExerciseCard
-              key={ei}
-              ex={ex}
-              programId={programId}
-              weekNumber={week.weekNumber}
-              dayNumber={day.dayNumber}
-              onLogged={() => router.refresh()}
-            />
-          ))}
+          <Button size="lg" className="w-full gap-2 sm:w-auto" onClick={() => setSessionActive(true)}>
+            <Play className="h-4 w-4" />{L("ابدأ الآن", "Start now")}
+          </Button>
+
+          <div className="space-y-2">
+            {day.exercises.map((ex, ei) => (
+              <Card key={ei}>
+                <CardContent className="flex items-center gap-3 p-3">
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
+                    <ExerciseMedia
+                      media={{ imageUrlStart: ex.imageUrlStart, imageUrlEnd: ex.imageUrlEnd, gifUrl: ex.gifUrl }}
+                      alt={locale === "ar" ? ex.nameAr : ex.nameEn}
+                      className="absolute inset-0 flex h-full w-full items-center justify-center overflow-hidden"
+                      iconClassName="h-6 w-6 text-muted-foreground/40"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{locale === "ar" ? ex.nameAr : ex.nameEn}</p>
+                    <p className="text-xs text-muted-foreground">{ex.sets} {t.client.sets} × {ex.reps} {t.client.reps}{ex.restSeconds ? ` · ${ex.restSeconds}s ${t.client.rest}` : ""}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
     </div>
-  );
-}
-
-function ExerciseCard({
-  ex,
-  programId,
-  weekNumber,
-  dayNumber,
-  onLogged,
-}: {
-  ex: Ex;
-  programId: string;
-  weekNumber: number;
-  dayNumber: number;
-  onLogged: () => void;
-}) {
-  const { t, locale } = useI18n();
-  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
-  const [rows, setRows] = useState(() => Array.from({ length: ex.sets }).map(() => ({ weight: "", reps: "" })));
-  const [done, setDone] = useState(false);
-  const [pending, startTransition] = useTransition();
-
-  function setRow(i: number, k: "weight" | "reps", v: string) {
-    setRows((r) => r.map((row, idx) => (idx === i ? { ...row, [k]: v } : row)));
-  }
-
-  function save() {
-    startTransition(async () => {
-      const sets = rows.map((r, i) => ({ setNumber: i + 1, weight: Number(r.weight) || 0, reps: Number(r.reps) || 0 }));
-      const res = await logExerciseAction({
-        exerciseId: ex.exercise || undefined,
-        exerciseNameAr: ex.nameAr,
-        exerciseNameEn: ex.nameEn,
-        programId,
-        weekNumber,
-        dayNumber,
-        sets,
-        completed: true,
-      });
-      if (res.ok) { setDone(true); onLogged(); }
-    });
-  }
-
-  return (
-    <Card className={done ? "border-success/40" : ""}>
-      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-        <div className="flex gap-3">
-          <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-muted">
-            <Dumbbell className="h-6 w-6 text-muted-foreground/40" />
-            <Badge variant="secondary" className="absolute -bottom-1.5 start-1/2 -translate-x-1/2 gap-1 px-1.5 py-0 text-[10px]"><Film className="h-2.5 w-2.5" />GIF</Badge>
-          </div>
-          <div>
-            <CardTitle className="text-base">{locale === "ar" ? ex.nameAr : ex.nameEn}</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">{ex.sets} {t.client.sets} × {ex.reps} {t.client.reps}{ex.restSeconds ? ` · ${ex.restSeconds}s ${t.client.rest}` : ""}</p>
-            {ex.youtubeUrl && <a href={ex.youtubeUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-sm text-destructive"><Youtube className="h-4 w-4" />{L("شاهد الفيديو", "Watch video")}</a>}
-          </div>
-        </div>
-        <Button variant={done ? "default" : "outline"} size="sm" onClick={save} disabled={pending} className="gap-1.5">
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : done ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
-          <span className="hidden sm:inline">{done ? t.common.saved : t.client.markComplete}</span>
-        </Button>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <div className="grid grid-cols-[2.5rem_1fr_1fr] gap-2 px-1 text-xs font-medium text-muted-foreground">
-            <span>{L("مجموعة", "Set")}</span><span>{L("الوزن (كجم)", "Weight (kg)")}</span><span>{t.client.reps}</span>
-          </div>
-          {rows.map((r, i) => (
-            <div key={i} className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-md bg-muted text-sm font-semibold">{i + 1}</span>
-              <Input type="number" inputMode="decimal" placeholder="0" className="h-9" value={r.weight} onChange={(e) => setRow(i, "weight", e.target.value)} />
-              <Input type="number" inputMode="numeric" placeholder={ex.reps} className="h-9" value={r.reps} onChange={(e) => setRow(i, "reps", e.target.value)} />
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
   );
 }

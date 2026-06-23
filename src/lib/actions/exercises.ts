@@ -51,16 +51,45 @@ export async function updateExerciseAction(
   });
 }
 
+export interface ExercisePickerItem {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  category: string;
+  targetMuscles?: string[];
+  imageUrlStart?: string;
+  imageUrlEnd?: string;
+  gifUrl?: string;
+}
+
 export async function searchExercisesAction(
   query: string,
   category?: string,
-): Promise<ActionResult<{ items: { id: string; nameAr: string; nameEn: string; category: string }[] }>> {
+): Promise<ActionResult<{ items: ExercisePickerItem[] }>> {
   return runAction(async () => {
     const scope = await resolveScope();
     const res = await exercises.listExercises(scope, { query, category, limit: 30 });
-    const items = (res.items as unknown as { _id: string; nameAr: string; nameEn: string; category: string }[]).map(
-      (e) => ({ id: String(e._id), nameAr: e.nameAr, nameEn: e.nameEn, category: e.category }),
-    );
+    const items = (
+      res.items as unknown as {
+        _id: string;
+        nameAr: string;
+        nameEn: string;
+        category: string;
+        targetMuscles?: string[];
+        imageUrlStart?: string;
+        imageUrlEnd?: string;
+        gifUrl?: string;
+      }[]
+    ).map((e) => ({
+      id: String(e._id),
+      nameAr: e.nameAr,
+      nameEn: e.nameEn,
+      category: e.category,
+      targetMuscles: e.targetMuscles,
+      imageUrlStart: e.imageUrlStart,
+      imageUrlEnd: e.imageUrlEnd,
+      gifUrl: e.gifUrl,
+    }));
     return ok({ items });
   });
 }

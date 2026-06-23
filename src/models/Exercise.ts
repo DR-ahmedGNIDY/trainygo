@@ -17,6 +17,9 @@ export interface IExercise {
   /** Static start/end-of-movement photos (used when no animated GIF exists). */
   imageUrlStart?: string;
   imageUrlEnd?: string;
+  /** Uploaded video — takes priority over YouTube/images when present. */
+  videoUrl?: string;
+  videoPublicId?: string;
   isSystemExercise: boolean;
   createdByCoach?: Types.ObjectId | null;
   /** Provenance for imported system exercises (ExerciseDB / WGER). */
@@ -51,6 +54,8 @@ const ExerciseSchema = new Schema<IExercise>(
     youtubeUrl: { type: String },
     imageUrlStart: { type: String },
     imageUrlEnd: { type: String },
+    videoUrl: { type: String },
+    videoPublicId: { type: String },
     isSystemExercise: { type: Boolean, default: false, index: true },
     createdByCoach: {
       type: Schema.Types.ObjectId,

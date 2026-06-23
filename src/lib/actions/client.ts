@@ -7,6 +7,8 @@ import { getOwnCoachId, updateOwnProfile, changeOwnPassword } from "@/lib/servic
 import { submitCheckin } from "@/lib/services/checkins";
 import { addMeasurement, type MeasurementInput } from "@/lib/services/progress";
 import { logExercise, type LogExerciseInput } from "@/lib/services/workout-logs";
+import { createWorkoutReport } from "@/lib/services/workout-reports";
+import { workoutReportSchema, type WorkoutReportInput } from "@/lib/validations/workout-report";
 
 export async function submitCheckinAction(
   answers: { key: string; value: string }[],
@@ -71,5 +73,21 @@ export async function logExerciseAction(
     revalidatePath("/client/workout");
     const { bestOneRm } = await import("@/lib/services/workout-logs");
     return ok({ oneRm: bestOneRm(input.sets) });
+  });
+}
+
+export async function submitWorkoutReportAction(
+  input: WorkoutReportInput,
+): Promise<ActionResult<{ id: string }>> {
+  return runAction(async () => {
+    const parsed = workoutReportSchema.safeParse(input);
+    if (!parsed.success) return fail("بيانات غير صالحة", "VALIDATION");
+    const { clientId } = await getClientCtx();
+    const coachId = await getOwnCoachId(clientId);
+    if (!coachId) return fail("لا يوجد مدرب", "NO_COACH");
+    const res = await createWorkoutReport(clientId, coachId, parsed.data);
+    revalidatePath("/client/workout");
+    revalidatePath("/coach/workout-reports");
+    return ok(res);
   });
 }

@@ -25,7 +25,12 @@ export const exerciseSchema = z.object({
   commonMistakes: localized,
   coachTips: localized,
   gifUrl: z.string().url().optional().or(z.literal("")),
+  gifPublicId: z.string().optional().or(z.literal("")),
   youtubeUrl: z.string().url().optional().or(z.literal("")),
+  imageUrlStart: z.string().url().optional().or(z.literal("")),
+  imageUrlEnd: z.string().url().optional().or(z.literal("")),
+  videoUrl: z.string().url().optional().or(z.literal("")),
+  videoPublicId: z.string().optional().or(z.literal("")),
 });
 
 export type ExerciseInput = z.input<typeof exerciseSchema>;

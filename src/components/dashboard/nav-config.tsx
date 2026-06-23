@@ -9,6 +9,7 @@ import {
   Salad,
   NotebookPen,
   ClipboardCheck,
+  FileText,
   Camera,
   Ruler,
   MessageSquare,
@@ -56,6 +57,7 @@ export function getCoachNav(t: Dictionary): NavSection[] {
         { label: n.exerciseLibrary, href: "/coach/exercises", icon: Dumbbell },
         { label: n.workoutTemplates, href: "/coach/templates", icon: Layers },
         { label: n.clientPrograms, href: "/coach/programs", icon: ClipboardList },
+        { label: n.workoutReports, href: "/coach/workout-reports", icon: FileText },
       ],
     },
     {

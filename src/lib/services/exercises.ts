@@ -64,6 +64,30 @@ export async function listExercises(scope: ExerciseScope, opts: ListOpts = {}) {
   };
 }
 
+/** Media-only lookup for a batch of exercise ids (program/template entries
+ * only store a reference + denormalized name, not media URLs). */
+export async function getExerciseMediaByIds(ids: string[]) {
+  await connectToDatabase();
+  const valid = [...new Set(ids)].filter((id) => Types.ObjectId.isValid(id));
+  if (valid.length === 0) return {} as Record<string, {
+    videoUrl?: string; youtubeUrl?: string; imageUrlStart?: string; imageUrlEnd?: string; gifUrl?: string;
+  }>;
+  const docs = await Exercise.find({ _id: { $in: valid } })
+    .select("videoUrl youtubeUrl imageUrlStart imageUrlEnd gifUrl")
+    .lean();
+  const map: Record<string, { videoUrl?: string; youtubeUrl?: string; imageUrlStart?: string; imageUrlEnd?: string; gifUrl?: string }> = {};
+  for (const d of docs) {
+    map[String(d._id)] = {
+      videoUrl: d.videoUrl,
+      youtubeUrl: d.youtubeUrl,
+      imageUrlStart: d.imageUrlStart,
+      imageUrlEnd: d.imageUrlEnd,
+      gifUrl: d.gifUrl,
+    };
+  }
+  return map;
+}
+
 export async function getExercise(id: string, scope: ExerciseScope) {
   await connectToDatabase();
   if (!Types.ObjectId.isValid(id)) return null;
@@ -84,7 +108,12 @@ export async function createExercise(scope: ExerciseScope, data: ExerciseData) {
     commonMistakes: data.commonMistakes,
     coachTips: data.coachTips,
     gifUrl: data.gifUrl || undefined,
+    gifPublicId: data.gifPublicId || undefined,
     youtubeUrl: data.youtubeUrl || undefined,
+    imageUrlStart: data.imageUrlStart || undefined,
+    imageUrlEnd: data.imageUrlEnd || undefined,
+    videoUrl: data.videoUrl || undefined,
+    videoPublicId: data.videoPublicId || undefined,
     isSystemExercise: isSystem,
     createdByCoach: isSystem ? null : new Types.ObjectId((scope as { coachId: string }).coachId),
   });
@@ -118,7 +147,12 @@ export async function updateExercise(id: string, scope: ExerciseScope, data: Exe
   ex.commonMistakes = data.commonMistakes;
   ex.coachTips = data.coachTips;
   ex.gifUrl = data.gifUrl || undefined;
+  ex.gifPublicId = data.gifPublicId || undefined;
   ex.youtubeUrl = data.youtubeUrl || undefined;
+  ex.imageUrlStart = data.imageUrlStart || undefined;
+  ex.imageUrlEnd = data.imageUrlEnd || undefined;
+  ex.videoUrl = data.videoUrl || undefined;
+  ex.videoPublicId = data.videoPublicId || undefined;
   await ex.save();
   return true;
 }

@@ -38,7 +38,11 @@ export function ClientHome({ data }: { data: HomeData }) {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base"><Dumbbell className="h-4 w-4 text-primary" />{t.client.todayWorkout}</CardTitle>
-            <Button asChild size="sm" variant="outline"><Link href="/client/workout">{t.client.logWeights}</Link></Button>
+            <Button asChild size="sm">
+              <Link href={data.todayWorkout ? "/client/workout?autostart=1" : "/client/workout"}>
+                {data.todayWorkout ? L("ابدأ الآن", "Start now") : t.client.logWeights}
+              </Link>
+            </Button>
           </CardHeader>
           <CardContent className="space-y-1">
             {!data.todayWorkout ? (

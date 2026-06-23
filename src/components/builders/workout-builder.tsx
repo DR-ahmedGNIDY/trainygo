@@ -8,7 +8,6 @@ import {
   GripVertical,
   ChevronUp,
   ChevronDown,
-  Dumbbell,
   Search,
   Save,
   Loader2,
@@ -28,9 +27,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useI18n } from "@/components/providers/i18n-provider";
-import { searchExercisesAction } from "@/lib/actions/exercises";
+import { searchExercisesAction, type ExercisePickerItem } from "@/lib/actions/exercises";
 import type { ActionResult } from "@/lib/actions/result";
 import { cn } from "@/lib/utils";
+import { ExerciseMedia } from "@/components/library/exercise-media";
 
 export interface BExercise {
   exercise?: string | null;
@@ -201,7 +201,7 @@ function ExercisePicker({
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<{ id: string; nameAr: string; nameEn: string; category: string }[]>([]);
+  const [results, setResults] = useState<ExercisePickerItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -231,8 +231,20 @@ function ExercisePicker({
           ) : (
             results.map((ex) => (
               <button key={ex.id} onClick={() => { onPick({ id: ex.id, nameAr: ex.nameAr, nameEn: ex.nameEn }); onClose(); }} className={cn("flex w-full items-center gap-3 rounded-md border px-3 py-2 text-start transition-colors hover:bg-accent")}>
-                <Dumbbell className="h-4 w-4 text-muted-foreground" />
-                <span className="flex-1 text-sm font-medium">{locale === "ar" ? ex.nameAr : ex.nameEn}</span>
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-muted">
+                  <ExerciseMedia
+                    media={{ imageUrlStart: ex.imageUrlStart, imageUrlEnd: ex.imageUrlEnd, gifUrl: ex.gifUrl }}
+                    alt={locale === "ar" ? ex.nameAr : ex.nameEn}
+                    className="absolute inset-0 flex h-full w-full items-center justify-center"
+                    iconClassName="h-5 w-5 text-muted-foreground/40"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{locale === "ar" ? ex.nameAr : ex.nameEn}</p>
+                  {ex.targetMuscles && ex.targetMuscles.length > 0 && (
+                    <p className="truncate text-xs text-muted-foreground">{ex.targetMuscles.join("، ")}</p>
+                  )}
+                </div>
                 <Badge variant="outline">{ex.category}</Badge>
               </button>
             ))

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import Image from "next/image";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   Search,
@@ -45,6 +44,7 @@ import {
 } from "@/components/ui/dialog";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { CloudinaryUpload } from "@/components/media/cloudinary-upload";
+import { ExerciseMedia } from "@/components/library/exercise-media";
 import { EXERCISE_CATEGORY_LABELS, label } from "@/lib/i18n/labels";
 import { EXERCISE_CATEGORIES } from "@/lib/constants";
 import {
@@ -67,67 +67,8 @@ export interface ExerciseItem {
   youtubeUrl?: string;
   imageUrlStart?: string;
   imageUrlEnd?: string;
+  videoUrl?: string;
   isSystemExercise: boolean;
-}
-
-/**
- * Simulates an animated GIF from two static photos (start/end of the
- * movement) by alternating which one is visible every ~300ms. Runs
- * automatically and continuously — no hover/tap required — so it behaves
- * the same on desktop hover and on mobile.
- */
-function ExerciseMotionImage({
-  start,
-  end,
-  alt,
-  className,
-}: {
-  start?: string;
-  end?: string;
-  alt: string;
-  className?: string;
-}) {
-  const [frame, setFrame] = useState(0);
-  const canAnimate = !!start && !!end && start !== end;
-
-  useEffect(() => {
-    if (!canAnimate) return;
-    const id = setInterval(() => setFrame((f) => (f === 0 ? 1 : 0)), 300);
-    return () => clearInterval(id);
-  }, [canAnimate]);
-
-  if (!start) {
-    return (
-      <div className={className}>
-        <Dumbbell className="h-10 w-10 text-muted-foreground/40" />
-      </div>
-    );
-  }
-
-  return (
-    <div className={`relative ${className ?? ""}`}>
-      <Image
-        src={start}
-        alt={alt}
-        fill
-        sizes="(max-width: 768px) 50vw, 25vw"
-        className="object-cover transition-opacity duration-0"
-        style={{ opacity: frame === 0 ? 1 : 0 }}
-        unoptimized
-      />
-      {end && end !== start && (
-        <Image
-          src={end}
-          alt={alt}
-          fill
-          sizes="(max-width: 768px) 50vw, 25vw"
-          className="object-cover transition-opacity duration-0"
-          style={{ opacity: frame === 1 ? 1 : 0 }}
-          unoptimized
-        />
-      )}
-    </div>
-  );
 }
 
 export function ExerciseLibrary({
@@ -242,14 +183,18 @@ export function ExerciseLibrary({
                     className="absolute inset-0 flex h-full w-full items-center justify-center"
                     aria-label={t.common.view}
                   >
-                    <ExerciseMotionImage
-                      start={e.imageUrlStart}
-                      end={e.imageUrlEnd}
+                    <ExerciseMedia
+                      media={{ videoUrl: e.videoUrl, youtubeUrl: e.youtubeUrl, imageUrlStart: e.imageUrlStart, imageUrlEnd: e.imageUrlEnd, gifUrl: e.gifUrl }}
                       alt={locale === "ar" ? e.nameAr : e.nameEn}
-                      className="absolute inset-0 flex h-full w-full items-center justify-center"
+                      className="absolute inset-0 flex h-full w-full items-center justify-center overflow-hidden"
                     />
                   </button>
-                  <Badge variant="secondary" className="pointer-events-none absolute end-2 top-2 gap-1"><Film className="h-3 w-3" /> GIF</Badge>
+                  {(e.videoUrl || e.youtubeUrl || e.imageUrlStart || e.gifUrl) && (
+                    <Badge variant="secondary" className="pointer-events-none absolute end-2 top-2 gap-1">
+                      <Film className="h-3 w-3" />
+                      {e.videoUrl ? (locale === "ar" ? "فيديو" : "Video") : e.youtubeUrl ? "YouTube" : "GIF"}
+                    </Badge>
+                  )}
                   {!e.isSystemExercise && <Badge className="pointer-events-none absolute start-2 top-2">{locale === "ar" ? "مخصص" : "Custom"}</Badge>}
                   {canMutate(e) && (
                     <DropdownMenu>
@@ -326,11 +271,10 @@ function ExerciseViewDialog({
           <DialogTitle>{name}</DialogTitle>
         </DialogHeader>
         <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
-          <ExerciseMotionImage
-            start={exercise.imageUrlStart}
-            end={exercise.imageUrlEnd}
+          <ExerciseMedia
+            media={{ videoUrl: exercise.videoUrl, youtubeUrl: exercise.youtubeUrl, imageUrlStart: exercise.imageUrlStart, imageUrlEnd: exercise.imageUrlEnd, gifUrl: exercise.gifUrl }}
             alt={name}
-            className="absolute inset-0 flex h-full w-full items-center justify-center"
+            className="absolute inset-0 flex h-full w-full items-center justify-center overflow-hidden"
           />
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -376,6 +320,9 @@ function ExerciseFormDialog({
       instrEn: e?.instructions?.en ?? "",
       gifUrl: e?.gifUrl ?? "",
       youtubeUrl: e?.youtubeUrl ?? "",
+      imageUrlStart: e?.imageUrlStart ?? "",
+      imageUrlEnd: e?.imageUrlEnd ?? "",
+      videoUrl: e?.videoUrl ?? "",
     };
   }
   const set = (k: keyof ReturnType<typeof initForm>) => (v: string) => setF((s) => ({ ...s, [k]: v }));
@@ -391,6 +338,9 @@ function ExerciseFormDialog({
       instructions: { ar: f.instrAr, en: f.instrEn },
       gifUrl: f.gifUrl || undefined,
       youtubeUrl: f.youtubeUrl || undefined,
+      imageUrlStart: f.imageUrlStart || undefined,
+      imageUrlEnd: f.imageUrlEnd || undefined,
+      videoUrl: f.videoUrl || undefined,
     };
     const res = editing
       ? await updateExerciseAction(editing._id, payload)
@@ -430,6 +380,28 @@ function ExerciseFormDialog({
             </div>
           </div>
           <div className="space-y-2"><Label>{L("رابط يوتيوب", "YouTube URL")}</Label><Input dir="ltr" value={f.youtubeUrl} onChange={(e) => set("youtubeUrl")(e.target.value)} /></div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <Label>{L("فيديو مرفوع (أعلى أولوية للعرض)", "Uploaded video (highest display priority)")}</Label>
+            <div className="flex gap-2">
+              <Input dir="ltr" value={f.videoUrl} onChange={(e) => set("videoUrl")(e.target.value)} placeholder={L("رابط الفيديو", "Video URL")} />
+              <CloudinaryUpload folder="trainygo/exercises/videos" resourceType="video" iconOnly onUploaded={(url) => set("videoUrl")(url)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>{L("صورة بداية الحركة", "Movement start photo")}</Label>
+            <div className="flex gap-2">
+              <Input dir="ltr" value={f.imageUrlStart} onChange={(e) => set("imageUrlStart")(e.target.value)} placeholder={L("رابط الصورة", "Image URL")} />
+              <CloudinaryUpload folder="trainygo/exercises" iconOnly onUploaded={(url) => set("imageUrlStart")(url)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>{L("صورة نهاية الحركة", "Movement end photo")}</Label>
+            <div className="flex gap-2">
+              <Input dir="ltr" value={f.imageUrlEnd} onChange={(e) => set("imageUrlEnd")(e.target.value)} placeholder={L("رابط الصورة", "Image URL")} />
+              <CloudinaryUpload folder="trainygo/exercises" iconOnly onUploaded={(url) => set("imageUrlEnd")(url)} />
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>

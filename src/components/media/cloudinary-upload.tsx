@@ -22,16 +22,18 @@ export function CloudinaryUpload({
   onUploaded,
   iconOnly,
   label,
+  resourceType = "image",
 }: {
   folder?: string;
   onUploaded: (url: string, publicId?: string) => void;
   iconOnly?: boolean;
   label?: string;
+  resourceType?: "image" | "video" | "auto";
 }) {
   const { locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const [busy, setBusy] = useState(false);
-  const text = label ?? L("رفع صورة", "Upload image");
+  const text = label ?? (resourceType === "video" ? L("رفع فيديو", "Upload video") : L("رفع صورة", "Upload image"));
 
   if (!cloudinaryConfigured) {
     // Graceful fallback: prompt for a URL (store-URL-only contract preserved).
@@ -55,7 +57,7 @@ export function CloudinaryUpload({
   return (
     <CldUploadWidget
       uploadPreset={UPLOAD_PRESET}
-      options={{ folder, sources: ["local", "camera", "url"], multiple: false, maxFiles: 1 }}
+      options={{ folder, sources: ["local", "camera", "url"], multiple: false, maxFiles: 1, resourceType }}
       onUpload={() => setBusy(true)}
       onSuccess={(result) => {
         setBusy(false);
