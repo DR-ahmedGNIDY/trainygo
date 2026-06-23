@@ -7,8 +7,8 @@ import {
 } from "@/lib/constants";
 
 /**
- * Food item in the nutrition library. TEXT ONLY — no images by design.
- * Macros are stored per the item's base unit (default 100g).
+ * Food item in the nutrition library. Macros are stored per the item's
+ * base unit (default 100g). Image is optional — not every food has one.
  */
 export interface IFood {
   _id: Types.ObjectId;
@@ -23,6 +23,8 @@ export interface IFood {
   carbs: number;
   fat: number;
   fiber: number;
+  imageUrl?: string;
+  imagePublicId?: string;
   isSystemFood: boolean;
   createdByCoach?: Types.ObjectId | null;
   createdAt: Date;
@@ -46,6 +48,8 @@ const FoodSchema = new Schema<IFood>(
     carbs: { type: Number, default: 0, min: 0 },
     fat: { type: Number, default: 0, min: 0 },
     fiber: { type: Number, default: 0, min: 0 },
+    imageUrl: { type: String },
+    imagePublicId: { type: String },
     isSystemFood: { type: Boolean, default: true, index: true },
     createdByCoach: {
       type: Schema.Types.ObjectId,

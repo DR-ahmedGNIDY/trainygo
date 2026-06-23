@@ -51,16 +51,57 @@ export async function updateFoodAction(
   });
 }
 
+export interface FoodPickerItem {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  category: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  unit: string;
+  unitGrams: number;
+  imageUrl?: string;
+}
+
 export async function searchFoodsAction(
   query: string,
   category?: string,
-): Promise<ActionResult<{ items: { id: string; nameAr: string; nameEn: string; calories: number; protein: number; carbs: number; fat: number; fiber: number; unit: string; unitGrams: number }[] }>> {
+): Promise<ActionResult<{ items: FoodPickerItem[] }>> {
   return runAction(async () => {
     const scope = await resolveScope();
     const res = await foods.listFoods(scope, { query, category, limit: 30 });
-    const items = (res.items as unknown as { _id: string; nameAr: string; nameEn: string; calories: number; protein: number; carbs: number; fat: number; fiber: number; unit: string; unitGrams?: number }[]).map(
-      (f) => ({ id: String(f._id), nameAr: f.nameAr, nameEn: f.nameEn, calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat, fiber: f.fiber, unit: f.unit, unitGrams: f.unitGrams ?? 100 }),
-    );
+    const items = (
+      res.items as unknown as {
+        _id: string;
+        nameAr: string;
+        nameEn: string;
+        category: string;
+        calories: number;
+        protein: number;
+        carbs: number;
+        fat: number;
+        fiber: number;
+        unit: string;
+        unitGrams?: number;
+        imageUrl?: string;
+      }[]
+    ).map((f) => ({
+      id: String(f._id),
+      nameAr: f.nameAr,
+      nameEn: f.nameEn,
+      category: f.category,
+      calories: f.calories,
+      protein: f.protein,
+      carbs: f.carbs,
+      fat: f.fat,
+      fiber: f.fiber,
+      unit: f.unit,
+      unitGrams: f.unitGrams ?? 100,
+      imageUrl: f.imageUrl,
+    }));
     return ok({ items });
   });
 }

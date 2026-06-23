@@ -25,21 +25,33 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import Image from "next/image";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { MEAL_LABELS, label } from "@/lib/i18n/labels";
+import { MEAL_TYPES } from "@/lib/constants";
 import { searchFoodsAction } from "@/lib/actions/foods";
 import type { ActionResult } from "@/lib/actions/result";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 interface FoodHit {
   id: string;
   nameAr: string;
   nameEn: string;
+  category: string;
   calories: number;
   protein: number;
   carbs: number;
   fat: number;
   fiber: number;
   unitGrams: number;
+  imageUrl?: string;
 }
 interface BItem {
   food?: string | null;
@@ -164,7 +176,12 @@ export function NutritionBuilder({
           <Card key={mi}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="flex items-center gap-2 text-base"><UtensilsCrossed className="h-4 w-4 text-primary" />{label(MEAL_LABELS, meal.type, locale)}</CardTitle>
-              <Button variant="outline" size="sm" onClick={() => setPicker({ m: mi })}><Plus className="h-4 w-4" />{L("طعام", "Food")}</Button>
+              <div className="flex gap-1.5">
+                <Button variant="outline" size="sm" onClick={() => setPicker({ m: mi })}><Plus className="h-4 w-4" />{L("طعام", "Food")}</Button>
+                {meals.length > 1 && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => mut((d) => d.splice(mi, 1))}><Trash2 className="h-4 w-4" /></Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-2">
               {meal.items.length === 0 && <p className="text-sm text-muted-foreground">{L("لا توجد أطعمة.", "No foods yet.")}</p>}
@@ -198,6 +215,7 @@ export function NutritionBuilder({
             </CardContent>
           </Card>
         ))}
+        <AddMealRow onAdd={(type) => mut((d) => { d.push({ type, items: [] }); })} />
       </div>
 
       <FoodPicker
@@ -205,6 +223,23 @@ export function NutritionBuilder({
         onClose={() => setPicker(null)}
         onPick={(food) => { if (!picker) return; if (picker.sub !== undefined) addSub(picker.m, picker.sub, food); else addFood(picker.m, food); }}
       />
+    </div>
+  );
+}
+
+function AddMealRow({ onAdd }: { onAdd: (type: string) => void }) {
+  const { locale } = useI18n();
+  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
+  const [type, setType] = useState<string>(MEAL_TYPES[0]);
+  return (
+    <div className="flex items-center gap-2">
+      <Select value={type} onValueChange={setType}>
+        <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {MEAL_TYPES.map((mt) => <SelectItem key={mt} value={mt}>{label(MEAL_LABELS, mt, locale)}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Button variant="outline" onClick={() => onAdd(type)} className="gap-2"><Plus className="h-4 w-4" />{L("إضافة وجبة", "Add meal")}</Button>
     </div>
   );
 }
@@ -221,19 +256,32 @@ function FoodPicker({
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const [q, setQ] = useState("");
+  const [category, setCategory] = useState("all");
   const [results, setResults] = useState<FoodHit[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const categoryChips = [
+    { value: "all", ar: "الكل", en: "All" },
+    { value: "protein", ar: "بروتينات", en: "Protein" },
+    { value: "carbs", ar: "كربوهيدرات", en: "Carbs" },
+    { value: "healthy_fats", ar: "دهون صحية", en: "Healthy fats" },
+    { value: "vegetables", ar: "خضروات", en: "Vegetables" },
+    { value: "fruits", ar: "فواكه", en: "Fruits" },
+    { value: "drinks", ar: "مشروبات", en: "Drinks" },
+    { value: "dairy", ar: "ألبان", en: "Dairy" },
+    { value: "snacks", ar: "وجبات خفيفة", en: "Snacks" },
+  ];
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     const id = setTimeout(async () => {
-      const res = await searchFoodsAction(q);
+      const res = await searchFoodsAction(q, category);
       if (res.ok) setResults(res.data!.items as FoodHit[]);
       setLoading(false);
     }, 300);
     return () => clearTimeout(id);
-  }, [q, open]);
+  }, [q, category, open]);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -243,6 +291,21 @@ function FoodPicker({
           <Search className="absolute top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground start-3" />
           <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t.dashboard.ui.search} className="ps-9" />
         </div>
+        <div className="flex flex-wrap gap-1.5">
+          {categoryChips.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() => setCategory(c.value)}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                category === c.value ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-accent",
+              )}
+            >
+              {L(c.ar, c.en)}
+            </button>
+          ))}
+        </div>
         <div className="max-h-80 space-y-1 overflow-y-auto scrollbar-thin">
           {loading ? (
             <p className="py-6 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /></p>
@@ -250,9 +313,21 @@ function FoodPicker({
             <p className="py-6 text-center text-sm text-muted-foreground">{t.common.noResults}</p>
           ) : (
             results.map((f) => (
-              <button key={f.id} onClick={() => { onPick(f); onClose(); }} className="flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-start transition-colors hover:bg-accent">
-                <span className="text-sm font-medium">{locale === "ar" ? f.nameAr : f.nameEn}</span>
-                <span className="text-xs text-muted-foreground">{f.calories} {t.client.calories} / {f.unitGrams}g</span>
+              <button key={f.id} onClick={() => { onPick(f); onClose(); }} className="flex w-full items-center gap-3 rounded-md border px-3 py-2 text-start transition-colors hover:bg-accent">
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-muted">
+                  {f.imageUrl ? (
+                    <Image src={f.imageUrl} alt="" fill sizes="40px" className="object-cover" unoptimized />
+                  ) : (
+                    <UtensilsCrossed className="absolute inset-0 m-auto h-4 w-4 text-muted-foreground/40" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{locale === "ar" ? f.nameAr : f.nameEn}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {f.calories} {t.client.calories} · {t.client.protein} {f.protein}g · {t.client.carbs} {f.carbs}g · {t.client.fat} {f.fat}g
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">/{f.unitGrams}g</span>
               </button>
             ))
           )}

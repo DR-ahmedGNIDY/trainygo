@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Image from "next/image";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   Search,
@@ -12,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  ArrowUpDown,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -49,6 +51,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useI18n } from "@/components/providers/i18n-provider";
+import { CloudinaryUpload } from "@/components/media/cloudinary-upload";
 import { FOOD_CATEGORY_LABELS, label } from "@/lib/i18n/labels";
 import { FOOD_CATEGORIES, FOOD_UNITS } from "@/lib/constants";
 import {
@@ -68,8 +71,18 @@ export interface FoodItem {
   carbs: number;
   fat: number;
   fiber: number;
+  imageUrl?: string;
   isSystemFood: boolean;
 }
+
+const SORT_OPTIONS: { value: string; ar: string; en: string }[] = [
+  { value: "", ar: "الترتيب الافتراضي", en: "Default order" },
+  { value: "calories:desc", ar: "السعرات (الأعلى أولاً)", en: "Calories (high to low)" },
+  { value: "calories:asc", ar: "السعرات (الأقل أولاً)", en: "Calories (low to high)" },
+  { value: "protein:desc", ar: "البروتين (الأعلى أولاً)", en: "Protein (high to low)" },
+  { value: "carbs:desc", ar: "الكربوهيدرات (الأعلى أولاً)", en: "Carbs (high to low)" },
+  { value: "fat:desc", ar: "الدهون (الأعلى أولاً)", en: "Fat (high to low)" },
+];
 
 export function FoodLibrary({
   role,
@@ -79,6 +92,7 @@ export function FoodLibrary({
   pages,
   query,
   category,
+  sort,
   canWrite,
 }: {
   role: "super_admin" | "coach";
@@ -88,6 +102,7 @@ export function FoodLibrary({
   pages: number;
   query: string;
   category: string;
+  sort: string;
   canWrite: boolean;
 }) {
   const { t, locale } = useI18n();
@@ -153,6 +168,14 @@ export function FoodLibrary({
             {FOOD_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{label(FOOD_CATEGORY_LABELS, c, locale)}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={sort || "none"} onValueChange={(v) => pushParams({ sort: v === "none" ? undefined : v, page: "1" })}>
+          <SelectTrigger className="sm:w-60"><ArrowUpDown className="h-4 w-4 shrink-0" /><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map((s) => (
+              <SelectItem key={s.value} value={s.value || "none"}>{locale === "ar" ? s.ar : s.en}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {items.length === 0 ? (
@@ -177,8 +200,17 @@ export function FoodLibrary({
                   {items.map((food) => (
                     <TableRow key={food._id}>
                       <TableCell className="font-medium">
-                        {locale === "ar" ? food.nameAr : food.nameEn}
-                        {!food.isSystemFood && <Badge className="ms-2">{locale === "ar" ? "مخصص" : "Custom"}</Badge>}
+                        <div className="flex items-center gap-2.5">
+                          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-muted">
+                            {food.imageUrl ? (
+                              <Image src={food.imageUrl} alt="" fill sizes="36px" className="object-cover" unoptimized />
+                            ) : (
+                              <Apple className="absolute inset-0 m-auto h-4 w-4 text-muted-foreground/40" />
+                            )}
+                          </div>
+                          <span>{locale === "ar" ? food.nameAr : food.nameEn}</span>
+                          {!food.isSystemFood && <Badge className="ms-1">{locale === "ar" ? "مخصص" : "Custom"}</Badge>}
+                        </div>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell"><Badge variant="outline">{label(FOOD_CATEGORY_LABELS, food.category, locale)}</Badge></TableCell>
                       <TableCell className="font-semibold">{food.calories}</TableCell>
@@ -257,6 +289,7 @@ function FoodFormDialog({
       carbs: food?.carbs?.toString() ?? "",
       fat: food?.fat?.toString() ?? "",
       fiber: food?.fiber?.toString() ?? "",
+      imageUrl: food?.imageUrl ?? "",
     };
   }
   const set = (k: keyof ReturnType<typeof init>) => (v: string) => setF((s) => ({ ...s, [k]: v }));
@@ -273,6 +306,7 @@ function FoodFormDialog({
       carbs: f.carbs || 0,
       fat: f.fat || 0,
       fiber: f.fiber || 0,
+      imageUrl: f.imageUrl || undefined,
     };
     const res = editing ? await updateFoodAction(editing._id, payload) : await createFoodAction(payload);
     setSaving(false);
@@ -307,6 +341,13 @@ function FoodFormDialog({
           <div className="space-y-2"><Label>{t.client.carbs} (g)</Label><Input type="number" value={f.carbs} onChange={(e) => set("carbs")(e.target.value)} /></div>
           <div className="space-y-2"><Label>{t.client.fat} (g)</Label><Input type="number" value={f.fat} onChange={(e) => set("fat")(e.target.value)} /></div>
           <div className="space-y-2"><Label>{L("الألياف", "Fiber")} (g)</Label><Input type="number" value={f.fiber} onChange={(e) => set("fiber")(e.target.value)} /></div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>{L("صورة الغذاء (اختياري)", "Food image (optional)")}</Label>
+            <div className="flex gap-2">
+              <Input dir="ltr" value={f.imageUrl} onChange={(e) => set("imageUrl")(e.target.value)} placeholder={L("رابط الصورة", "Image URL")} />
+              <CloudinaryUpload folder="trainygo/foods" iconOnly onUploaded={(url) => set("imageUrl")(url)} />
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>

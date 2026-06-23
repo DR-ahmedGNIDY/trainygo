@@ -18,6 +18,8 @@ export const foodSchema = z.object({
   carbs: num(0),
   fat: num(0),
   fiber: num(0),
+  imageUrl: z.string().url().optional().or(z.literal("")),
+  imagePublicId: z.string().optional().or(z.literal("")),
 });
 
 export type FoodInput = z.input<typeof foodSchema>;

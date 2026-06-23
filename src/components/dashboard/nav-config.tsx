@@ -66,6 +66,7 @@ export function getCoachNav(t: Dictionary): NavSection[] {
         { label: n.foodLibrary, href: "/coach/nutrition/foods", icon: Apple },
         { label: n.nutritionTemplates, href: "/coach/nutrition/templates", icon: Salad },
         { label: n.clientNutritionPlans, href: "/coach/nutrition/plans", icon: NotebookPen },
+        { label: n.nutritionProgress, href: "/coach/nutrition/progress", icon: TrendingUp },
       ],
     },
     {

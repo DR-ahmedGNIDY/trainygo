@@ -53,6 +53,8 @@ export const FOOD_CATEGORIES = [
   "fruits",
   "healthy_fats",
   "drinks",
+  "dairy",
+  "snacks",
   "fast_food",
   "supplements",
 ] as const;

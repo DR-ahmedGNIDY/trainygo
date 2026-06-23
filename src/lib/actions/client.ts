@@ -9,6 +9,7 @@ import { addMeasurement, type MeasurementInput } from "@/lib/services/progress";
 import { logExercise, type LogExerciseInput } from "@/lib/services/workout-logs";
 import { createWorkoutReport } from "@/lib/services/workout-reports";
 import { workoutReportSchema, type WorkoutReportInput } from "@/lib/validations/workout-report";
+import { setMealDone } from "@/lib/services/meal-logs";
 
 export async function submitCheckinAction(
   answers: { key: string; value: string }[],
@@ -73,6 +74,20 @@ export async function logExerciseAction(
     revalidatePath("/client/workout");
     const { bestOneRm } = await import("@/lib/services/workout-logs");
     return ok({ oneRm: bestOneRm(input.sets) });
+  });
+}
+
+export async function setMealDoneAction(
+  planId: string,
+  mealIndex: number,
+  done: boolean,
+): Promise<ActionResult> {
+  return runAction(async () => {
+    const { clientId } = await getClientWriteCtx();
+    await setMealDone(clientId, planId, mealIndex, done);
+    revalidatePath("/client/nutrition");
+    revalidatePath("/coach/nutrition/progress");
+    return ok();
   });
 }
 

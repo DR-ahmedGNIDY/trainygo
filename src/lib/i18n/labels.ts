@@ -47,6 +47,8 @@ export const FOOD_CATEGORY_LABELS: Record<FoodCategory, L> = {
   fruits: { ar: "فواكه", en: "Fruits" },
   healthy_fats: { ar: "دهون صحية", en: "Healthy Fats" },
   drinks: { ar: "مشروبات", en: "Drinks" },
+  dairy: { ar: "منتجات ألبان", en: "Dairy" },
+  snacks: { ar: "وجبات خفيفة", en: "Snacks" },
   fast_food: { ar: "وجبات سريعة", en: "Fast Food" },
   supplements: { ar: "مكملات", en: "Supplements" },
 };

@@ -25,11 +25,15 @@ function visibilityFilter(scope: FoodScope) {
   return { isSystemFood: true };
 }
 
+export type FoodSortBy = "calories" | "protein" | "carbs" | "fat" | "name";
+
 export interface ListOpts {
   query?: string;
   category?: string;
   page?: number;
   limit?: number;
+  sortBy?: FoodSortBy;
+  sortDir?: "asc" | "desc";
 }
 
 export async function listFoods(scope: FoodScope, opts: ListOpts = {}) {
@@ -45,9 +49,15 @@ export async function listFoods(scope: FoodScope, opts: ListOpts = {}) {
   }
   const filter = { $and: and };
 
+  const dir = opts.sortDir === "desc" ? -1 : 1;
+  const sort: Record<string, 1 | -1> =
+    opts.sortBy && opts.sortBy !== "name"
+      ? { [opts.sortBy]: dir }
+      : { isSystemFood: -1, nameEn: 1 };
+
   const [items, total] = await Promise.all([
     Food.find(filter)
-      .sort({ isSystemFood: -1, nameEn: 1 })
+      .sort(sort)
       .skip((page - 1) * limit)
       .limit(limit)
       .lean(),
@@ -68,6 +78,8 @@ export async function createFood(scope: FoodScope, data: FoodData) {
   const isSystem = scope.role === "super_admin";
   const doc = await Food.create({
     ...data,
+    imageUrl: data.imageUrl || undefined,
+    imagePublicId: data.imagePublicId || undefined,
     isSystemFood: isSystem,
     createdByCoach: isSystem ? null : new Types.ObjectId((scope as { coachId: string }).coachId),
   });
