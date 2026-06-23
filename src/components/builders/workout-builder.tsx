@@ -201,19 +201,32 @@ function ExercisePicker({
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const [q, setQ] = useState("");
+  const [category, setCategory] = useState("all");
   const [results, setResults] = useState<ExercisePickerItem[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const muscleFilters: { value: string; ar: string; en: string }[] = [
+    { value: "all", ar: "الكل", en: "All" },
+    { value: "chest", ar: "صدر", en: "Chest" },
+    { value: "back", ar: "ظهر", en: "Back" },
+    { value: "shoulders", ar: "أكتاف", en: "Shoulders" },
+    { value: "biceps", ar: "بايسبس", en: "Biceps" },
+    { value: "triceps", ar: "ترايسبس", en: "Triceps" },
+    { value: "legs", ar: "أرجل", en: "Legs" },
+    { value: "abs", ar: "بطن", en: "Abs" },
+    { value: "cardio", ar: "كارديو", en: "Cardio" },
+  ];
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     const id = setTimeout(async () => {
-      const res = await searchExercisesAction(q);
+      const res = await searchExercisesAction(q, category);
       if (res.ok) setResults(res.data!.items);
       setLoading(false);
     }, 300);
     return () => clearTimeout(id);
-  }, [q, open]);
+  }, [q, category, open]);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -222,6 +235,21 @@ function ExercisePicker({
         <div className="relative">
           <Search className="absolute top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground start-3" />
           <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t.dashboard.ui.search} className="ps-9" />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {muscleFilters.map((m) => (
+            <button
+              key={m.value}
+              type="button"
+              onClick={() => setCategory(m.value)}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                category === m.value ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-accent",
+              )}
+            >
+              {L(m.ar, m.en)}
+            </button>
+          ))}
         </div>
         <div className="max-h-80 space-y-1 overflow-y-auto scrollbar-thin">
           {loading ? (

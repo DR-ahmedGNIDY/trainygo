@@ -7,6 +7,7 @@ import { WorkoutLog } from "@/models/WorkoutLog";
 import { ProgressEntry } from "@/models/ProgressEntry";
 import { CheckinResponse } from "@/models/Checkin";
 import { Conversation, Message } from "@/models/Message";
+import { PasswordResetLog } from "@/models/PasswordResetLog";
 import { hashPassword } from "@/lib/auth/password";
 import { nextClientCode } from "@/lib/codes";
 import { randomString } from "@/lib/utils";
@@ -178,6 +179,40 @@ export async function deleteClient(coachId: string, clientId: string) {
     User.deleteOne({ _id: cid }),
   ]);
   return true;
+}
+
+/**
+ * Coach-initiated password reset: generates a new random password, hashes
+ * and saves it, forces the client to set their own on next login, and logs
+ * the action for audit purposes. Returns the plaintext password — shown to
+ * the coach exactly once, never stored anywhere.
+ */
+export async function resetClientPassword(
+  coachId: string,
+  coachName: string,
+  clientId: string,
+) {
+  await connectToDatabase();
+  const client = await User.findOne({
+    _id: clientId,
+    role: "client",
+    "clientProfile.coach": new Types.ObjectId(coachId),
+  });
+  if (!client) return null;
+
+  const password = randomString(10);
+  client.passwordHash = await hashPassword(password);
+  client.mustChangePassword = true;
+  await client.save();
+
+  await PasswordResetLog.create({
+    coach: new Types.ObjectId(coachId),
+    coachName,
+    client: client._id,
+    clientName: client.name,
+  });
+
+  return { password };
 }
 
 /** Lightweight stats for the coach dashboard. */

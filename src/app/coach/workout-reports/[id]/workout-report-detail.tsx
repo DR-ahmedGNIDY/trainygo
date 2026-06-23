@@ -17,12 +17,15 @@ export interface ReportDetailData {
   durationSeconds: number;
   completedCount: number;
   deferredCount: number;
+  skippedCount: number;
+  programName?: string;
   exercises: {
     nameAr: string;
     nameEn: string;
     targetSets: number;
     targetReps: string;
     wasDeferred: boolean;
+    skipped: boolean;
     sets: { setNumber: number; weight: number; reps: number }[];
   }[];
 }
@@ -51,12 +54,19 @@ export function WorkoutReportDetail({ report }: { report: ReportDetailData }) {
             <span className="font-semibold">{report.client?.name ?? "—"}</span>
             <span className="text-muted-foreground">·</span>
             <span>{locale === "ar" ? report.dayNameAr : report.dayNameEn}</span>
+            {report.programName && (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-muted-foreground">{report.programName}</span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <span dir="ltr">{new Date(report.startedAt).toLocaleString("en-GB")}</span>
             <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{formatDuration(report.durationSeconds)}</span>
             <Badge variant="success">{report.completedCount} {L("مكتمل", "done")}</Badge>
             {report.deferredCount > 0 && <Badge variant="warning">{report.deferredCount} {L("مؤجل", "deferred")}</Badge>}
+            {report.skippedCount > 0 && <Badge variant="destructive">{report.skippedCount} {L("متخطى", "skipped")}</Badge>}
           </div>
         </CardContent>
       </Card>
@@ -68,12 +78,16 @@ export function WorkoutReportDetail({ report }: { report: ReportDetailData }) {
               <CardTitle className="text-base">{locale === "ar" ? ex.nameAr : ex.nameEn}</CardTitle>
               <div className="flex items-center gap-2">
                 <Badge variant="outline">{ex.targetSets} × {ex.targetReps}</Badge>
-                {ex.wasDeferred && <Badge variant="warning">{L("تم تأجيله", "Was deferred")}</Badge>}
+                {ex.skipped ? (
+                  <Badge variant="destructive">{L("تم التخطي", "Skipped")}</Badge>
+                ) : ex.wasDeferred ? (
+                  <Badge variant="warning">{L("تم تأجيله", "Was deferred")}</Badge>
+                ) : null}
               </div>
             </CardHeader>
             <CardContent>
               {ex.sets.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{L("لم يتم تسجيل مجموعات", "No sets logged")}</p>
+                <p className="text-sm text-muted-foreground">{ex.skipped ? L("تم تخطي هذا التمرين", "This exercise was skipped") : L("لم يتم تسجيل مجموعات", "No sets logged")}</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {ex.sets.map((s) => (

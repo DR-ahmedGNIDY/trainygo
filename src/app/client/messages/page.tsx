@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/auth/session";
 import { getClientConversation, getMessages, markRead } from "@/lib/services/messages";
+import { getClientAccessState } from "@/lib/services/subscription";
 import { User } from "@/models/User";
 import { RealChatView, type ChatMessage } from "@/components/messaging/real-chat-view";
 
@@ -11,10 +12,13 @@ const hhmm = (d: string | Date) =>
 export default async function ClientMessagesPage() {
   const session = await requireRole("client");
   const clientId = session.user.id;
-  const convo = await getClientConversation(clientId);
+  const [convo, access] = await Promise.all([
+    getClientConversation(clientId),
+    getClientAccessState(clientId),
+  ]);
 
   if (!convo) {
-    return <RealChatView role="client" activeId={null} peerName="" messages={[]} />;
+    return <RealChatView role="client" activeId={null} peerName="" messages={[]} frozenReason={access.frozenReason} />;
   }
 
   const coach = await User.findById(convo.coach).select("name").lean();
@@ -30,5 +34,13 @@ export default async function ClientMessagesPage() {
     time: hhmm(m.createdAt),
   }));
 
-  return <RealChatView role="client" activeId={String(convo._id)} peerName={peerName} messages={messages} />;
+  return (
+    <RealChatView
+      role="client"
+      activeId={String(convo._id)}
+      peerName={peerName}
+      messages={messages}
+      frozenReason={access.frozenReason}
+    />
+  );
 }

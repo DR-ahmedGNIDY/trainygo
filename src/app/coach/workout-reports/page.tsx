@@ -18,6 +18,7 @@ export default async function WorkoutReportsPage() {
       durationSeconds: number;
       completedCount: number;
       deferredCount: number;
+      skippedCount: number;
     }[]
   ).map((r) => ({
     id: r._id,
@@ -28,6 +29,7 @@ export default async function WorkoutReportsPage() {
     durationSeconds: r.durationSeconds,
     completedCount: r.completedCount,
     deferredCount: r.deferredCount,
+    skippedCount: r.skippedCount,
   }));
 
   return <WorkoutReportsView rows={rows} />;

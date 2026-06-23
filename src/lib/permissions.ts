@@ -27,6 +27,41 @@ export function coachIsReadOnly(status: AccountStatus): boolean {
   return status === "expired";
 }
 
+/**
+ * True when a coach's trial/subscription has lapsed (expired or suspended) —
+ * the condition under which their clients are frozen, regardless of whether
+ * the coach themself can still log in.
+ */
+export function coachIsFrozen(status: AccountStatus): boolean {
+  return !coachCanWrite(status);
+}
+
+/**
+ * Derives the real-time account status from stored dates, so a "trial" or
+ * "active" coach whose period has lapsed is treated as "expired" even before
+ * any admin/cron job updates the stored `status` field. Suspended stays
+ * suspended (admin-driven, not date-driven).
+ */
+export function computeEffectiveCoachStatus(
+  status: AccountStatus,
+  trialEndDate?: Date | null,
+  subscriptionEndDate?: Date | null,
+): AccountStatus {
+  if (status === "suspended") return status;
+  const now = Date.now();
+  if (status === "trial" && trialEndDate && trialEndDate.getTime() < now) {
+    return "expired";
+  }
+  if (
+    status === "active" &&
+    subscriptionEndDate &&
+    subscriptionEndDate.getTime() < now
+  ) {
+    return "expired";
+  }
+  return status;
+}
+
 /** Error thrown when a write is attempted without permission. */
 export class PermissionError extends Error {
   code: string;

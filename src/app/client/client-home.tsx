@@ -8,6 +8,8 @@ import { LineTrend } from "@/components/dashboard/charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/components/providers/i18n-provider";
+import { FrozenBanner, SubscriptionCountdownBanner } from "@/components/client/access-banners";
+import type { ClientAccessState } from "@/lib/services/subscription";
 
 interface HomeData {
   currentWeight: number | null;
@@ -19,13 +21,19 @@ interface HomeData {
   weightSeries: { label: string; value: number }[];
 }
 
-export function ClientHome({ data }: { data: HomeData }) {
+export function ClientHome({ data, access }: { data: HomeData; access: ClientAccessState }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
 
   return (
     <div>
       <PageHeader title={t.dashboard.clientNav.home} description={t.dashboard.overview} />
+
+      {access.frozen ? (
+        <FrozenBanner reason={access.frozenReason!} />
+      ) : (
+        access.daysRemaining != null && <SubscriptionCountdownBanner daysRemaining={access.daysRemaining} />
+      )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label={t.client.currentWeight} value={data.currentWeight != null ? `${data.currentWeight} kg` : "—"} icon={Scale} accent="success" />
@@ -38,11 +46,17 @@ export function ClientHome({ data }: { data: HomeData }) {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base"><Dumbbell className="h-4 w-4 text-primary" />{t.client.todayWorkout}</CardTitle>
-            <Button asChild size="sm">
-              <Link href={data.todayWorkout ? "/client/workout?autostart=1" : "/client/workout"}>
+            {access.frozen ? (
+              <Button size="sm" disabled>
                 {data.todayWorkout ? L("ابدأ الآن", "Start now") : t.client.logWeights}
-              </Link>
-            </Button>
+              </Button>
+            ) : (
+              <Button asChild size="sm">
+                <Link href={data.todayWorkout ? "/client/workout?autostart=1" : "/client/workout"}>
+                  {data.todayWorkout ? L("ابدأ الآن", "Start now") : t.client.logWeights}
+                </Link>
+              </Button>
+            )}
           </CardHeader>
           <CardContent className="space-y-1">
             {!data.todayWorkout ? (

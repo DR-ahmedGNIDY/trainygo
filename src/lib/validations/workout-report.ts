@@ -14,10 +14,12 @@ const reportExerciseSchema = z.object({
   targetReps: z.string(),
   sets: z.array(reportSetSchema),
   wasDeferred: z.boolean().default(false),
+  skipped: z.boolean().default(false),
 });
 
 export const workoutReportSchema = z.object({
   programId: z.string().optional(),
+  programName: z.string().optional().default(""),
   weekNumber: z.number().int().optional(),
   dayNumber: z.number().int().optional(),
   dayNameAr: z.string().optional().default(""),

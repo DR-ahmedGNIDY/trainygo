@@ -17,6 +17,8 @@ import {
 import { useI18n } from "@/components/providers/i18n-provider";
 import { ExerciseMedia } from "@/components/library/exercise-media";
 import { WorkoutSession, type SessionExerciseSource } from "@/components/client/workout-session";
+import { FrozenBanner } from "@/components/client/access-banners";
+import type { ClientAccessState } from "@/lib/services/subscription";
 
 type Ex = SessionExerciseSource;
 interface Day { dayNumber: number; name: { ar: string; en: string }; exercises: Ex[] }
@@ -24,8 +26,10 @@ interface Week { weekNumber: number; days: Day[] }
 
 export function WorkoutExecution({
   program,
+  access,
 }: {
   program: { id: string; name: string; weeks: Week[] } | null;
+  access: ClientAccessState;
 }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
@@ -36,7 +40,7 @@ export function WorkoutExecution({
   const [sessionActive, setSessionActive] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get("autostart") === "1") setSessionActive(true);
+    if (!access.frozen && searchParams.get("autostart") === "1") setSessionActive(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -57,11 +61,12 @@ export function WorkoutExecution({
   const week = weeks[wi];
   const day = week?.days[di];
 
-  if (sessionActive && day) {
+  if (sessionActive && day && !access.frozen) {
     return (
       <WorkoutSession
         exercises={day.exercises}
         programId={programId}
+        programName={programName}
         weekNumber={week.weekNumber}
         dayNumber={day.dayNumber}
         dayNameAr={day.name.ar}
@@ -87,11 +92,13 @@ export function WorkoutExecution({
         </div>
       </PageHeader>
 
+      {access.frozen && <FrozenBanner reason={access.frozenReason!} />}
+
       {!day || day.exercises.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">{t.client.noWorkoutToday}</CardContent></Card>
       ) : (
         <div className="space-y-4">
-          <Button size="lg" className="w-full gap-2 sm:w-auto" onClick={() => setSessionActive(true)}>
+          <Button size="lg" className="w-full gap-2 sm:w-auto" onClick={() => setSessionActive(true)} disabled={access.frozen}>
             <Play className="h-4 w-4" />{L("ابدأ الآن", "Start now")}
           </Button>
 

@@ -85,6 +85,7 @@ export const NOTIFICATION_TYPES = [
   "new_program",
   "new_nutrition_plan",
   "subscription_activated",
+  "workout_report",
   "system",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

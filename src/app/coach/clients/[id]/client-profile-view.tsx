@@ -15,6 +15,9 @@ import {
   Camera,
   Loader2,
   MessageSquare,
+  KeyRound,
+  Copy,
+  Check,
 } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -42,7 +45,7 @@ import {
 } from "@/components/ui/select";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { GOAL_LABELS, label } from "@/lib/i18n/labels";
-import { updateClientAction, deleteClientAction } from "@/lib/actions/clients";
+import { updateClientAction, deleteClientAction, resetClientPasswordAction } from "@/lib/actions/clients";
 import { startConversationAction } from "@/lib/actions/messages";
 import type { AccountStatus, ClientGoal, Gender } from "@/lib/constants";
 
@@ -88,6 +91,7 @@ export function ClientProfileView({
   const router = useRouter();
   const BackArrow = dir === "rtl" ? ArrowRight : ArrowLeft;
   const [editOpen, setEditOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const latest = history[history.length - 1];
@@ -161,6 +165,10 @@ export function ClientProfileView({
                 <Button variant="outline" onClick={() => setEditOpen(true)}>
                   <Pencil className="h-4 w-4" />
                   {t.common.edit}
+                </Button>
+                <Button variant="outline" onClick={() => setResetOpen(true)}>
+                  <KeyRound className="h-4 w-4" />
+                  {L("إعادة تعيين كلمة المرور", "Reset password")}
                 </Button>
                 <Button variant="outline" className="text-destructive hover:text-destructive" onClick={onDelete} disabled={isPending}>
                   {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
@@ -248,14 +256,99 @@ export function ClientProfileView({
       </Tabs>
 
       {canWrite && (
-        <EditClientDialog
-          open={editOpen}
-          onOpenChange={setEditOpen}
-          client={client}
-          onSaved={() => { setEditOpen(false); router.refresh(); }}
-        />
+        <>
+          <EditClientDialog
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            client={client}
+            onSaved={() => { setEditOpen(false); router.refresh(); }}
+          />
+          <ResetPasswordDialog
+            open={resetOpen}
+            onOpenChange={setResetOpen}
+            clientId={client.id}
+          />
+        </>
       )}
     </div>
+  );
+}
+
+function ResetPasswordDialog({
+  open,
+  onOpenChange,
+  clientId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  clientId: string;
+}) {
+  const { t, locale } = useI18n();
+  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
+  const [saving, setSaving] = useState(false);
+  const [password, setPassword] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  function close(v: boolean) {
+    onOpenChange(v);
+    if (!v) {
+      setPassword(null);
+      setCopied(false);
+    }
+  }
+
+  async function generate() {
+    setSaving(true);
+    const res = await resetClientPasswordAction(clientId);
+    setSaving(false);
+    if (res.ok) setPassword(res.data!.password);
+  }
+
+  function copy() {
+    if (!password) return;
+    navigator.clipboard.writeText(password);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={close}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{L("إعادة تعيين كلمة المرور", "Reset password")}</DialogTitle>
+        </DialogHeader>
+        {!password ? (
+          <p className="text-sm text-muted-foreground">
+            {L(
+              "سيتم إنشاء كلمة مرور جديدة وآمنة لهذا العميل. سيُطلب منه تعيين كلمة مرور خاصة به عند أول تسجيل دخول.",
+              "A new secure password will be generated for this client. They'll be required to set their own on first login.",
+            )}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <Label>{L("كلمة المرور الجديدة", "New password")}</Label>
+            <div className="flex gap-2">
+              <Input dir="ltr" readOnly value={password} className="font-mono" />
+              <Button type="button" variant="outline" size="icon" onClick={copy}>
+                {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {L("شارك هذه الكلمة مع العميل بالطريقة التي تراها مناسبة. لن تظهر مرة أخرى.", "Share this with the client however you prefer. It won't be shown again.")}
+            </p>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => close(false)}>{password ? t.common.close : t.common.cancel}</Button>
+          {!password && (
+            <Button onClick={generate} disabled={saving}>
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {L("إنشاء كلمة مرور جديدة", "Generate new password")}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

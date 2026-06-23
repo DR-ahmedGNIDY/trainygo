@@ -6,6 +6,7 @@ import { User } from "@/models/User";
 import { comparePassword } from "./password";
 import { accountCanLogin } from "@/lib/permissions";
 import { loginSchema } from "@/lib/validations/auth";
+import { syncCoachStatus } from "@/lib/services/subscription";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -37,13 +38,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         user.lastLoginAt = new Date();
         await user.save().catch(() => {});
 
+        // Coaches: lapsed trial/subscription dates flip status to "expired" here.
+        const effectiveStatus =
+          user.role === "coach"
+            ? await syncCoachStatus(user._id.toString()).catch(() => user.status)
+            : user.status;
+
         return {
           id: user._id.toString(),
           name: user.name,
           email: user.email ?? undefined,
           username: user.username,
           role: user.role,
-          status: user.status,
+          status: effectiveStatus,
           locale: user.locale,
           mustChangePassword: user.mustChangePassword,
         };

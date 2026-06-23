@@ -15,6 +15,7 @@ import { MessageSquare } from "lucide-react";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { sendMessageAction } from "@/lib/actions/messages";
 import { CloudinaryUpload } from "@/components/media/cloudinary-upload";
+import { FrozenBanner } from "@/components/client/access-banners";
 import { cn } from "@/lib/utils";
 
 export interface ChatThread {
@@ -38,12 +39,15 @@ export function RealChatView({
   activeId,
   peerName,
   messages,
+  frozenReason,
 }: {
   role: "coach" | "client";
   threads?: ChatThread[];
   activeId?: string | null;
   peerName: string;
   messages: ChatMessage[];
+  /** When set, the client cannot send messages (their or their coach's subscription lapsed). */
+  frozenReason?: "coach" | "self" | null;
 }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
@@ -134,23 +138,29 @@ export function RealChatView({
           )}
         </div>
 
-        <div className="flex items-center gap-2 border-t p-3">
-          <CloudinaryUpload
-            folder="trainygo/messages"
-            onUploaded={(url, publicId) => send({ attachments: [{ url, publicId, type: "image" }] })}
-            iconOnly
-          />
-          <Input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder={L("اكتب رسالة...", "Type a message...")}
-            disabled={!activeId}
-          />
-          <Button size="icon" onClick={() => send()} disabled={!activeId || isPending} aria-label="Send">
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </div>
+        {frozenReason ? (
+          <div className="border-t p-3">
+            <FrozenBanner reason={frozenReason} />
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 border-t p-3">
+            <CloudinaryUpload
+              folder="trainygo/messages"
+              onUploaded={(url, publicId) => send({ attachments: [{ url, publicId, type: "image" }] })}
+              iconOnly
+            />
+            <Input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && send()}
+              placeholder={L("اكتب رسالة...", "Type a message...")}
+              disabled={!activeId}
+            />
+            <Button size="icon" onClick={() => send()} disabled={!activeId || isPending} aria-label="Send">
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
+        )}
       </div>
     </Card>
   );

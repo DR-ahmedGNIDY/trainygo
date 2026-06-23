@@ -1,14 +1,61 @@
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/lib/db";
 import { WorkoutReport } from "@/models/WorkoutReport";
+import { User } from "@/models/User";
 import { serialize } from "@/lib/serialize";
 import { logExercise } from "@/lib/services/workout-logs";
+import { createNotification } from "@/lib/services/notifications";
 import type { WorkoutReportData } from "@/lib/validations/workout-report";
 
+function formatDuration(totalSeconds: number) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+/** Builds a wa.me deep link with a prefilled summary, or null if the coach has no WhatsApp number on file. */
+function buildWhatsAppLink(
+  whatsappNumber: string | undefined,
+  params: {
+    clientName: string;
+    programName: string;
+    dayName: string;
+    date: Date;
+    durationSeconds: number;
+    completedCount: number;
+    deferredCount: number;
+    skippedCount: number;
+    exercises: { nameAr: string; sets: { weight: number; reps: number }[]; skipped: boolean }[];
+  },
+): string | null {
+  if (!whatsappNumber) return null;
+  const digits = whatsappNumber.replace(/[^\d]/g, "");
+  if (!digits) return null;
+
+  const setsSummary = params.exercises
+    .filter((e) => !e.skipped && e.sets.length > 0)
+    .map((e) => `${e.nameAr}: ${e.sets.map((s) => `${s.weight}kg×${s.reps}`).join(", ")}`)
+    .join("\n");
+
+  const text = [
+    `تقرير جلسة تمرين — ${params.clientName}`,
+    params.programName ? `البرنامج: ${params.programName}` : "",
+    `اليوم: ${params.dayName}`,
+    `التاريخ: ${params.date.toLocaleDateString("en-GB")}`,
+    `مدة الجلسة: ${formatDuration(params.durationSeconds)}`,
+    `مكتمل: ${params.completedCount} · مؤجل: ${params.deferredCount} · متخطى: ${params.skippedCount}`,
+    setsSummary ? `\nالتفاصيل:\n${setsSummary}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+}
+
 /**
- * Persist a finished workout session as a coach-visible report, and also
- * write one WorkoutLog per completed exercise so existing PR/history
- * tracking keeps working unchanged.
+ * Persist a finished workout session as a coach-visible report, write one
+ * WorkoutLog per completed exercise (existing PR/history tracking), notify
+ * the coach in-app, and return a ready-to-send WhatsApp deep link.
  */
 export async function createWorkoutReport(
   clientId: string,
@@ -29,30 +76,38 @@ export async function createWorkoutReport(
     targetReps: ex.targetReps,
     sets: ex.sets,
     wasDeferred: ex.wasDeferred,
+    skipped: ex.skipped,
   }));
 
-  const completedCount = exercises.filter((e) => e.sets.length > 0).length;
-  const deferredCount = exercises.filter((e) => e.wasDeferred).length;
+  const skippedCount = exercises.filter((e) => e.skipped).length;
+  const completedCount = exercises.filter((e) => !e.skipped).length;
+  const deferredCount = exercises.filter((e) => e.wasDeferred && !e.skipped).length;
 
-  const doc = await WorkoutReport.create({
-    client: new Types.ObjectId(clientId),
-    coach: new Types.ObjectId(coachId),
-    program: data.programId ? new Types.ObjectId(data.programId) : null,
-    weekNumber: data.weekNumber,
-    dayNumber: data.dayNumber,
-    dayNameAr: data.dayNameAr,
-    dayNameEn: data.dayNameEn,
-    startedAt,
-    endedAt,
-    durationSeconds,
-    exercises,
-    completedCount,
-    deferredCount,
-  });
+  const [doc, client, coach] = await Promise.all([
+    WorkoutReport.create({
+      client: new Types.ObjectId(clientId),
+      coach: new Types.ObjectId(coachId),
+      program: data.programId ? new Types.ObjectId(data.programId) : null,
+      programName: data.programName,
+      weekNumber: data.weekNumber,
+      dayNumber: data.dayNumber,
+      dayNameAr: data.dayNameAr,
+      dayNameEn: data.dayNameEn,
+      startedAt,
+      endedAt,
+      durationSeconds,
+      exercises,
+      completedCount,
+      deferredCount,
+      skippedCount,
+    }),
+    User.findById(clientId).select("name").lean(),
+    User.findById(coachId).select("coachProfile.whatsappNumber").lean(),
+  ]);
 
-  await Promise.all(
-    data.exercises
-      .filter((ex) => ex.sets.length > 0)
+  await Promise.all([
+    ...data.exercises
+      .filter((ex) => !ex.skipped && ex.sets.length > 0)
       .map((ex) =>
         logExercise(clientId, coachId, {
           exerciseId: ex.exerciseId,
@@ -66,9 +121,28 @@ export async function createWorkoutReport(
           date: endedAt,
         }),
       ),
-  );
+    createNotification({
+      recipient: coachId,
+      type: "workout_report",
+      titleAr: `تقرير تمرين جديد: ${client?.name ?? ""}`,
+      titleEn: `New workout report: ${client?.name ?? ""}`,
+      link: `/coach/workout-reports/${doc._id.toString()}`,
+    }),
+  ]);
 
-  return { id: doc._id.toString() };
+  const whatsappLink = buildWhatsAppLink(coach?.coachProfile?.whatsappNumber, {
+    clientName: client?.name ?? "",
+    programName: data.programName ?? "",
+    dayName: data.dayNameAr,
+    date: endedAt,
+    durationSeconds,
+    completedCount,
+    deferredCount,
+    skippedCount,
+    exercises: exercises.map((e) => ({ nameAr: e.nameAr, sets: e.sets, skipped: e.skipped })),
+  });
+
+  return { id: doc._id.toString(), whatsappLink };
 }
 
 export async function listReportsForCoach(coachId: string, limit = 50) {

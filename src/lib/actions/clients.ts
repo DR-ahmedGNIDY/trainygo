@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { auth } from "@/lib/auth";
 import { getCoachWriteCtx } from "./guards";
 import { runAction, ok, fail, type ActionResult } from "./result";
 import {
@@ -48,6 +49,19 @@ export async function archiveClientAction(clientId: string): Promise<ActionResul
     await clients.archiveClient(coachId, clientId);
     revalidatePath("/coach/clients");
     return ok();
+  });
+}
+
+export async function resetClientPasswordAction(
+  clientId: string,
+): Promise<ActionResult<{ password: string }>> {
+  return runAction(async () => {
+    const { coachId } = await getCoachWriteCtx();
+    const session = await auth();
+    const coachName = session?.user?.name ?? session?.user?.username ?? "Coach";
+    const res = await clients.resetClientPassword(coachId, coachName, clientId);
+    if (!res) return fail("غير موجود", "NOT_FOUND");
+    return ok(res);
   });
 }
 

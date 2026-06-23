@@ -10,6 +10,7 @@ import {
   CreditCard,
   Dumbbell,
   Apple,
+  FileText,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
@@ -42,6 +43,7 @@ const ICONS: Partial<Record<NotificationType, typeof Bell>> = {
   subscription_activated: CreditCard,
   new_program: Dumbbell,
   new_nutrition_plan: Apple,
+  workout_report: FileText,
 };
 
 export function NotificationsMenu({

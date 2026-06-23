@@ -17,6 +17,8 @@ export interface IReportExercise {
   sets: IReportSet[];
   /** Exercise was pushed to the end of the session at least once. */
   wasDeferred: boolean;
+  /** Exercise was skipped outright — never performed this session. */
+  skipped: boolean;
 }
 
 /**
@@ -30,6 +32,7 @@ export interface IWorkoutReport {
   client: Types.ObjectId;
   coach: Types.ObjectId;
   program?: Types.ObjectId | null;
+  programName?: string;
   weekNumber?: number;
   dayNumber?: number;
   dayNameAr: string;
@@ -40,6 +43,7 @@ export interface IWorkoutReport {
   exercises: IReportExercise[];
   completedCount: number;
   deferredCount: number;
+  skippedCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,6 +66,7 @@ const ReportExerciseSchema = new Schema<IReportExercise>(
     targetReps: { type: String, default: "" },
     sets: { type: [ReportSetSchema], default: [] },
     wasDeferred: { type: Boolean, default: false },
+    skipped: { type: Boolean, default: false },
   },
   { _id: false },
 );
@@ -71,6 +76,7 @@ const WorkoutReportSchema = new Schema<IWorkoutReport>(
     client: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     coach: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     program: { type: Schema.Types.ObjectId, ref: "ClientProgram", default: null },
+    programName: { type: String, default: "" },
     weekNumber: { type: Number },
     dayNumber: { type: Number },
     dayNameAr: { type: String, default: "" },
@@ -81,6 +87,7 @@ const WorkoutReportSchema = new Schema<IWorkoutReport>(
     exercises: { type: [ReportExerciseSchema], default: [] },
     completedCount: { type: Number, default: 0 },
     deferredCount: { type: Number, default: 0 },
+    skippedCount: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

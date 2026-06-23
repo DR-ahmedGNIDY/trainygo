@@ -7,6 +7,7 @@ import {
   Loader2,
   Plus,
   SkipForward,
+  XCircle,
   Timer as TimerIcon,
   Undo2,
   Youtube,
@@ -37,6 +38,7 @@ interface SessionExercise extends SessionExerciseSource {
   key: string;
   loggedSets: { weight: string; reps: string }[];
   wasDeferred: boolean;
+  skipped: boolean;
 }
 
 type Phase = "exercise" | "rest" | "summary";
@@ -50,6 +52,7 @@ function formatDuration(totalSeconds: number) {
 export function WorkoutSession({
   exercises,
   programId,
+  programName,
   weekNumber,
   dayNumber,
   dayNameAr,
@@ -59,6 +62,7 @@ export function WorkoutSession({
 }: {
   exercises: SessionExerciseSource[];
   programId: string;
+  programName: string;
   weekNumber: number;
   dayNumber: number;
   dayNameAr: string;
@@ -76,6 +80,7 @@ export function WorkoutSession({
         key: `${i}-${ex.nameEn}`,
         loggedSets: Array.from({ length: ex.sets }).map(() => ({ weight: "", reps: "" })),
         wasDeferred: false,
+        skipped: false,
       })),
     [exercises],
   );
@@ -90,6 +95,7 @@ export function WorkoutSession({
   const [elapsed, setElapsed] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [whatsappLink, setWhatsappLink] = useState<string | null>(null);
 
   const current = queue[0];
 
@@ -111,6 +117,18 @@ export function WorkoutSession({
     return () => clearTimeout(id);
   }, [phase, restRemaining]);
 
+  function finishOrRest(finished: SessionExercise, rest: SessionExercise[]) {
+    setDone((d) => [...d, finished]);
+    setQueue(rest);
+    if (rest.length === 0) {
+      setEndedAt(new Date());
+      setPhase("summary");
+    } else {
+      setRestRemaining(finished.restSeconds || 60);
+      setPhase("rest");
+    }
+  }
+
   function updateSet(i: number, field: "weight" | "reps", value: string) {
     setQueue((q) => {
       const next = [...q];
@@ -122,17 +140,20 @@ export function WorkoutSession({
 
   function completeCurrent() {
     if (!current) return;
-    const finished = current;
+    finishOrRest(current, queue.slice(1));
+  }
+
+  function skipCurrent() {
+    if (!current) return;
+    const skipped: SessionExercise = { ...current, skipped: true, loggedSets: current.loggedSets.map(() => ({ weight: "", reps: "" })) };
     const rest = queue.slice(1);
-    setDone((d) => [...d, finished]);
+    setDone((d) => [...d, skipped]);
     setQueue(rest);
     if (rest.length === 0) {
       setEndedAt(new Date());
       setPhase("summary");
-    } else {
-      setRestRemaining(finished.restSeconds || 60);
-      setPhase("rest");
     }
+    // No rest screen after a skip — move straight to the next exercise.
   }
 
   function deferCurrent() {
@@ -151,7 +172,7 @@ export function WorkoutSession({
     if (done.length === 0) return;
     const last = done[done.length - 1];
     setDone((d) => d.slice(0, -1));
-    setQueue((q) => [last, ...q]);
+    setQueue((q) => [{ ...last, skipped: false }, ...q]);
     setPhase("exercise");
   }
 
@@ -169,6 +190,7 @@ export function WorkoutSession({
     const finalEndedAt = endedAt ?? new Date();
     const res = await submitWorkoutReportAction({
       programId,
+      programName,
       weekNumber,
       dayNumber,
       dayNameAr,
@@ -182,20 +204,26 @@ export function WorkoutSession({
         targetSets: ex.sets,
         targetReps: ex.reps,
         wasDeferred: ex.wasDeferred,
-        sets: ex.loggedSets
-          .map((s, i) => ({ setNumber: i + 1, weight: Number(s.weight) || 0, reps: Number(s.reps) || 0 }))
-          .filter((s) => s.weight > 0 || s.reps > 0),
+        skipped: ex.skipped,
+        sets: ex.skipped
+          ? []
+          : ex.loggedSets
+              .map((s, i) => ({ setNumber: i + 1, weight: Number(s.weight) || 0, reps: Number(s.reps) || 0 }))
+              .filter((s) => s.weight > 0 || s.reps > 0),
       })),
     });
     setSubmitting(false);
     if (res.ok) {
       setSubmitted(true);
+      setWhatsappLink(res.data!.whatsappLink);
       onSubmitted();
+      if (res.data!.whatsappLink) window.open(res.data!.whatsappLink, "_blank");
     }
   }
 
-  const completedCount = done.length;
-  const deferredCount = done.filter((e) => e.wasDeferred).length;
+  const completedCount = done.filter((e) => !e.skipped).length;
+  const deferredCount = done.filter((e) => e.wasDeferred && !e.skipped).length;
+  const skippedCount = done.filter((e) => e.skipped).length;
   const sessionSeconds = endedAt ? Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000) : elapsed;
 
   // ---- Summary screen ----
@@ -206,13 +234,14 @@ export function WorkoutSession({
           <div className="mb-6 text-center">
             <CheckCircle2 className="mx-auto mb-3 h-14 w-14 text-success" />
             <h2 className="text-xl font-bold">{L("اكتملت الجلسة!", "Session complete!")}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{L(dayNameAr, dayNameEn)}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{programName} · {L(dayNameAr, dayNameEn)}</p>
           </div>
 
-          <div className="mb-4 grid grid-cols-3 gap-3 text-center">
-            <Card><CardContent className="p-3"><p className="text-lg font-bold">{formatDuration(sessionSeconds)}</p><p className="text-xs text-muted-foreground">{L("المدة", "Duration")}</p></CardContent></Card>
-            <Card><CardContent className="p-3"><p className="text-lg font-bold text-success">{completedCount}</p><p className="text-xs text-muted-foreground">{L("مكتمل", "Completed")}</p></CardContent></Card>
-            <Card><CardContent className="p-3"><p className="text-lg font-bold text-warning">{deferredCount}</p><p className="text-xs text-muted-foreground">{L("مؤجل", "Deferred")}</p></CardContent></Card>
+          <div className="mb-4 grid grid-cols-4 gap-2 text-center">
+            <Card><CardContent className="p-3"><p className="text-base font-bold">{formatDuration(sessionSeconds)}</p><p className="text-xs text-muted-foreground">{L("المدة", "Duration")}</p></CardContent></Card>
+            <Card><CardContent className="p-3"><p className="text-base font-bold text-success">{completedCount}</p><p className="text-xs text-muted-foreground">{L("مكتمل", "Completed")}</p></CardContent></Card>
+            <Card><CardContent className="p-3"><p className="text-base font-bold text-warning">{deferredCount}</p><p className="text-xs text-muted-foreground">{L("مؤجل", "Deferred")}</p></CardContent></Card>
+            <Card><CardContent className="p-3"><p className="text-base font-bold text-destructive">{skippedCount}</p><p className="text-xs text-muted-foreground">{L("متخطى", "Skipped")}</p></CardContent></Card>
           </div>
 
           <div className="space-y-2">
@@ -221,15 +250,21 @@ export function WorkoutSession({
                 <CardContent className="p-3">
                   <div className="mb-1.5 flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold">{locale === "ar" ? ex.nameAr : ex.nameEn}</p>
-                    {ex.wasDeferred && <Badge variant="warning">{L("تم تأجيله", "Was deferred")}</Badge>}
+                    {ex.skipped ? (
+                      <Badge variant="destructive">{L("تم التخطي", "Skipped")}</Badge>
+                    ) : ex.wasDeferred ? (
+                      <Badge variant="warning">{L("تم تأجيله", "Was deferred")}</Badge>
+                    ) : null}
                   </div>
-                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    {ex.loggedSets.map((s, si) => (
-                      <span key={si} className="rounded-md bg-muted px-2 py-1">
-                        {L("مجموعة", "Set")} {si + 1}: {s.weight || 0}{L("كجم", "kg")} × {s.reps || 0}
-                      </span>
-                    ))}
-                  </div>
+                  {!ex.skipped && (
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      {ex.loggedSets.map((s, si) => (
+                        <span key={si} className="rounded-md bg-muted px-2 py-1">
+                          {L("مجموعة", "Set")} {si + 1}: {s.weight || 0}{L("كجم", "kg")} × {s.reps || 0}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -242,6 +277,11 @@ export function WorkoutSession({
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               {submitted ? L("تم الإرسال للمدرب", "Sent to coach") : L("إنهاء وإرسال للمدرب", "Finish & send to coach")}
             </Button>
+            {submitted && whatsappLink && (
+              <Button variant="outline" className="mt-2 w-full gap-2" onClick={() => window.open(whatsappLink, "_blank")}>
+                {L("فتح واتساب لإرسال الملخص", "Open WhatsApp to send summary")}
+              </Button>
+            )}
             {submitted && (
               <Button variant="outline" className="mt-2 w-full" onClick={onExit}>{L("العودة", "Back")}</Button>
             )}
@@ -280,6 +320,10 @@ export function WorkoutSession({
   // ---- Exercise screen ----
   if (!current) return null;
   const index = done.length + 1;
+  const firstOpenSetIndex = (() => {
+    const idx = current.loggedSets.findIndex((s) => !s.weight && !s.reps);
+    return idx === -1 ? current.loggedSets.length - 1 : idx;
+  })();
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background">
@@ -289,6 +333,9 @@ export function WorkoutSession({
           <Clock className="h-4 w-4" />{formatDuration(elapsed)}
         </div>
         <span className="text-sm font-semibold tabular-nums">{index} / {total}</span>
+      </div>
+      <div className="border-b bg-muted/30 px-4 py-1.5 text-center text-xs text-muted-foreground">
+        {programName} · {L(dayNameAr, dayNameEn)}
       </div>
 
       <div className="mx-auto w-full max-w-lg flex-1 p-4 pb-28">
@@ -308,6 +355,9 @@ export function WorkoutSession({
           {current.restSeconds ? <Badge variant="outline">{current.restSeconds}{L("ث راحة", "s rest")}</Badge> : null}
           {current.youtubeUrl && !current.videoUrl && <Youtube className="h-4 w-4 text-destructive" />}
         </div>
+        <p className="mt-2 text-sm font-medium text-primary">
+          {L(`المجموعة ${firstOpenSetIndex + 1} من ${current.loggedSets.length}`, `Set ${firstOpenSetIndex + 1} of ${current.loggedSets.length}`)}
+        </p>
 
         <div className="mt-5 space-y-2">
           <div className="grid grid-cols-[2.5rem_1fr_1fr] gap-2 px-1 text-xs font-medium text-muted-foreground">
@@ -324,10 +374,13 @@ export function WorkoutSession({
       </div>
 
       <div className="fixed inset-x-0 bottom-0 border-t bg-background p-4">
-        <div className="mx-auto grid max-w-lg grid-cols-3 gap-2">
-          <Button variant="outline" onClick={goPrevious} disabled={done.length === 0} className="gap-1.5"><Undo2 className="h-4 w-4" />{t.common.previous}</Button>
-          <Button variant="outline" onClick={deferCurrent} className="gap-1.5"><SkipForward className="h-4 w-4" />{L("تأجيل للنهاية", "Defer to end")}</Button>
-          <Button onClick={completeCurrent} className="gap-1.5"><CheckCircle2 className="h-4 w-4" />{L("اكتمل التمرين", "Complete")}</Button>
+        <div className="mx-auto max-w-lg space-y-2">
+          <Button onClick={completeCurrent} className="w-full gap-1.5"><CheckCircle2 className="h-4 w-4" />{L("اكتمل التمرين", "Complete")}</Button>
+          <div className="grid grid-cols-3 gap-2">
+            <Button variant="outline" onClick={goPrevious} disabled={done.length === 0} className="gap-1.5"><Undo2 className="h-4 w-4" />{t.common.previous}</Button>
+            <Button variant="outline" onClick={deferCurrent} className="gap-1.5"><SkipForward className="h-4 w-4" />{L("اجعله لاحقاً", "Do later")}</Button>
+            <Button variant="outline" onClick={skipCurrent} className="gap-1.5 text-destructive hover:text-destructive"><XCircle className="h-4 w-4" />{L("تخطي", "Skip")}</Button>
+          </div>
         </div>
       </div>
     </div>

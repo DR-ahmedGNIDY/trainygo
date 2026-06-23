@@ -1,6 +1,7 @@
 import { requireRole } from "@/lib/auth/session";
 import { getOwnActiveProgram } from "@/lib/services/client-self";
 import { getExerciseMediaByIds } from "@/lib/services/exercises";
+import { getClientAccessState } from "@/lib/services/subscription";
 import { WorkoutExecution } from "./workout-execution";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +19,13 @@ interface RawWeek { weekNumber: number; days: RawDay[] }
 
 export default async function ClientWorkoutPage() {
   const session = await requireRole("client");
-  const program = await getOwnActiveProgram(session.user.id);
+  const [program, access] = await Promise.all([
+    getOwnActiveProgram(session.user.id),
+    getClientAccessState(session.user.id),
+  ]);
 
   if (!program) {
-    return <WorkoutExecution program={null} />;
+    return <WorkoutExecution program={null} access={access} />;
   }
 
   const weeks = program.weeks as unknown as RawWeek[];
@@ -42,6 +46,7 @@ export default async function ClientWorkoutPage() {
   return (
     <WorkoutExecution
       program={{ id: String(program._id), name: program.nameAr, weeks: enrichedWeeks as never }}
+      access={access}
     />
   );
 }

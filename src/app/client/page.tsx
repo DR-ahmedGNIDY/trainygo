@@ -7,6 +7,7 @@ import {
 } from "@/lib/services/client-self";
 import { getProgressHistory } from "@/lib/services/progress";
 import { getRecentLogs } from "@/lib/services/workout-logs";
+import { getClientAccessState } from "@/lib/services/subscription";
 import { MEAL_LABELS } from "@/lib/i18n/labels";
 import { ClientHome } from "./client-home";
 
@@ -17,12 +18,13 @@ export default async function ClientHomePage() {
   const id = session.user.id;
   const locale = await getLocale();
 
-  const [profile, program, plan, history, logs] = await Promise.all([
+  const [profile, program, plan, history, logs, access] = await Promise.all([
     getOwnProfile(id),
     getOwnActiveProgram(id),
     getOwnActivePlan(id),
     getProgressHistory(id),
     getRecentLogs(id, 60),
+    getClientAccessState(id),
   ]);
 
   const cp = (profile?.clientProfile ?? {}) as Record<string, number | undefined>;
@@ -76,6 +78,7 @@ export default async function ClientHomePage() {
         todayMeals,
         weightSeries,
       }}
+      access={access}
     />
   );
 }

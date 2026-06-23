@@ -25,6 +25,7 @@ export interface ReportRow {
   durationSeconds: number;
   completedCount: number;
   deferredCount: number;
+  skippedCount: number;
 }
 
 function formatDuration(totalSeconds: number) {
@@ -60,7 +61,7 @@ export function WorkoutReportsView({ rows }: { rows: ReportRow[] }) {
                   <TableHead>{L("اليوم", "Day")}</TableHead>
                   <TableHead className="hidden sm:table-cell">{t.common.date}</TableHead>
                   <TableHead className="hidden md:table-cell"><Clock className="inline h-4 w-4" /> {L("المدة", "Duration")}</TableHead>
-                  <TableHead>{L("مكتمل/مؤجل", "Done/Deferred")}</TableHead>
+                  <TableHead>{L("مكتمل/مؤجل/متخطى", "Done/Deferred/Skipped")}</TableHead>
                   <TableHead className="w-24" />
                 </TableRow>
               </TableHeader>
@@ -73,7 +74,8 @@ export function WorkoutReportsView({ rows }: { rows: ReportRow[] }) {
                     <TableCell className="hidden md:table-cell" dir="ltr">{formatDuration(r.durationSeconds)}</TableCell>
                     <TableCell>
                       <Badge variant="success">{r.completedCount}</Badge>{" "}
-                      {r.deferredCount > 0 && <Badge variant="warning">{r.deferredCount}</Badge>}
+                      {r.deferredCount > 0 && <Badge variant="warning">{r.deferredCount}</Badge>}{" "}
+                      {r.skippedCount > 0 && <Badge variant="destructive">{r.skippedCount}</Badge>}
                     </TableCell>
                     <TableCell>
                       <Link href={`/coach/workout-reports/${r.id}`} className="text-sm font-medium text-primary hover:underline">

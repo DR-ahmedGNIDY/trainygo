@@ -38,6 +38,7 @@ async function main() {
     locale: "ar",
     coachProfile: {
       brandName: "Ahmed Fitness",
+      whatsappNumber: "201234567890",
       trialStartDate: new Date(now),
       trialEndDate: new Date(now + TRIAL_DURATION_DAYS * 86_400_000),
       subscriptionStatus: "trial",
@@ -56,10 +57,30 @@ async function main() {
     clientProfile: { coach: coach._id, clientCode: "TRG00001", active: true },
   });
 
+  // Second client with a near-expiry subscription, for testing the countdown
+  // banner — and no forced password change so the rest of the app is usable.
+  await User.create({
+    name: "Mona Khaled",
+    username: "client2",
+    passwordHash: await hashPassword("Client123!"),
+    role: "client",
+    status: "active",
+    locale: "ar",
+    mustChangePassword: false,
+    clientProfile: {
+      coach: coach._id,
+      clientCode: "TRG00002",
+      active: true,
+      subscriptionStartDate: new Date(now - 27 * 86_400_000),
+      subscriptionEndDate: new Date(now + 2 * 86_400_000),
+    },
+  });
+
   console.log("\n✓ In-memory MongoDB seeded:");
   console.log(`  admin  / Admin123!   (super_admin)`);
   console.log(`  coach  / Coach123!   (${coach.role})`);
-  console.log(`  client / Client123!  (client)\n`);
+  console.log(`  client / Client123!  (client)`);
+  console.log(`  client2 / Client123! (client, expiring in 2 days)\n`);
   console.log(`MONGODB_URI=${uri}\n`);
 
   // Serve the production build for fast, fully-compiled pages. Run `npm run

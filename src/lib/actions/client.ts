@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getClientCtx } from "./guards";
+import { getClientCtx, getClientWriteCtx } from "./guards";
 import { runAction, ok, fail, type ActionResult } from "./result";
 import { getOwnCoachId, updateOwnProfile, changeOwnPassword } from "@/lib/services/client-self";
 import { submitCheckin } from "@/lib/services/checkins";
@@ -14,7 +14,7 @@ export async function submitCheckinAction(
   answers: { key: string; value: string }[],
 ): Promise<ActionResult> {
   return runAction(async () => {
-    const { clientId } = await getClientCtx();
+    const { clientId } = await getClientWriteCtx();
     await submitCheckin(clientId, answers);
     revalidatePath("/client/checkin");
     return ok();
@@ -78,11 +78,11 @@ export async function logExerciseAction(
 
 export async function submitWorkoutReportAction(
   input: WorkoutReportInput,
-): Promise<ActionResult<{ id: string }>> {
+): Promise<ActionResult<{ id: string; whatsappLink: string | null }>> {
   return runAction(async () => {
     const parsed = workoutReportSchema.safeParse(input);
     if (!parsed.success) return fail("بيانات غير صالحة", "VALIDATION");
-    const { clientId } = await getClientCtx();
+    const { clientId } = await getClientWriteCtx();
     const coachId = await getOwnCoachId(clientId);
     if (!coachId) return fail("لا يوجد مدرب", "NO_COACH");
     const res = await createWorkoutReport(clientId, coachId, parsed.data);
