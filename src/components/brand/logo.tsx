@@ -1,11 +1,7 @@
 import Link from "next/link";
-import { Dumbbell } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-/**
- * Trainygo placeholder logo. Swap the inner mark/wordmark here to drop in the
- * official logo later — no other code changes required.
- */
 export function Logo({
   className,
   href = "/",
@@ -18,25 +14,24 @@ export function Logo({
   size?: "sm" | "md" | "lg";
 }) {
   const sizes = {
-    sm: { box: "h-7 w-7", icon: "h-4 w-4", text: "text-base" },
-    md: { box: "h-9 w-9", icon: "h-5 w-5", text: "text-lg" },
-    lg: { box: "h-11 w-11", icon: "h-6 w-6", text: "text-2xl" },
+    sm: { box: 28, text: "text-base" },
+    md: { box: 36, text: "text-lg" },
+    lg: { box: 44, text: "text-2xl" },
   }[size];
 
   const content = (
     <span className={cn("inline-flex items-center gap-2", className)}>
-      <span
-        className={cn(
-          "inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm",
-          sizes.box,
-        )}
-        aria-hidden
-      >
-        <Dumbbell className={sizes.icon} />
-      </span>
+      <Image
+        src="/favicon.png"
+        alt="FITXNET"
+        width={sizes.box}
+        height={sizes.box}
+        className="shrink-0"
+        priority
+      />
       {showText && (
         <span className={cn("font-bold tracking-tight", sizes.text)}>
-          Trainy<span className="text-primary">go</span>
+          FITX<span className="text-primary">NET</span>
         </span>
       )}
     </span>
@@ -45,7 +40,7 @@ export function Logo({
   if (href === null) return content;
 
   return (
-    <Link href={href} className="inline-flex" aria-label="Trainygo">
+    <Link href={href} className="inline-flex" aria-label="FITXNET">
       {content}
     </Link>
   );

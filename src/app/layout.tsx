@@ -19,14 +19,14 @@ const cairo = Cairo({
 
 export const metadata: Metadata = {
   title: {
-    default: "Trainygo — منصة إدارة المدربين الشخصيين",
-    template: "%s | Trainygo",
+    default: "FITXNET — منصة إدارة المدربين الشخصيين",
+    template: "%s | FITXNET",
   },
   description:
     "منصة متكاملة للمدربين الشخصيين لإدارة العملاء والبرامج التدريبية والأنظمة الغذائية والمتابعات والقياسات من مكان واحد.",
-  applicationName: "Trainygo",
+  applicationName: "FITXNET",
   keywords: [
-    "Trainygo",
+    "FITXNET",
     "تدريب",
     "مدرب شخصي",
     "personal trainer",
@@ -34,22 +34,27 @@ export const metadata: Metadata = {
     "fitness",
     "تغذية",
   ],
-  authors: [{ name: "Trainygo" }],
-  metadataBase: new URL("https://trainygo.com"),
+  authors: [{ name: "FITXNET" }],
+  metadataBase: new URL("https://fitxnet.com"),
   openGraph: {
-    title: "Trainygo — منصة إدارة المدربين الشخصيين",
+    title: "FITXNET — منصة إدارة المدربين الشخصيين",
     description:
       "منصة متكاملة للمدربين الشخصيين لإدارة التدريب والتغذية والمتابعات والقياسات في مكان واحد.",
-    siteName: "Trainygo",
+    siteName: "FITXNET",
     type: "website",
   },
-  icons: { icon: "/favicon.ico" },
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/favicon.png",
+    apple: "/icon.png",
+  },
+  manifest: "/site.webmanifest",
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1220" },
+    { media: "(prefers-color-scheme: light)", color: "#F7F7F7" },
+    { media: "(prefers-color-scheme: dark)", color: "#050505" },
   ],
   width: "device-width",
   initialScale: 1,

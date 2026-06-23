@@ -6,11 +6,11 @@ import type { Locale } from "@/lib/constants";
  */
 const ar = {
   brand: {
-    name: "Trainygo",
+    name: "FITXNET",
     tagline: "منصة متكاملة للمدربين الشخصيين",
   },
   common: {
-    appName: "Trainygo",
+    appName: "FITXNET",
     loading: "جارٍ التحميل...",
     save: "حفظ",
     cancel: "إلغاء",
@@ -70,7 +70,7 @@ const ar = {
     startTrial: "ابدأ التجربة المجانية",
   },
   landing: {
-    heroTitle: "إدارة عملائك وبرامجك التدريبية باحترافية مع Trainygo",
+    heroTitle: "إدارة عملائك وبرامجك التدريبية باحترافية مع FITXNET",
     heroSubtitle:
       "منصة متكاملة للمدربين الشخصيين لإدارة التدريب والتغذية والمتابعات والقياسات في مكان واحد.",
     ctaStart: "ابدأ التجربة المجانية",
@@ -94,10 +94,10 @@ const ar = {
       messagingDesc: "تواصل مباشر مع عملائك عبر محادثة خاصة وآمنة.",
     },
     ctaSectionTitle: "جاهز لتطوير عملك التدريبي؟",
-    ctaSectionSubtitle: "انضم إلى Trainygo اليوم وابدأ تجربتك المجانية.",
+    ctaSectionSubtitle: "انضم إلى FITXNET اليوم وابدأ تجربتك المجانية.",
   },
   footer: {
-    rights: "© Trainygo. جميع الحقوق محفوظة.",
+    rights: "© FITXNET. جميع الحقوق محفوظة.",
     product: "المنتج",
     company: "الشركة",
     legal: "قانوني",
@@ -107,7 +107,7 @@ const ar = {
     terms: "شروط الاستخدام",
   },
   auth: {
-    loginTitle: "تسجيل الدخول إلى Trainygo",
+    loginTitle: "تسجيل الدخول إلى FITXNET",
     loginSubtitle: "أدخل بياناتك للوصول إلى لوحة التحكم.",
     registerTitle: "أنشئ حساب مدرب جديد",
     registerSubtitle: "ابدأ تجربتك المجانية لمدة ٣ أيام.",
@@ -272,11 +272,11 @@ export type Dictionary = typeof ar;
 
 const en: Dictionary = {
   brand: {
-    name: "Trainygo",
+    name: "FITXNET",
     tagline: "The all-in-one platform for personal trainers",
   },
   common: {
-    appName: "Trainygo",
+    appName: "FITXNET",
     loading: "Loading...",
     save: "Save",
     cancel: "Cancel",
@@ -336,7 +336,7 @@ const en: Dictionary = {
     startTrial: "Start free trial",
   },
   landing: {
-    heroTitle: "Manage your clients and training programs professionally with Trainygo",
+    heroTitle: "Manage your clients and training programs professionally with FITXNET",
     heroSubtitle:
       "An all-in-one platform for personal trainers to manage training, nutrition, check-ins and measurements in one place.",
     ctaStart: "Start free trial",
@@ -360,10 +360,10 @@ const en: Dictionary = {
       messagingDesc: "Communicate directly with your clients through private, secure chat.",
     },
     ctaSectionTitle: "Ready to grow your coaching business?",
-    ctaSectionSubtitle: "Join Trainygo today and start your free trial.",
+    ctaSectionSubtitle: "Join FITXNET today and start your free trial.",
   },
   footer: {
-    rights: "© Trainygo. All Rights Reserved.",
+    rights: "© FITXNET. All Rights Reserved.",
     product: "Product",
     company: "Company",
     legal: "Legal",
@@ -373,7 +373,7 @@ const en: Dictionary = {
     terms: "Terms of Service",
   },
   auth: {
-    loginTitle: "Sign in to Trainygo",
+    loginTitle: "Sign in to FITXNET",
     loginSubtitle: "Enter your details to access your dashboard.",
     registerTitle: "Create a coach account",
     registerSubtitle: "Start your 3-day free trial.",

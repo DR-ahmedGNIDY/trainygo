@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /*
- * Trainygo Theme System
+ * FITXNET Theme System
  * ---------------------
  * All brand & semantic colors are defined here as HSL channels so the entire
  * look of the platform can be re-skinned from a single place. Components must
@@ -12,90 +12,90 @@
 
 @layer base {
   :root {
-    /* Brand scale — Trainygo emerald */
-    --brand-50: 152 76% 96%;
-    --brand-100: 149 80% 90%;
-    --brand-200: 152 76% 80%;
-    --brand-300: 156 72% 67%;
-    --brand-400: 158 64% 52%;
-    --brand-500: 160 84% 39%;
-    --brand-600: 161 94% 30%;
-    --brand-700: 163 88% 24%;
-    --brand-800: 163 82% 20%;
-    --brand-900: 164 86% 16%;
+    /* Brand scale — FITXNET red (#FF1A2D) */
+    --brand-50: 355 100% 97%;
+    --brand-100: 355 100% 94%;
+    --brand-200: 355 100% 88%;
+    --brand-300: 355 100% 78%;
+    --brand-400: 355 100% 66%;
+    --brand-500: 355 100% 55%;
+    --brand-600: 355 90% 48%;
+    --brand-700: 355 85% 40%;
+    --brand-800: 355 80% 32%;
+    --brand-900: 355 75% 24%;
 
     /* Light mode semantic tokens */
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    --background: 0 0% 97%;
+    --foreground: 0 0% 7%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 0 0% 7%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 0 0% 7%;
 
-    --primary: 161 94% 30%;
+    --primary: 355 100% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 0 0% 93%;
+    --secondary-foreground: 0 0% 7%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 0 0% 93%;
+    --muted-foreground: 0 0% 40%;
 
-    --accent: 152 76% 96%;
-    --accent-foreground: 163 88% 24%;
+    --accent: 355 100% 95%;
+    --accent-foreground: 355 85% 40%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 355 90% 48%;
     --destructive-foreground: 0 0% 100%;
 
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 11%;
+    --warning: 355 100% 55%;
+    --warning-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 161 94% 30%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 355 100% 55%;
 
     --radius: 0.75rem;
   }
 
   .dark {
-    --background: 222 47% 7%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 2%;
+    --foreground: 0 0% 100%;
 
-    --card: 222 44% 10%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 222 44% 10%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 158 64% 52%;
-    --primary-foreground: 222 47% 9%;
+    --primary: 355 100% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 63%;
 
-    --accent: 217 33% 17%;
-    --accent-foreground: 158 64% 52%;
+    --accent: 0 0% 10%;
+    --accent-foreground: 355 100% 55%;
 
-    --destructive: 0 63% 50%;
+    --destructive: 355 90% 50%;
     --destructive-foreground: 0 0% 100%;
 
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 11%;
+    --warning: 355 100% 55%;
+    --warning-foreground: 0 0% 100%;
 
-    --border: 217 33% 20%;
-    --input: 217 33% 20%;
-    --ring: 158 64% 52%;
+    --border: 0 0% 10%;
+    --input: 0 0% 10%;
+    --ring: 355 100% 55%;
   }
 }
 

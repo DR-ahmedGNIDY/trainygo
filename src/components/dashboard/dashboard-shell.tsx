@@ -74,7 +74,7 @@ export function DashboardShell({
               </Button>
             </SheetTrigger>
             <SheetContent side={mobileSide} className="w-72 p-0">
-              <SheetTitle className="sr-only">Trainygo</SheetTitle>
+              <SheetTitle className="sr-only">FITXNET</SheetTitle>
               <div className="flex h-16 items-center border-b px-5">
                 <Logo />
               </div>
