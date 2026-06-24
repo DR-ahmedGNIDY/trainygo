@@ -89,6 +89,28 @@ export async function assignNutritionTemplateToClient(
   return plan._id.toString();
 }
 
+/** Creates a brand-new, empty nutrition plan for a client who doesn't have one yet. */
+export async function createBlankNutritionPlan(
+  coachId: string,
+  clientId: string,
+  input: { nameAr: string; nameEn: string },
+) {
+  await connectToDatabase();
+  await assertOwnsClient(coachId, clientId);
+
+  const plan = await NutritionPlan.create({
+    client: new Types.ObjectId(clientId),
+    coach: new Types.ObjectId(coachId),
+    sourceTemplate: null,
+    nameAr: input.nameAr,
+    nameEn: input.nameEn,
+    meals: [],
+    totals: computePlanTotals([]),
+    status: "active",
+  });
+  return plan._id.toString();
+}
+
 export async function getNutritionPlan(coachId: string, planId: string) {
   await connectToDatabase();
   if (!Types.ObjectId.isValid(planId)) return null;

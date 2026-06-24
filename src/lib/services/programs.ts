@@ -93,6 +93,27 @@ export async function assignTemplateToClient(
   return program._id.toString();
 }
 
+/** Creates a brand-new, empty program for a client who doesn't have one yet (no template involved). */
+export async function createBlankProgram(
+  coachId: string,
+  clientId: string,
+  input: { nameAr: string; nameEn: string },
+) {
+  await connectToDatabase();
+  await assertOwnsClient(coachId, clientId);
+
+  const program = await ClientProgram.create({
+    client: new Types.ObjectId(clientId),
+    coach: new Types.ObjectId(coachId),
+    sourceTemplate: null,
+    nameAr: input.nameAr,
+    nameEn: input.nameEn,
+    weeks: [{ weekNumber: 1, name: { ar: "الأسبوع 1", en: "Week 1" }, days: [] }],
+    status: "active",
+  });
+  return program._id.toString();
+}
+
 export async function duplicateProgram(
   coachId: string,
   programId: string,

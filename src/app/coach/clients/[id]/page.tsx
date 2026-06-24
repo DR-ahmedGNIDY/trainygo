@@ -3,6 +3,8 @@ import { requireRole } from "@/lib/auth/session";
 import { coachCanWrite } from "@/lib/permissions";
 import { getClient } from "@/lib/services/clients";
 import { getProgressHistory, toWeightSeries } from "@/lib/services/progress";
+import { getActiveProgram } from "@/lib/services/programs";
+import { getActivePlan } from "@/lib/services/nutrition-plans";
 import { ClientProfileView, type ProfileClient } from "./client-profile-view";
 
 export const dynamic = "force-dynamic";
@@ -44,12 +46,39 @@ export default async function ClientProfilePage({
     thighs?: number;
   }[];
 
+  const [program, plan] = await Promise.all([
+    getActiveProgram(session.user.id, id),
+    getActivePlan(session.user.id, id),
+  ]);
+
   return (
     <ClientProfileView
       client={client}
       weightSeries={toWeightSeries(history)}
       history={history}
       canWrite={coachCanWrite(session.user.status)}
+      program={
+        program
+          ? {
+              id: String(program._id),
+              nameAr: program.nameAr,
+              nameEn: program.nameEn,
+              weeksCount: program.weeks?.length ?? 0,
+              daysCount: (program.weeks ?? []).reduce((s: number, w: { days?: unknown[] }) => s + (w.days?.length ?? 0), 0),
+            }
+          : null
+      }
+      nutritionPlan={
+        plan
+          ? {
+              id: String(plan._id),
+              nameAr: plan.nameAr,
+              nameEn: plan.nameEn,
+              mealsCount: plan.meals?.length ?? 0,
+              calories: plan.totals?.calories ?? 0,
+            }
+          : null
+      }
     />
   );
 }

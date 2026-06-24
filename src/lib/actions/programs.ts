@@ -25,6 +25,19 @@ export async function assignTemplateAction(
   });
 }
 
+export async function createBlankProgramAction(
+  clientId: string,
+  input: { nameAr: string; nameEn: string },
+): Promise<ActionResult<{ id: string }>> {
+  return runAction(async () => {
+    if (!input.nameAr || !input.nameEn) return fail("الاسم مطلوب", "VALIDATION");
+    const { coachId } = await getCoachWriteCtx();
+    const id = await programs.createBlankProgram(coachId, clientId, input);
+    revalidatePath(`/coach/clients/${clientId}`);
+    return ok({ id });
+  });
+}
+
 export async function saveProgramBuilderAction(
   programId: string,
   input: { nameAr: string; nameEn: string; weeks: IWorkoutWeek[] },
@@ -66,6 +79,19 @@ export async function assignNutritionTemplateAction(
     const { coachId } = await getCoachWriteCtx();
     const id = await plans.assignNutritionTemplateToClient(coachId, templateId, clientId);
     revalidatePath("/coach/nutrition/plans");
+    revalidatePath(`/coach/clients/${clientId}`);
+    return ok({ id });
+  });
+}
+
+export async function createBlankNutritionPlanAction(
+  clientId: string,
+  input: { nameAr: string; nameEn: string },
+): Promise<ActionResult<{ id: string }>> {
+  return runAction(async () => {
+    if (!input.nameAr || !input.nameEn) return fail("الاسم مطلوب", "VALIDATION");
+    const { coachId } = await getCoachWriteCtx();
+    const id = await plans.createBlankNutritionPlan(coachId, clientId, input);
     revalidatePath(`/coach/clients/${clientId}`);
     return ok({ id });
   });
