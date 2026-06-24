@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
+import "@/models/Plan";
 import { computeEffectiveCoachStatus, coachIsFrozen } from "@/lib/permissions";
 import type { AccountStatus } from "@/lib/constants";
 
