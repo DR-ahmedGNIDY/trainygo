@@ -25,6 +25,7 @@ export default async function AdminCoachesPage() {
       clients: (c as { clientCount?: number }).clientCount ?? 0,
       status: c.status as AccountStatus,
       endDate: cp.subscriptionEndDate ? String(cp.subscriptionEndDate) : null,
+      suspendedByAdmin: Boolean(cp.suspendedByAdmin),
     };
   });
 

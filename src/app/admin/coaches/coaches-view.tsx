@@ -54,6 +54,8 @@ import { formatNumber } from "@/lib/utils";
 import {
   activateSubscriptionAction,
   setCoachStatusAction,
+  suspendCoachSubscriptionAction,
+  reactivateCoachSubscriptionAction,
   deleteCoachAction,
 } from "@/lib/actions/admin";
 import type { AccountStatus } from "@/lib/constants";
@@ -67,6 +69,7 @@ export interface CoachRow {
   clients: number;
   status: AccountStatus;
   endDate?: string | null;
+  suspendedByAdmin?: boolean;
 }
 export interface PlanOption {
   id: string;
@@ -98,6 +101,12 @@ export function CoachesView({
 
   function setStatusFor(id: string, s: AccountStatus) {
     startTransition(async () => { await setCoachStatusAction(id, s); router.refresh(); });
+  }
+  function suspendSubscription(id: string) {
+    startTransition(async () => { await suspendCoachSubscriptionAction(id); router.refresh(); });
+  }
+  function reactivateSubscription(id: string) {
+    startTransition(async () => { await reactivateCoachSubscriptionAction(id); router.refresh(); });
   }
   function remove(c: CoachRow) {
     if (!window.confirm(L(`حذف المدرب ${c.name} وكل بياناته؟`, `Delete coach ${c.name} and all their data?`))) return;
@@ -162,10 +171,16 @@ export function CoachesView({
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => setActivateFor(c)}><CreditCard className="h-4 w-4" />{L("تفعيل اشتراك", "Activate subscription")}</DropdownMenuItem>
-                          {c.status === "suspended" ? (
-                            <DropdownMenuItem onClick={() => setStatusFor(c.id, "active")}><CheckCircle2 className="h-4 w-4" />{L("تفعيل", "Activate")}</DropdownMenuItem>
+                          {c.suspendedByAdmin ? (
+                            <DropdownMenuItem onClick={() => reactivateSubscription(c.id)}><CheckCircle2 className="h-4 w-4" />{L("إعادة تفعيل الاشتراك", "Reactivate subscription")}</DropdownMenuItem>
                           ) : (
-                            <DropdownMenuItem onClick={() => setStatusFor(c.id, "suspended")}><Ban className="h-4 w-4" />{L("إيقاف", "Suspend")}</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => suspendSubscription(c.id)}><Ban className="h-4 w-4" />{L("إيقاف الاشتراك", "Suspend subscription")}</DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          {c.status === "suspended" ? (
+                            <DropdownMenuItem onClick={() => setStatusFor(c.id, "active")}><CheckCircle2 className="h-4 w-4" />{L("رفع حظر الحساب", "Unblock account")}</DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => setStatusFor(c.id, "suspended")}><Ban className="h-4 w-4" />{L("حظر الحساب (منع تسجيل الدخول)", "Block account (prevent login)")}</DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => remove(c)} className="text-destructive focus:text-destructive"><Trash2 className="h-4 w-4" />{t.common.delete}</DropdownMenuItem>

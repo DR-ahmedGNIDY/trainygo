@@ -9,7 +9,6 @@ import {
   Pencil,
   Trash2,
   Scale,
-  Target,
   Dumbbell,
   Apple,
   Camera,
@@ -18,6 +17,7 @@ import {
   KeyRound,
   Copy,
   Check,
+  MoreVertical,
 } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -36,6 +36,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -161,30 +167,38 @@ export function ClientProfileView({
               {t.dashboard.coachNav.messages}
             </Button>
             {canWrite && (
-              <>
-                <Button variant="outline" onClick={() => setEditOpen(true)}>
-                  <Pencil className="h-4 w-4" />
-                  {t.common.edit}
-                </Button>
-                <Button variant="outline" onClick={() => setResetOpen(true)}>
-                  <KeyRound className="h-4 w-4" />
-                  {L("إعادة تعيين كلمة المرور", "Reset password")}
-                </Button>
-                <Button variant="outline" className="text-destructive hover:text-destructive" onClick={onDelete} disabled={isPending}>
-                  {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                </Button>
-              </>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" disabled={isPending}>
+                    {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                    <Pencil className="h-4 w-4" />
+                    {L("تعديل العميل", "Edit client")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setResetOpen(true)}>
+                    <KeyRound className="h-4 w-4" />
+                    {L("إعادة تعيين كلمة المرور", "Reset password")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                    {L("حذف العميل", "Delete client")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </CardContent>
       </Card>
 
       <Tabs defaultValue="overview">
-        <TabsList className="flex w-full flex-wrap justify-start gap-1 sm:w-auto">
-          <TabsTrigger value="overview">{t.dashboard.overview}</TabsTrigger>
-          <TabsTrigger value="program">{t.dashboard.coachNav.clientPrograms}</TabsTrigger>
-          <TabsTrigger value="nutrition">{t.dashboard.coachNav.nutrition}</TabsTrigger>
-          <TabsTrigger value="progress">{t.dashboard.coachNav.progress}</TabsTrigger>
+        <TabsList className="flex w-full justify-start gap-1 overflow-x-auto scrollbar-thin sm:w-auto sm:flex-wrap sm:overflow-visible">
+          <TabsTrigger value="overview" className="shrink-0">{t.dashboard.overview}</TabsTrigger>
+          <TabsTrigger value="program" className="shrink-0">{L("برنامج التمرين", "Workout program")}</TabsTrigger>
+          <TabsTrigger value="nutrition" className="shrink-0">{t.dashboard.coachNav.nutrition}</TabsTrigger>
+          <TabsTrigger value="progress" className="shrink-0">{t.dashboard.coachNav.progress}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">

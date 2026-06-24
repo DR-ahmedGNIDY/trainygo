@@ -31,6 +31,10 @@ export interface ICoachProfile {
   subscriptionStatus?: AccountStatus;
   subscriptionEndDate?: Date | null;
   maxClients: number;
+  /** True while a super admin has manually suspended this coach's subscription (status forced to "expired"). */
+  suspendedByAdmin?: boolean;
+  /** Status to restore when the admin lifts the manual suspension. */
+  preSuspendStatus?: AccountStatus;
 }
 
 /** Client-specific profile, populated only when role === "client". */
@@ -87,6 +91,8 @@ const CoachProfileSchema = new Schema<ICoachProfile>(
     subscriptionStatus: { type: String, enum: ACCOUNT_STATUSES },
     subscriptionEndDate: { type: Date, default: null },
     maxClients: { type: Number, default: 0 },
+    suspendedByAdmin: { type: Boolean, default: false },
+    preSuspendStatus: { type: String, enum: ACCOUNT_STATUSES },
   },
   { _id: false },
 );

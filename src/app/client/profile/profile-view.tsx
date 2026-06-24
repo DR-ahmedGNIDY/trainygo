@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Save, User, Lock, Palette, Loader2 } from "lucide-react";
+import { Save, User, Palette, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { GOAL_LABELS, label } from "@/lib/i18n/labels";
-import { updateOwnProfileAction, changeOwnPasswordAction } from "@/lib/actions/client";
+import { updateOwnProfileAction } from "@/lib/actions/client";
 import type { ClientGoal } from "@/lib/constants";
 
 export interface ClientSelf {
@@ -33,25 +33,11 @@ export function ProfileView({ self }: { self: ClientSelf }) {
   const [form, setForm] = useState({ name: self.name, phone: self.phone, height: self.height?.toString() ?? "", weight: self.weight?.toString() ?? "" });
   const set = (k: keyof typeof form) => (v: string) => setForm((s) => ({ ...s, [k]: v }));
 
-  const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
-  const [savingPw, startPw] = useTransition();
-  const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
   function saveProfile() {
     startP(async () => {
       await updateOwnProfileAction({ name: form.name, phone: form.phone, height: form.height ? Number(form.height) : undefined, weight: form.weight ? Number(form.weight) : undefined });
       setSavedP(true);
       setTimeout(() => setSavedP(false), 2000);
-    });
-  }
-
-  function changePw() {
-    setPwMsg(null);
-    if (pw.next !== pw.confirm) { setPwMsg({ ok: false, text: t.auth.passwordsMismatch }); return; }
-    startPw(async () => {
-      const res = await changeOwnPasswordAction(pw.current, pw.next);
-      if (res.ok) { setPwMsg({ ok: true, text: t.common.saved }); setPw({ current: "", next: "", confirm: "" }); }
-      else setPwMsg({ ok: false, text: L("كلمة المرور الحالية غير صحيحة", "Current password is incorrect") });
     });
   }
 
@@ -82,17 +68,6 @@ export function ProfileView({ self }: { self: ClientSelf }) {
             <div className="space-y-2"><Label>{L("الطول (سم)", "Height (cm)")}</Label><Input type="number" value={form.height} onChange={(e) => set("height")(e.target.value)} /></div>
             <div className="space-y-2"><Label>{L("الوزن الحالي (كجم)", "Current weight (kg)")}</Label><Input type="number" value={form.weight} onChange={(e) => set("weight")(e.target.value)} /></div>
             <div className="sm:col-span-2 flex justify-end"><Button onClick={saveProfile} disabled={savingP}>{savingP ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{savedP ? t.common.saved : t.common.save}</Button></div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Lock className="h-4 w-4 text-primary" />{L("تغيير كلمة المرور", "Change password")}</CardTitle></CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2"><Label>{L("كلمة المرور الحالية", "Current password")}</Label><Input type="password" dir="ltr" value={pw.current} onChange={(e) => setPw((s) => ({ ...s, current: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>{L("كلمة مرور جديدة", "New password")}</Label><Input type="password" dir="ltr" value={pw.next} onChange={(e) => setPw((s) => ({ ...s, next: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>{t.auth.confirmPassword}</Label><Input type="password" dir="ltr" value={pw.confirm} onChange={(e) => setPw((s) => ({ ...s, confirm: e.target.value }))} /></div>
-            {pwMsg && <p className={`text-sm sm:col-span-2 ${pwMsg.ok ? "text-success" : "text-destructive"}`}>{pwMsg.text}</p>}
-            <div className="sm:col-span-2 flex justify-end"><Button onClick={changePw} disabled={savingPw || !pw.current || !pw.next}>{savingPw && <Loader2 className="h-4 w-4 animate-spin" />}{L("تحديث", "Update")}</Button></div>
           </CardContent>
         </Card>
 

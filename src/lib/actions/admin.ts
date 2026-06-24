@@ -22,6 +22,24 @@ export async function setCoachStatusAction(
   });
 }
 
+export async function suspendCoachSubscriptionAction(coachId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await getAdminCtx();
+    await admin.suspendCoachSubscription(coachId);
+    revalidatePath("/admin/coaches");
+    return ok();
+  });
+}
+
+export async function reactivateCoachSubscriptionAction(coachId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await getAdminCtx();
+    await admin.reactivateCoachSubscription(coachId);
+    revalidatePath("/admin/coaches");
+    return ok();
+  });
+}
+
 export async function deleteCoachAction(coachId: string): Promise<ActionResult> {
   return runAction(async () => {
     await getAdminCtx();

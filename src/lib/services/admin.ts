@@ -15,7 +15,7 @@ import { Notification } from "@/models/Notification";
 import { WorkoutLog } from "@/models/WorkoutLog";
 import { ProgressEntry } from "@/models/ProgressEntry";
 import { serialize } from "@/lib/serialize";
-import { PermissionError } from "@/lib/permissions";
+import { PermissionError, computeEffectiveCoachStatus } from "@/lib/permissions";
 import type { AccountStatus, PaymentMethod } from "@/lib/constants";
 import { createNotification } from "./notifications";
 
@@ -80,6 +80,57 @@ export async function setCoachStatus(coachId: string, status: AccountStatus) {
     { $set: { status, "coachProfile.subscriptionStatus": status } },
   );
   return res.matchedCount > 0;
+}
+
+/**
+ * Admin-driven "suspend subscription": treats the coach exactly as if their
+ * subscription had expired (read-only, clients frozen — same as
+ * computeEffectiveCoachStatus's natural lapse) WITHOUT blocking login,
+ * logging them out, or touching their data. Distinct from the "suspended"
+ * AccountStatus, which blocks login entirely.
+ */
+export async function suspendCoachSubscription(coachId: string) {
+  await connectToDatabase();
+  const coach = await User.findOne({ _id: coachId, role: "coach" }).select("status coachProfile.suspendedByAdmin");
+  if (!coach) return false;
+  if (coach.coachProfile?.suspendedByAdmin) return true; // already suspended
+
+  await User.updateOne(
+    { _id: coachId, role: "coach" },
+    {
+      $set: {
+        status: "expired",
+        "coachProfile.subscriptionStatus": "expired",
+        "coachProfile.suspendedByAdmin": true,
+        "coachProfile.preSuspendStatus": coach.status,
+      },
+    },
+  );
+  return true;
+}
+
+/** Lifts an admin-driven suspension, restoring the coach's prior status (re-derived from their actual dates). */
+export async function reactivateCoachSubscription(coachId: string) {
+  await connectToDatabase();
+  const coach = await User.findOne({ _id: coachId, role: "coach" }).select(
+    "coachProfile.preSuspendStatus coachProfile.trialEndDate coachProfile.subscriptionEndDate",
+  );
+  if (!coach) return false;
+
+  const restored = computeEffectiveCoachStatus(
+    coach.coachProfile?.preSuspendStatus ?? "active",
+    coach.coachProfile?.trialEndDate ?? null,
+    coach.coachProfile?.subscriptionEndDate ?? null,
+  );
+
+  await User.updateOne(
+    { _id: coachId, role: "coach" },
+    {
+      $set: { status: restored, "coachProfile.subscriptionStatus": restored, "coachProfile.suspendedByAdmin": false },
+      $unset: { "coachProfile.preSuspendStatus": "" },
+    },
+  );
+  return true;
 }
 
 /** Activate (or renew) a coach subscription. Offline payment, admin-driven. */
