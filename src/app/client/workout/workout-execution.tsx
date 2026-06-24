@@ -61,6 +61,11 @@ export function WorkoutExecution({
   const week = weeks[wi];
   const day = week?.days[di];
 
+  function startDay(dayIdx: number) {
+    setDi(dayIdx);
+    setSessionActive(true);
+  }
+
   if (sessionActive && day && !access.frozen) {
     return (
       <WorkoutSession
@@ -80,7 +85,7 @@ export function WorkoutExecution({
   return (
     <div>
       <PageHeader title={t.dashboard.clientNav.workout} description={programName}>
-        <div className="flex gap-2">
+        <div className="hidden gap-2 lg:flex">
           <Select value={String(wi)} onValueChange={(v) => { setWi(Number(v)); setDi(0); }}>
             <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
             <SelectContent>{weeks.map((w, i) => <SelectItem key={i} value={String(i)}>{L(`أسبوع ${w.weekNumber}`, `Week ${w.weekNumber}`)}</SelectItem>)}</SelectContent>
@@ -94,6 +99,60 @@ export function WorkoutExecution({
 
       {access.frozen && <FrozenBanner reason={access.frozenReason!} />}
 
+      {/* Mobile: each day as its own card. */}
+      <div className="space-y-3 lg:hidden">
+        {weeks.length > 1 && (
+          <Select value={String(wi)} onValueChange={(v) => { setWi(Number(v)); setDi(0); }}>
+            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>{weeks.map((w, i) => <SelectItem key={i} value={String(i)}>{L(`أسبوع ${w.weekNumber}`, `Week ${w.weekNumber}`)}</SelectItem>)}</SelectContent>
+          </Select>
+        )}
+        {week?.days.map((d, di2) => (
+          <Card key={di2}>
+            <CardContent className="p-4">
+              <p className="text-sm font-semibold">{L(`اليوم ${d.dayNumber}`, `Day ${d.dayNumber}`)}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">{d.name[locale]}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{d.exercises.length} {L("تمارين", "exercises")}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={access.frozen || d.exercises.length === 0}
+                  onClick={() => startDay(di2)}
+                >
+                  <Play className="h-3.5 w-3.5" />{L("ابدأ التمرين", "Start workout")}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setDi(di2)} disabled={d.exercises.length === 0}>
+                  {L("عرض التمارين", "View exercises")}
+                </Button>
+              </div>
+              {di === di2 && d.exercises.length > 0 && (
+                <div className="mt-3 space-y-2 border-t pt-3">
+                  {d.exercises.map((ex, ei) => (
+                    <div key={ei} className="flex items-center gap-3">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted">
+                        <ExerciseMedia
+                          media={{ imageUrlStart: ex.imageUrlStart, imageUrlEnd: ex.imageUrlEnd, gifUrl: ex.gifUrl }}
+                          alt={locale === "ar" ? ex.nameAr : ex.nameEn}
+                          className="absolute inset-0 flex h-full w-full items-center justify-center overflow-hidden"
+                          iconClassName="h-5 w-5 text-muted-foreground/40"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{locale === "ar" ? ex.nameAr : ex.nameEn}</p>
+                        <p className="text-xs text-muted-foreground">{ex.sets} {t.client.sets} × {ex.reps} {t.client.reps}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop / tablet: week+day selectors with a single day's exercise list. */}
+      <div className="hidden lg:block">
       {!day || day.exercises.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">{t.client.noWorkoutToday}</CardContent></Card>
       ) : (
@@ -124,6 +183,7 @@ export function WorkoutExecution({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

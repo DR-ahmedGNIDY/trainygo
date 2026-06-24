@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/auth/session";
 import { coachCanWrite } from "@/lib/permissions";
 import { listClients } from "@/lib/services/clients";
 import { listResponses, countPendingCheckins } from "@/lib/services/checkins";
+import { getCoachSubscriptionSummary } from "@/lib/services/subscription";
 import { CoachDashboard, type RecentClient } from "./coach-dashboard";
 import type { AccountStatus, ClientGoal } from "@/lib/constants";
 
@@ -11,10 +12,11 @@ export default async function CoachHome() {
   const session = await requireRole("coach");
   const coachId = session.user.id;
 
-  const [allClients, pending, responses] = await Promise.all([
+  const [allClients, pending, responses, subscription] = await Promise.all([
     listClients(coachId, { includeArchived: true }),
     countPendingCheckins(coachId),
     listResponses(coachId),
+    getCoachSubscriptionSummary(coachId),
   ]);
 
   const activeClients = allClients.filter(
@@ -60,6 +62,12 @@ export default async function CoachHome() {
         activeClients,
         pendingCheckins: pending,
         unreadMessages: 0,
+      }}
+      subscription={{
+        daysRemaining: subscription.daysRemaining,
+        planName: subscription.planName,
+        maxClients: subscription.maxClients,
+        clientCount: subscription.clientCount,
       }}
       recentClients={recentClients}
       growthSeries={growthSeries}

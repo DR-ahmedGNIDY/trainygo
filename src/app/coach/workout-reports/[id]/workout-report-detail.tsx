@@ -15,6 +15,7 @@ export interface ReportDetailData {
   startedAt: string;
   endedAt: string;
   durationSeconds: number;
+  totalRestSeconds: number;
   completedCount: number;
   deferredCount: number;
   skippedCount: number;
@@ -64,6 +65,7 @@ export function WorkoutReportDetail({ report }: { report: ReportDetailData }) {
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <span dir="ltr">{new Date(report.startedAt).toLocaleString("en-GB")}</span>
             <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{formatDuration(report.durationSeconds)}</span>
+            <span className="text-xs">{L("راحة", "rest")} {formatDuration(report.totalRestSeconds)}</span>
             <Badge variant="success">{report.completedCount} {L("مكتمل", "done")}</Badge>
             {report.deferredCount > 0 && <Badge variant="warning">{report.deferredCount} {L("مؤجل", "deferred")}</Badge>}
             {report.skippedCount > 0 && <Badge variant="destructive">{report.skippedCount} {L("متخطى", "skipped")}</Badge>}

@@ -56,3 +56,49 @@ export function SubscriptionCountdownBanner({ daysRemaining }: { daysRemaining: 
     </div>
   );
 }
+
+/** Always-visible subscription days-left + progress bar, shown at the top of the client dashboard. */
+export function SubscriptionProgressCard({
+  startDate,
+  endDate,
+  daysRemaining,
+}: {
+  startDate: Date | string | null;
+  endDate: Date | string | null;
+  daysRemaining: number | null;
+}) {
+  const { locale } = useI18n();
+  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
+
+  if (!endDate) return null;
+  const end = new Date(endDate);
+  const start = startDate ? new Date(startDate) : null;
+  const totalDays = start ? Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000)) : null;
+  const remaining = daysRemaining ?? Math.ceil((end.getTime() - Date.now()) / 86_400_000);
+  const progress = totalDays ? Math.min(100, Math.max(0, 100 - (Math.max(0, remaining) / totalDays) * 100)) : null;
+  const urgent = remaining <= 3;
+
+  return (
+    <div className="mb-4 rounded-lg border p-4">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium">{L("اشتراكك", "Your subscription")}</span>
+        <span className={urgent ? "font-semibold text-destructive" : "text-muted-foreground"}>
+          {remaining <= 0
+            ? L("منتهي", "Expired")
+            : L(`باقي ${remaining} ${remaining === 1 ? "يوم" : "أيام"}`, `${remaining} day${remaining === 1 ? "" : "s"} left`)}
+        </span>
+      </div>
+      {progress != null && (
+        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className={"h-full rounded-full " + (urgent ? "bg-destructive" : "bg-primary")}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+      <p className="mt-1.5 text-xs text-muted-foreground" dir="ltr">
+        {L("ينتهي في", "Ends on")} {end.toLocaleDateString("en-GB")}
+      </p>
+    </div>
+  );
+}

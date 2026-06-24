@@ -26,6 +26,7 @@ export const workoutReportSchema = z.object({
   dayNameEn: z.string().optional().default(""),
   startedAt: z.string(),
   endedAt: z.string(),
+  totalRestSeconds: z.number().int().min(0).optional().default(0),
   exercises: z.array(reportExerciseSchema).min(1),
 });
 

@@ -40,6 +40,8 @@ export interface IWorkoutReport {
   startedAt: Date;
   endedAt: Date;
   durationSeconds: number;
+  /** Total real time spent on rest screens (between sets and between exercises). */
+  totalRestSeconds: number;
   exercises: IReportExercise[];
   completedCount: number;
   deferredCount: number;
@@ -84,6 +86,7 @@ const WorkoutReportSchema = new Schema<IWorkoutReport>(
     startedAt: { type: Date, required: true },
     endedAt: { type: Date, required: true },
     durationSeconds: { type: Number, default: 0 },
+    totalRestSeconds: { type: Number, default: 0 },
     exercises: { type: [ReportExerciseSchema], default: [] },
     completedCount: { type: Number, default: 0 },
     deferredCount: { type: Number, default: 0 },

@@ -42,6 +42,8 @@ interface SessionExercise extends SessionExerciseSource {
 }
 
 type Phase = "exercise" | "rest" | "summary";
+/** What comes after the current rest screen — another set of the same exercise, or the next exercise. */
+type RestTarget = "set" | "exercise" | null;
 
 function formatDuration(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60);
@@ -88,8 +90,11 @@ export function WorkoutSession({
   const total = initial.length;
   const [queue, setQueue] = useState<SessionExercise[]>(initial);
   const [done, setDone] = useState<SessionExercise[]>([]);
+  const [setIndex, setSetIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("exercise");
+  const [restTarget, setRestTarget] = useState<RestTarget>(null);
   const [restRemaining, setRestRemaining] = useState(0);
+  const [totalRestSeconds, setTotalRestSeconds] = useState(0);
   const [startedAt] = useState(() => new Date());
   const [endedAt, setEndedAt] = useState<Date | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -106,24 +111,30 @@ export function WorkoutSession({
     return () => clearInterval(id);
   }, [phase, startedAt]);
 
-  // Rest countdown.
+  // Rest countdown — also accumulates real rest time taken for the session summary.
   useEffect(() => {
     if (phase !== "rest") return;
     if (restRemaining <= 0) {
-      setPhase("exercise");
+      advanceFromRest();
       return;
     }
-    const id = setTimeout(() => setRestRemaining((s) => s - 1), 1000);
+    const id = setTimeout(() => {
+      setRestRemaining((s) => s - 1);
+      setTotalRestSeconds((s) => s + 1);
+    }, 1000);
     return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, restRemaining]);
 
-  function finishOrRest(finished: SessionExercise, rest: SessionExercise[]) {
+  function finishExercise(finished: SessionExercise, rest: SessionExercise[]) {
     setDone((d) => [...d, finished]);
     setQueue(rest);
+    setSetIndex(0);
     if (rest.length === 0) {
       setEndedAt(new Date());
       setPhase("summary");
     } else {
+      setRestTarget("exercise");
       setRestRemaining(finished.restSeconds || 60);
       setPhase("rest");
     }
@@ -138,9 +149,25 @@ export function WorkoutSession({
     });
   }
 
-  function completeCurrent() {
+  /** "Complete set" — either rests then moves to the next set, or finishes the exercise. */
+  function completeSet() {
     if (!current) return;
-    finishOrRest(current, queue.slice(1));
+    const isLastSet = setIndex >= current.loggedSets.length - 1;
+    if (isLastSet) {
+      finishExercise(current, queue.slice(1));
+    } else {
+      setRestTarget("set");
+      setRestRemaining(current.restSeconds || 60);
+      setPhase("rest");
+    }
+  }
+
+  function advanceFromRest() {
+    if (restTarget === "set") {
+      setSetIndex((i) => i + 1);
+    }
+    setRestTarget(null);
+    setPhase("exercise");
   }
 
   function skipCurrent() {
@@ -149,6 +176,7 @@ export function WorkoutSession({
     const rest = queue.slice(1);
     setDone((d) => [...d, skipped]);
     setQueue(rest);
+    setSetIndex(0);
     if (rest.length === 0) {
       setEndedAt(new Date());
       setPhase("summary");
@@ -160,6 +188,7 @@ export function WorkoutSession({
     if (!current) return;
     const deferred = { ...current, wasDeferred: true };
     const rest = queue.slice(1);
+    setSetIndex(0);
     if (rest.length === 0) {
       // Only exercise left — nothing to defer past, keep it in place.
       setQueue([deferred]);
@@ -169,16 +198,20 @@ export function WorkoutSession({
   }
 
   function goPrevious() {
+    if (setIndex > 0) {
+      setSetIndex((i) => i - 1);
+      return;
+    }
     if (done.length === 0) return;
     const last = done[done.length - 1];
     setDone((d) => d.slice(0, -1));
     setQueue((q) => [{ ...last, skipped: false }, ...q]);
+    setSetIndex(Math.max(0, last.loggedSets.length - 1));
     setPhase("exercise");
   }
 
   function proceedFromRest() {
     setRestRemaining(0);
-    setPhase("exercise");
   }
 
   function addRestTime() {
@@ -197,6 +230,7 @@ export function WorkoutSession({
       dayNameEn,
       startedAt: startedAt.toISOString(),
       endedAt: finalEndedAt.toISOString(),
+      totalRestSeconds,
       exercises: done.map((ex) => ({
         exerciseId: ex.exercise || undefined,
         nameAr: ex.nameAr,
@@ -237,8 +271,9 @@ export function WorkoutSession({
             <p className="mt-1 text-sm text-muted-foreground">{programName} · {L(dayNameAr, dayNameEn)}</p>
           </div>
 
-          <div className="mb-4 grid grid-cols-4 gap-2 text-center">
+          <div className="mb-4 grid grid-cols-2 gap-2 text-center sm:grid-cols-5">
             <Card><CardContent className="p-3"><p className="text-base font-bold">{formatDuration(sessionSeconds)}</p><p className="text-xs text-muted-foreground">{L("المدة", "Duration")}</p></CardContent></Card>
+            <Card><CardContent className="p-3"><p className="text-base font-bold">{formatDuration(totalRestSeconds)}</p><p className="text-xs text-muted-foreground">{L("الراحة", "Rest")}</p></CardContent></Card>
             <Card><CardContent className="p-3"><p className="text-base font-bold text-success">{completedCount}</p><p className="text-xs text-muted-foreground">{L("مكتمل", "Completed")}</p></CardContent></Card>
             <Card><CardContent className="p-3"><p className="text-base font-bold text-warning">{deferredCount}</p><p className="text-xs text-muted-foreground">{L("مؤجل", "Deferred")}</p></CardContent></Card>
             <Card><CardContent className="p-3"><p className="text-base font-bold text-destructive">{skippedCount}</p><p className="text-xs text-muted-foreground">{L("متخطى", "Skipped")}</p></CardContent></Card>
@@ -291,19 +326,23 @@ export function WorkoutSession({
     );
   }
 
-  // ---- Rest screen ----
+  // ---- Rest screen (between sets, or between exercises) ----
   if (phase === "rest") {
-    const next = queue[0];
+    const isSetRest = restTarget === "set";
+    const nextSetNumber = isSetRest ? setIndex + 2 : null;
+    const upcomingExercise = isSetRest ? current : queue[0];
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background p-6 text-center">
         <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">{L("وقت الراحة", "Rest time")}</p>
         <div className="flex h-44 w-44 items-center justify-center rounded-full border-8 border-primary/20">
           <span className="text-5xl font-bold tabular-nums text-primary">{restRemaining}</span>
         </div>
-        {next && (
+        {upcomingExercise && (
           <div>
-            <p className="text-xs text-muted-foreground">{L("التمرين القادم", "Next exercise")}</p>
-            <p className="text-lg font-semibold">{locale === "ar" ? next.nameAr : next.nameEn}</p>
+            <p className="text-xs text-muted-foreground">
+              {isSetRest ? L(`المجموعة القادمة ${nextSetNumber} من ${current.loggedSets.length}`, `Next set ${nextSetNumber} of ${current.loggedSets.length}`) : L("التمرين القادم", "Next exercise")}
+            </p>
+            <p className="text-lg font-semibold">{locale === "ar" ? upcomingExercise.nameAr : upcomingExercise.nameEn}</p>
           </div>
         )}
         <div className="grid w-full max-w-xs grid-cols-2 gap-3">
@@ -317,13 +356,10 @@ export function WorkoutSession({
     );
   }
 
-  // ---- Exercise screen ----
+  // ---- Exercise screen (one set at a time) ----
   if (!current) return null;
   const index = done.length + 1;
-  const firstOpenSetIndex = (() => {
-    const idx = current.loggedSets.findIndex((s) => !s.weight && !s.reps);
-    return idx === -1 ? current.loggedSets.length - 1 : idx;
-  })();
+  const set = current.loggedSets[setIndex];
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background">
@@ -355,29 +391,52 @@ export function WorkoutSession({
           {current.restSeconds ? <Badge variant="outline">{current.restSeconds}{L("ث راحة", "s rest")}</Badge> : null}
           {current.youtubeUrl && !current.videoUrl && <Youtube className="h-4 w-4 text-destructive" />}
         </div>
-        <p className="mt-2 text-sm font-medium text-primary">
-          {L(`المجموعة ${firstOpenSetIndex + 1} من ${current.loggedSets.length}`, `Set ${firstOpenSetIndex + 1} of ${current.loggedSets.length}`)}
-        </p>
 
-        <div className="mt-5 space-y-2">
-          <div className="grid grid-cols-[2.5rem_1fr_1fr] gap-2 px-1 text-xs font-medium text-muted-foreground">
-            <span>{L("مجموعة", "Set")}</span><span>{L("الوزن المنفذ (كجم)", "Weight done (kg)")}</span><span>{L("التكرارات المنفذة", "Reps done")}</span>
-          </div>
-          {current.loggedSets.map((s, i) => (
-            <div key={i} className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2">
-              <span className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-sm font-semibold">{i + 1}</span>
-              <Input type="number" inputMode="decimal" placeholder="0" className="h-10" value={s.weight} onChange={(e) => updateSet(i, "weight", e.target.value)} />
-              <Input type="number" inputMode="numeric" placeholder={current.reps} className="h-10" value={s.reps} onChange={(e) => updateSet(i, "reps", e.target.value)} />
+        <div className="mt-5 rounded-xl border bg-muted/30 p-4 text-center">
+          <p className="text-sm font-medium text-primary">
+            {L(`المجموعة ${setIndex + 1} من ${current.loggedSets.length}`, `Set ${setIndex + 1} of ${current.loggedSets.length}`)}
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">{L("الوزن المنفذ (كجم)", "Weight done (kg)")}</label>
+              <Input type="number" inputMode="decimal" placeholder="0" className="h-11 text-center text-lg" value={set.weight} onChange={(e) => updateSet(setIndex, "weight", e.target.value)} />
             </div>
-          ))}
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">{L("التكرارات المنفذة", "Reps done")}</label>
+              <Input type="number" inputMode="numeric" placeholder={current.reps} className="h-11 text-center text-lg" value={set.reps} onChange={(e) => updateSet(setIndex, "reps", e.target.value)} />
+            </div>
+          </div>
         </div>
+
+        {current.loggedSets.length > 1 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {current.loggedSets.map((s, i) => (
+              <span
+                key={i}
+                className={
+                  "rounded-md px-2 py-1 text-xs " +
+                  (i === setIndex
+                    ? "bg-primary text-primary-foreground"
+                    : i < setIndex || s.weight || s.reps
+                      ? "bg-success/15 text-success"
+                      : "bg-muted text-muted-foreground")
+                }
+              >
+                {L("مجموعة", "Set")} {i + 1}{i !== setIndex && (s.weight || s.reps) ? `: ${s.weight || 0}×${s.reps || 0}` : ""}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="fixed inset-x-0 bottom-0 border-t bg-background p-4">
         <div className="mx-auto max-w-lg space-y-2">
-          <Button onClick={completeCurrent} className="w-full gap-1.5"><CheckCircle2 className="h-4 w-4" />{L("اكتمل التمرين", "Complete")}</Button>
+          <Button onClick={completeSet} className="w-full gap-1.5">
+            <CheckCircle2 className="h-4 w-4" />
+            {setIndex >= current.loggedSets.length - 1 ? L("اكتمل التمرين", "Complete exercise") : L("اكتملت المجموعة", "Complete set")}
+          </Button>
           <div className="grid grid-cols-3 gap-2">
-            <Button variant="outline" onClick={goPrevious} disabled={done.length === 0} className="gap-1.5"><Undo2 className="h-4 w-4" />{t.common.previous}</Button>
+            <Button variant="outline" onClick={goPrevious} disabled={done.length === 0 && setIndex === 0} className="gap-1.5"><Undo2 className="h-4 w-4" />{t.common.previous}</Button>
             <Button variant="outline" onClick={deferCurrent} className="gap-1.5"><SkipForward className="h-4 w-4" />{L("اجعله لاحقاً", "Do later")}</Button>
             <Button variant="outline" onClick={skipCurrent} className="gap-1.5 text-destructive hover:text-destructive"><XCircle className="h-4 w-4" />{L("تخطي", "Skip")}</Button>
           </div>

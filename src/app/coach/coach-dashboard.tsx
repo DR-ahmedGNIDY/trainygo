@@ -28,6 +28,12 @@ export interface CoachKpis {
   pendingCheckins: number;
   unreadMessages: number;
 }
+export interface CoachSubscriptionInfo {
+  daysRemaining: number | null;
+  planName: string | null;
+  maxClients: number;
+  clientCount: number;
+}
 export interface RecentClient {
   id: string;
   name: string;
@@ -37,12 +43,14 @@ export interface RecentClient {
 
 export function CoachDashboard({
   kpis,
+  subscription,
   recentClients,
   growthSeries,
   adherenceSeries,
   canWrite,
 }: {
   kpis: CoachKpis;
+  subscription: CoachSubscriptionInfo;
   recentClients: RecentClient[];
   growthSeries: { label: string; value: number }[];
   adherenceSeries: { label: string; value: number }[];
@@ -50,6 +58,8 @@ export function CoachDashboard({
 }) {
   const { t, locale } = useI18n();
   const s = t.dashboard.stats;
+  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
+  const urgent = subscription.daysRemaining != null && subscription.daysRemaining <= 3;
 
   return (
     <div>
@@ -60,6 +70,30 @@ export function CoachDashboard({
           </Button>
         )}
       </PageHeader>
+
+      <Card className="mb-4">
+        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4 text-sm">
+          <div>
+            <p className="text-xs text-muted-foreground">{L("الخطة الحالية", "Current plan")}</p>
+            <p className="font-semibold">{subscription.planName ?? "—"}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">{L("الأيام المتبقية", "Days remaining")}</p>
+            <p className={"font-semibold " + (urgent ? "text-destructive" : "")}>
+              {subscription.daysRemaining != null ? `${subscription.daysRemaining} ${L("يوم", "days")}` : "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">{L("العملاء", "Clients")}</p>
+            <p className="font-semibold">
+              {subscription.clientCount} / {subscription.maxClients > 0 ? subscription.maxClients : "∞"}
+            </p>
+          </div>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/coach/subscription">{t.dashboard.coachNav.subscription}</Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label={s.myClients} value={formatNumber(kpis.myClients, locale)} icon={Users} />

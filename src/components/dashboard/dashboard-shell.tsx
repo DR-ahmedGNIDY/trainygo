@@ -16,6 +16,7 @@ import {
 import { SidebarNav } from "./sidebar-nav";
 import { UserMenu } from "./user-menu";
 import { NotificationsMenu, type NotificationItem } from "./notifications-menu";
+import { MobileTabBar } from "./mobile-tab-bar";
 import { getNavForRole } from "./nav-config";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { coachIsReadOnly } from "@/lib/permissions";
@@ -101,6 +102,8 @@ export function DashboardShell({
             />
           </div>
         </header>
+
+        {role === "client" && <MobileTabBar items={sections[0]?.items ?? []} />}
 
         {showReadOnly && (
           <div className="flex flex-wrap items-center gap-3 border-b border-warning/30 bg-warning/10 px-4 py-2.5 text-sm md:px-6">

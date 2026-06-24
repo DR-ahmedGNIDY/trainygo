@@ -8,7 +8,7 @@ import { LineTrend } from "@/components/dashboard/charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/components/providers/i18n-provider";
-import { FrozenBanner, SubscriptionCountdownBanner } from "@/components/client/access-banners";
+import { FrozenBanner, SubscriptionCountdownBanner, SubscriptionProgressCard } from "@/components/client/access-banners";
 import type { ClientAccessState } from "@/lib/services/subscription";
 
 interface HomeData {
@@ -28,6 +28,12 @@ export function ClientHome({ data, access }: { data: HomeData; access: ClientAcc
   return (
     <div>
       <PageHeader title={t.dashboard.clientNav.home} description={t.dashboard.overview} />
+
+      <SubscriptionProgressCard
+        startDate={access.subscriptionStartDate}
+        endDate={access.subscriptionEndDate}
+        daysRemaining={access.daysRemaining}
+      />
 
       {access.frozen ? (
         <FrozenBanner reason={access.frozenReason!} />

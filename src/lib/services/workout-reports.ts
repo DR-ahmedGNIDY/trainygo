@@ -22,6 +22,7 @@ function buildWhatsAppLink(
     dayName: string;
     date: Date;
     durationSeconds: number;
+    totalRestSeconds: number;
     completedCount: number;
     deferredCount: number;
     skippedCount: number;
@@ -43,6 +44,7 @@ function buildWhatsAppLink(
     `اليوم: ${params.dayName}`,
     `التاريخ: ${params.date.toLocaleDateString("en-GB")}`,
     `مدة الجلسة: ${formatDuration(params.durationSeconds)}`,
+    `مدة الراحة: ${formatDuration(params.totalRestSeconds)}`,
     `مكتمل: ${params.completedCount} · مؤجل: ${params.deferredCount} · متخطى: ${params.skippedCount}`,
     setsSummary ? `\nالتفاصيل:\n${setsSummary}` : "",
   ]
@@ -96,6 +98,7 @@ export async function createWorkoutReport(
       startedAt,
       endedAt,
       durationSeconds,
+      totalRestSeconds: data.totalRestSeconds ?? 0,
       exercises,
       completedCount,
       deferredCount,
@@ -136,6 +139,7 @@ export async function createWorkoutReport(
     dayName: data.dayNameAr,
     date: endedAt,
     durationSeconds,
+    totalRestSeconds: data.totalRestSeconds ?? 0,
     completedCount,
     deferredCount,
     skippedCount,
