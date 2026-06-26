@@ -89,8 +89,8 @@ export function NutritionBuilder({
   initialMeals,
   onSave,
 }: {
-  backHref: string;
-  title: string;
+  backHref?: string;
+  title?: string;
   subtitle?: string;
   initialNameAr: string;
   initialNameEn: string;
@@ -143,7 +143,7 @@ export function NutritionBuilder({
 
   return (
     <div>
-      <Button asChild variant="ghost" size="sm" className="mb-3 -ms-2"><Link href={backHref}><BackArrow className="h-4 w-4" />{title}</Link></Button>
+      {backHref && <Button asChild variant="ghost" size="sm" className="mb-3 -ms-2"><Link href={backHref}><BackArrow className="h-4 w-4" />{title}</Link></Button>}
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="grid flex-1 gap-3 sm:grid-cols-2">

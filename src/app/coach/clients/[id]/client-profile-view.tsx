@@ -53,8 +53,18 @@ import { useI18n } from "@/components/providers/i18n-provider";
 import { GOAL_LABELS, label } from "@/lib/i18n/labels";
 import { updateClientAction, deleteClientAction, resetClientPasswordAction } from "@/lib/actions/clients";
 import { startConversationAction } from "@/lib/actions/messages";
-import { createBlankProgramAction, createBlankNutritionPlanAction } from "@/lib/actions/programs";
+import {
+  createBlankProgramAction,
+  createBlankNutritionPlanAction,
+  saveProgramBuilderAction,
+  savePlanBuilderAction,
+} from "@/lib/actions/programs";
+import { WorkoutBuilder, type BWeek } from "@/components/builders/workout-builder";
+import { NutritionBuilder } from "@/components/builders/nutrition-builder";
 import type { AccountStatus, ClientGoal, Gender } from "@/lib/constants";
+import type { IWorkoutWeek } from "@/models/WorkoutTemplate";
+import type { IMeal } from "@/models/NutritionTemplate";
+import type { mealsToBuilder } from "@/lib/builder-mappers";
 
 export interface ProfileClient {
   id: string;
@@ -76,16 +86,14 @@ export interface ClientProgramSummary {
   id: string;
   nameAr: string;
   nameEn: string;
-  weeksCount: number;
-  daysCount: number;
+  weeks: IWorkoutWeek[];
 }
 
 export interface ClientNutritionSummary {
   id: string;
   nameAr: string;
   nameEn: string;
-  mealsCount: number;
-  calories: number;
+  meals: ReturnType<typeof mealsToBuilder>;
 }
 
 type Measurement = {
@@ -122,6 +130,8 @@ export function ClientProfileView({
   const [creatingProgram, startCreatingProgram] = useTransition();
   const [creatingPlan, startCreatingPlan] = useTransition();
   const [isPending, startTransition] = useTransition();
+  const [programState, setProgramState] = useState(program);
+  const [nutritionState, setNutritionState] = useState(nutritionPlan);
 
   const latest = history[history.length - 1];
   const first = history[0];
@@ -148,23 +158,48 @@ export function ClientProfileView({
   }
 
   function createProgram() {
+    const nameAr = L(`برنامج ${client.name}`, `${client.name}'s program`);
+    const nameEn = `${client.name}'s program`;
     startCreatingProgram(async () => {
-      const res = await createBlankProgramAction(client.id, {
-        nameAr: L(`برنامج ${client.name}`, `${client.name}'s program`),
-        nameEn: `${client.name}'s program`,
-      });
-      if (res.ok) router.push(`/coach/programs/${res.data!.id}`);
+      const res = await createBlankProgramAction(client.id, { nameAr, nameEn });
+      if (res.ok) {
+        setProgramState({
+          id: res.data!.id,
+          nameAr,
+          nameEn,
+          weeks: [{ weekNumber: 1, name: { ar: "الأسبوع 1", en: "Week 1" }, days: [] }] as unknown as IWorkoutWeek[],
+        });
+      }
     });
   }
 
   function createNutritionPlan() {
+    const nameAr = L(`نظام غذائي ${client.name}`, `${client.name}'s nutrition plan`);
+    const nameEn = `${client.name}'s nutrition plan`;
     startCreatingPlan(async () => {
-      const res = await createBlankNutritionPlanAction(client.id, {
-        nameAr: L(`نظام غذائي ${client.name}`, `${client.name}'s nutrition plan`),
-        nameEn: `${client.name}'s nutrition plan`,
-      });
-      if (res.ok) router.push(`/coach/nutrition/plans/${res.data!.id}`);
+      const res = await createBlankNutritionPlanAction(client.id, { nameAr, nameEn });
+      if (res.ok) {
+        setNutritionState({ id: res.data!.id, nameAr, nameEn, meals: [] });
+      }
     });
+  }
+
+  async function saveProgram(data: { nameAr: string; nameEn: string; weeks: BWeek[] }) {
+    if (!programState) return { ok: false as const, error: "NOT_FOUND", code: "NOT_FOUND" };
+    const res = await saveProgramBuilderAction(programState.id, {
+      nameAr: data.nameAr,
+      nameEn: data.nameEn,
+      weeks: data.weeks as unknown as IWorkoutWeek[],
+    });
+    if (res.ok) setProgramState((p) => (p ? { ...p, nameAr: data.nameAr, nameEn: data.nameEn, weeks: data.weeks as unknown as IWorkoutWeek[] } : p));
+    return res;
+  }
+
+  async function saveNutritionPlan(data: { nameAr: string; nameEn: string; meals: unknown[] }) {
+    if (!nutritionState) return { ok: false as const, error: "NOT_FOUND", code: "NOT_FOUND" };
+    const res = await savePlanBuilderAction(nutritionState.id, data.meals as IMeal[]);
+    if (res.ok) setNutritionState((p) => (p ? { ...p, meals: data.meals as ReturnType<typeof mealsToBuilder> } : p));
+    return res;
   }
 
   return (
@@ -264,75 +299,56 @@ export function ClientProfileView({
         </TabsContent>
 
         <TabsContent value="program">
-          {program ? (
-            <Card>
-              <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-                <div>
-                  <p className="font-semibold">{locale === "ar" ? program.nameAr : program.nameEn}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {L(`${program.weeksCount} أسبوع · ${program.daysCount} يوم`, `${program.weeksCount} week(s) · ${program.daysCount} day(s)`)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">{L("نسخة مستقلة لهذا العميل — تعديلها لا يؤثر على أي قالب.", "An independent copy for this client — editing it never affects any template.")}</p>
-                </div>
-                {canWrite && (
-                  <Button asChild>
-                    <Link href={`/coach/programs/${program.id}`}><Pencil className="h-4 w-4" />{L("إدارة البرنامج", "Manage program")}</Link>
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+          {programState ? (
+            <div>
+              <p className="mb-3 text-xs text-muted-foreground">{L("نسخة مستقلة لهذا العميل — تعديلها لا يؤثر على أي قالب.", "An independent copy for this client — editing it never affects any template.")}</p>
+              <WorkoutBuilder
+                flat
+                initialNameAr={programState.nameAr}
+                initialNameEn={programState.nameEn}
+                initialWeeks={programState.weeks as unknown as BWeek[]}
+                onSave={saveProgram}
+              />
+            </div>
           ) : (
             <EmptyState
               icon={Dumbbell}
-              title={L("لا يوجد برنامج مُسند", "No program assigned")}
-              description={L("أنشئ برنامجاً خاصاً بهذا العميل، أو أسند له قالباً جاهزاً من صفحة برامج العملاء.", "Create a program for this client, or assign a ready-made template from the Client Programs page.")}
+              title={L("لا يوجد برنامج تمرين", "No workout program yet")}
+              description={L("أنشئ برنامج تمرين خاصاً بهذا العميل.", "Create a workout program for this client.")}
             >
-              <div className="flex flex-wrap justify-center gap-2">
-                {canWrite && (
-                  <Button onClick={createProgram} disabled={creatingProgram}>
-                    {creatingProgram && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {L("إنشاء برنامج التمرين", "Create workout program")}
-                  </Button>
-                )}
-                <Button asChild variant="outline"><Link href="/coach/programs">{t.dashboard.ui.assignProgram}</Link></Button>
-              </div>
+              {canWrite && (
+                <Button onClick={createProgram} disabled={creatingProgram}>
+                  {creatingProgram && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {L("إنشاء برنامج تمرين", "Create workout program")}
+                </Button>
+              )}
             </EmptyState>
           )}
         </TabsContent>
 
         <TabsContent value="nutrition">
-          {nutritionPlan ? (
-            <Card>
-              <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-                <div>
-                  <p className="font-semibold">{locale === "ar" ? nutritionPlan.nameAr : nutritionPlan.nameEn}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {L(`${nutritionPlan.mealsCount} وجبة · ${nutritionPlan.calories} سعرة`, `${nutritionPlan.mealsCount} meal(s) · ${nutritionPlan.calories} kcal`)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">{L("نسخة مستقلة لهذا العميل — تعديلها لا يؤثر على أي قالب.", "An independent copy for this client — editing it never affects any template.")}</p>
-                </div>
-                {canWrite && (
-                  <Button asChild>
-                    <Link href={`/coach/nutrition/plans/${nutritionPlan.id}`}><Pencil className="h-4 w-4" />{L("إدارة النظام الغذائي", "Manage nutrition plan")}</Link>
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+          {nutritionState ? (
+            <div>
+              <p className="mb-3 text-xs text-muted-foreground">{L("نسخة مستقلة لهذا العميل — تعديلها لا يؤثر على أي قالب.", "An independent copy for this client — editing it never affects any template.")}</p>
+              <NutritionBuilder
+                initialNameAr={nutritionState.nameAr}
+                initialNameEn={nutritionState.nameEn}
+                initialMeals={nutritionState.meals}
+                onSave={saveNutritionPlan}
+              />
+            </div>
           ) : (
             <EmptyState
               icon={Apple}
-              title={L("لا توجد خطة تغذية", "No nutrition plan")}
-              description={L("أنشئ نظاماً غذائياً خاصاً بهذا العميل، أو أسند له قالباً جاهزاً من صفحة خطط التغذية.", "Create a nutrition plan for this client, or assign a ready-made template from the Nutrition Plans page.")}
+              title={L("لا يوجد نظام غذائي", "No nutrition plan yet")}
+              description={L("أنشئ نظاماً غذائياً خاصاً بهذا العميل.", "Create a nutrition plan for this client.")}
             >
-              <div className="flex flex-wrap justify-center gap-2">
-                {canWrite && (
-                  <Button onClick={createNutritionPlan} disabled={creatingPlan}>
-                    {creatingPlan && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {L("إنشاء نظام غذائي", "Create nutrition plan")}
-                  </Button>
-                )}
-                <Button asChild variant="outline"><Link href="/coach/nutrition/plans">{L("خطط التغذية", "Nutrition plans")}</Link></Button>
-              </div>
+              {canWrite && (
+                <Button onClick={createNutritionPlan} disabled={creatingPlan}>
+                  {creatingPlan && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {L("إنشاء نظام غذائي", "Create nutrition plan")}
+                </Button>
+              )}
             </EmptyState>
           )}
         </TabsContent>

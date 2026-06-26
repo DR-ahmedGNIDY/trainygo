@@ -8,13 +8,14 @@ export const dynamic = "force-dynamic";
 export default async function CoachExercisesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; page?: string; tab?: string }>;
 }) {
   const session = await requireRole("coach");
   const sp = await searchParams;
+  const tab = sp.tab === "mine" ? "mine" : "system";
   const res = await listExercises(
     { role: "coach", coachId: session.user.id },
-    { query: sp.q, category: sp.category, page: Number(sp.page) || 1 },
+    { query: sp.q, category: sp.category, visibility: tab, page: Number(sp.page) || 1 },
   );
   return (
     <ExerciseLibrary
@@ -25,6 +26,7 @@ export default async function CoachExercisesPage({
       pages={res.pages}
       query={sp.q ?? ""}
       category={sp.category ?? "all"}
+      tab={tab}
       canWrite={coachCanWrite(session.user.status)}
     />
   );

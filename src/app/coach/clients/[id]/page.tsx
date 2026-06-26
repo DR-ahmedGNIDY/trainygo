@@ -5,6 +5,8 @@ import { getClient } from "@/lib/services/clients";
 import { getProgressHistory, toWeightSeries } from "@/lib/services/progress";
 import { getActiveProgram } from "@/lib/services/programs";
 import { getActivePlan } from "@/lib/services/nutrition-plans";
+import { mealsToBuilder } from "@/lib/builder-mappers";
+import type { IMeal } from "@/models/NutritionTemplate";
 import { ClientProfileView, type ProfileClient } from "./client-profile-view";
 
 export const dynamic = "force-dynamic";
@@ -63,8 +65,7 @@ export default async function ClientProfilePage({
               id: String(program._id),
               nameAr: program.nameAr,
               nameEn: program.nameEn,
-              weeksCount: program.weeks?.length ?? 0,
-              daysCount: (program.weeks ?? []).reduce((s: number, w: { days?: unknown[] }) => s + (w.days?.length ?? 0), 0),
+              weeks: program.weeks ?? [],
             }
           : null
       }
@@ -74,8 +75,7 @@ export default async function ClientProfilePage({
               id: String(plan._id),
               nameAr: plan.nameAr,
               nameEn: plan.nameEn,
-              mealsCount: plan.meals?.length ?? 0,
-              calories: plan.totals?.calories ?? 0,
+              meals: mealsToBuilder((plan.meals ?? []) as unknown as IMeal[]),
             }
           : null
       }

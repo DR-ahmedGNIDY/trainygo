@@ -65,10 +65,11 @@ export interface ExercisePickerItem {
 export async function searchExercisesAction(
   query: string,
   category?: string,
+  visibility?: "all" | "system" | "mine",
 ): Promise<ActionResult<{ items: ExercisePickerItem[] }>> {
   return runAction(async () => {
     const scope = await resolveScope();
-    const res = await exercises.listExercises(scope, { query, category, limit: 30 });
+    const res = await exercises.listExercises(scope, { query, category, visibility, limit: 30 });
     const items = (
       res.items as unknown as {
         _id: string;

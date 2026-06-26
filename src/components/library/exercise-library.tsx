@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -79,6 +80,7 @@ export function ExerciseLibrary({
   pages,
   query,
   category,
+  tab,
   canWrite,
 }: {
   role: "super_admin" | "coach";
@@ -88,9 +90,12 @@ export function ExerciseLibrary({
   pages: number;
   query: string;
   category: string;
+  /** "system" | "mine" — coach-only split between the system library and the coach's own exercises. */
+  tab?: "system" | "mine";
   canWrite: boolean;
 }) {
   const { t, locale } = useI18n();
+  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -143,13 +148,22 @@ export function ExerciseLibrary({
         title={role === "super_admin" ? t.dashboard.adminNav.exercises : t.dashboard.coachNav.exerciseLibrary}
         description={`${total} ${locale === "ar" ? "تمرين" : "exercises"}`}
       >
-        {canWrite && (
+        {canWrite && (tab !== "system" || role !== "coach") && (
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4" />
             {t.dashboard.ui.addExercise}
           </Button>
         )}
       </PageHeader>
+
+      {role === "coach" && (
+        <Tabs value={tab ?? "system"} onValueChange={(v) => pushParams({ tab: v === "mine" ? "mine" : undefined, page: "1" })} className="mb-4">
+          <TabsList>
+            <TabsTrigger value="system">{L("تمارين النظام", "System exercises")}</TabsTrigger>
+            <TabsTrigger value="mine">{L("مكتبتي", "My library")}</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">

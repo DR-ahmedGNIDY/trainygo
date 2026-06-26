@@ -45,3 +45,5 @@ yarn-error.log*
 .repo_*.json
 *_log.txt
 *_dry.txt
+
+.vercel

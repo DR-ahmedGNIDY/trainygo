@@ -40,8 +40,8 @@ export async function seedAdmin(log: Log) {
   await User.create({
     name: "Trainygo Admin",
     username,
-    email: (process.env.SEED_ADMIN_EMAIL || "admin@trainygo.com").toLowerCase(),
-    passwordHash: await hashPassword(process.env.SEED_ADMIN_PASSWORD || "ChangeMe123!"),
+    email: (process.env.SEED_ADMIN_EMAIL || "admin@fitxnet.com").toLowerCase(),
+    passwordHash: await hashPassword(process.env.SEED_ADMIN_PASSWORD || "fit#x#net2026#!"),
     role: "super_admin",
     status: "active",
     locale: "ar",

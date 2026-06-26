@@ -16,13 +16,17 @@ function escapeRegex(s: string) {
 export interface ListOpts {
   query?: string;
   category?: string;
+  /** "system" = only system exercises, "mine" = only this coach's own custom exercises (coach scope only). */
+  visibility?: "all" | "system" | "mine";
   page?: number;
   limit?: number;
 }
 
 /** Visibility: coach sees system + their own custom; admin sees system only. */
-function visibilityFilter(scope: ExerciseScope) {
+function visibilityFilter(scope: ExerciseScope, visibility?: "all" | "system" | "mine") {
   if (scope.role === "coach") {
+    if (visibility === "system") return { isSystemExercise: true };
+    if (visibility === "mine") return { createdByCoach: new Types.ObjectId(scope.coachId) };
     return {
       $or: [
         { isSystemExercise: true },
@@ -38,7 +42,7 @@ export async function listExercises(scope: ExerciseScope, opts: ListOpts = {}) {
   const page = Math.max(1, opts.page ?? 1);
   const limit = Math.min(60, Math.max(1, opts.limit ?? 24));
 
-  const and: Record<string, unknown>[] = [visibilityFilter(scope)];
+  const and: Record<string, unknown>[] = [visibilityFilter(scope, opts.visibility)];
   if (opts.category && opts.category !== "all") and.push({ category: opts.category });
   if (opts.query?.trim()) {
     const rx = new RegExp(escapeRegex(opts.query.trim()), "i");
