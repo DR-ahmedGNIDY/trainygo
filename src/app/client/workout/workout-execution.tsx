@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Dumbbell, Play } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -19,17 +20,47 @@ import { ExerciseMedia } from "@/components/library/exercise-media";
 import { WorkoutSession, type SessionExerciseSource } from "@/components/client/workout-session";
 import { FrozenBanner } from "@/components/client/access-banners";
 import type { ClientAccessState } from "@/lib/services/subscription";
+import type { PreviousPerformance } from "@/lib/services/workout-logs";
 
 type Ex = SessionExerciseSource;
 interface Day { dayNumber: number; name: { ar: string; en: string }; exercises: Ex[] }
 interface Week { weekNumber: number; days: Day[] }
 
+export function WorkoutTabs({ active }: { active: "program" | "history" }) {
+  const { locale } = useI18n();
+  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
+  return (
+    <div className="mb-4 flex gap-2 border-b">
+      <Link
+        href="/client/workout"
+        className={
+          "px-3 py-2 text-sm font-medium " +
+          (active === "program" ? "border-b-2 border-primary text-primary" : "text-muted-foreground hover:text-foreground")
+        }
+      >
+        {L("البرنامج", "Program")}
+      </Link>
+      <Link
+        href="/client/workout-history"
+        className={
+          "px-3 py-2 text-sm font-medium " +
+          (active === "history" ? "border-b-2 border-primary text-primary" : "text-muted-foreground hover:text-foreground")
+        }
+      >
+        {L("سجل التمارين", "Workout history")}
+      </Link>
+    </div>
+  );
+}
+
 export function WorkoutExecution({
   program,
   access,
+  lastPerformance,
 }: {
   program: { id: string; name: string; weeks: Week[] } | null;
   access: ClientAccessState;
+  lastPerformance?: Record<string, PreviousPerformance>;
 }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
@@ -47,6 +78,7 @@ export function WorkoutExecution({
   if (!program) {
     return (
       <div>
+        <WorkoutTabs active="program" />
         <PageHeader title={t.dashboard.clientNav.workout} />
         <EmptyState
           icon={Dumbbell}
@@ -78,12 +110,14 @@ export function WorkoutExecution({
         dayNameEn={day.name.en}
         onExit={() => setSessionActive(false)}
         onSubmitted={() => router.refresh()}
+        lastPerformance={lastPerformance}
       />
     );
   }
 
   return (
     <div>
+      <WorkoutTabs active="program" />
       <PageHeader title={t.dashboard.clientNav.workout} description={programName}>
         <div className="hidden gap-2 lg:flex">
           <Select value={String(wi)} onValueChange={(v) => { setWi(Number(v)); setDi(0); }}>

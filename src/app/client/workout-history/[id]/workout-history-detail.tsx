@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Clock, User } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/components/providers/i18n-provider";
+import { ExerciseMedia } from "@/components/library/exercise-media";
 import { ComparisonBadge, PerformanceDiff } from "@/components/workout/comparison-badge";
 import type { ComparisonStatus } from "@/models/WorkoutLog";
 
-export interface ReportDetailData {
+export interface HistoryDetailData {
   _id: string;
-  client?: { name?: string };
   dayNameAr: string;
   dayNameEn: string;
   startedAt: string;
@@ -23,6 +23,7 @@ export interface ReportDetailData {
   skippedCount: number;
   programName?: string;
   exercises: {
+    exercise?: string | null;
     nameAr: string;
     nameEn: string;
     targetSets: number;
@@ -33,6 +34,11 @@ export interface ReportDetailData {
     comparisonStatus?: ComparisonStatus | null;
     isPr?: boolean;
     previousSets?: { setNumber: number; weight: number; reps: number }[];
+    videoUrl?: string;
+    youtubeUrl?: string;
+    imageUrlStart?: string;
+    imageUrlEnd?: string;
+    gifUrl?: string;
   }[];
 }
 
@@ -42,7 +48,7 @@ function formatDuration(totalSeconds: number) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-export function WorkoutReportDetail({ report }: { report: ReportDetailData }) {
+export function WorkoutHistoryDetail({ report }: { report: HistoryDetailData }) {
   const { dir, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const BackArrow = dir === "rtl" ? ArrowRight : ArrowLeft;
@@ -50,16 +56,13 @@ export function WorkoutReportDetail({ report }: { report: ReportDetailData }) {
   return (
     <div>
       <Button asChild variant="ghost" size="sm" className="mb-3 -ms-2">
-        <Link href="/coach/workout-reports"><BackArrow className="h-4 w-4" />{L("تقارير التمارين", "Workout reports")}</Link>
+        <Link href="/client/workout-history"><BackArrow className="h-4 w-4" />{L("سجل التمارين", "Workout history")}</Link>
       </Button>
 
       <Card className="mb-4">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-muted-foreground" />
-            <span className="font-semibold">{report.client?.name ?? "—"}</span>
-            <span className="text-muted-foreground">·</span>
-            <span>{locale === "ar" ? report.dayNameAr : report.dayNameEn}</span>
+            <span className="font-semibold">{locale === "ar" ? report.dayNameAr : report.dayNameEn}</span>
             {report.programName && (
               <>
                 <span className="text-muted-foreground">·</span>
@@ -82,7 +85,17 @@ export function WorkoutReportDetail({ report }: { report: ReportDetailData }) {
         {report.exercises.map((ex, i) => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-base">{locale === "ar" ? ex.nameAr : ex.nameEn}</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-muted">
+                  <ExerciseMedia
+                    media={{ imageUrlStart: ex.imageUrlStart, imageUrlEnd: ex.imageUrlEnd, gifUrl: ex.gifUrl }}
+                    alt={locale === "ar" ? ex.nameAr : ex.nameEn}
+                    className="absolute inset-0 flex h-full w-full items-center justify-center overflow-hidden"
+                    iconClassName="h-4 w-4 text-muted-foreground/40"
+                  />
+                </span>
+                {locale === "ar" ? ex.nameAr : ex.nameEn}
+              </CardTitle>
               <div className="flex items-center gap-2">
                 <Badge variant="outline">{ex.targetSets} × {ex.targetReps}</Badge>
                 {ex.skipped ? (

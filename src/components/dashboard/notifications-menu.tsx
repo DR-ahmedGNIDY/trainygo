@@ -11,6 +11,7 @@ import {
   Dumbbell,
   Apple,
   FileText,
+  Trophy,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
@@ -44,6 +45,7 @@ const ICONS: Partial<Record<NotificationType, typeof Bell>> = {
   new_program: Dumbbell,
   new_nutrition_plan: Apple,
   workout_report: FileText,
+  personal_record: Trophy,
 };
 
 export function NotificationsMenu({

@@ -1,4 +1,5 @@
 import { Schema, model, models, type Model, type Types } from "mongoose";
+import { COMPARISON_STATUSES, type ComparisonStatus } from "./WorkoutLog";
 
 /** A single logged set inside a finished workout session report. */
 export interface IReportSet {
@@ -19,6 +20,13 @@ export interface IReportExercise {
   wasDeferred: boolean;
   /** Exercise was skipped outright — never performed this session. */
   skipped: boolean;
+  /** How this performance compares to the client's previous session for this exercise. */
+  comparisonStatus?: ComparisonStatus | null;
+  /** True if this performance beat the client's all-time best 1RM for this exercise. */
+  isPr: boolean;
+  /** The previous session's sets for this exercise, for side-by-side comparison. */
+  previousSets: IReportSet[];
+  previousOneRm?: number | null;
 }
 
 /**
@@ -69,6 +77,10 @@ const ReportExerciseSchema = new Schema<IReportExercise>(
     sets: { type: [ReportSetSchema], default: [] },
     wasDeferred: { type: Boolean, default: false },
     skipped: { type: Boolean, default: false },
+    comparisonStatus: { type: String, enum: COMPARISON_STATUSES, default: null },
+    isPr: { type: Boolean, default: false },
+    previousSets: { type: [ReportSetSchema], default: [] },
+    previousOneRm: { type: Number, default: null },
   },
   { _id: false },
 );

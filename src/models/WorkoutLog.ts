@@ -7,6 +7,10 @@ export interface ILoggedSet {
   reps: number;
 }
 
+/** How this log compares to the client's previous session for the same exercise. */
+export const COMPARISON_STATUSES = ["pr", "improved", "steady", "decline", "first_time"] as const;
+export type ComparisonStatus = (typeof COMPARISON_STATUSES)[number];
+
 /**
  * A client's workout log for one exercise on one day. History across logs is
  * used to derive personal records and strength progress.
@@ -27,6 +31,9 @@ export interface IWorkoutLog {
   completed: boolean;
   /** best estimated 1RM for this session (Epley) — denormalized for PR queries */
   estimatedOneRm: number;
+  /** true if this log beat the client's all-time best 1RM for this exercise. */
+  isPr: boolean;
+  comparisonStatus?: ComparisonStatus | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -69,6 +76,8 @@ const WorkoutLogSchema = new Schema<IWorkoutLog>(
     notes: { type: String },
     completed: { type: Boolean, default: true },
     estimatedOneRm: { type: Number, default: 0 },
+    isPr: { type: Boolean, default: false },
+    comparisonStatus: { type: String, enum: COMPARISON_STATUSES, default: null },
   },
   { timestamps: true },
 );

@@ -4,8 +4,19 @@ import { WorkoutReport } from "@/models/WorkoutReport";
 import { User } from "@/models/User";
 import { serialize } from "@/lib/serialize";
 import { logExercise } from "@/lib/services/workout-logs";
+import type { ComparisonStatus } from "@/models/WorkoutLog";
 import { createNotification } from "@/lib/services/notifications";
 import type { WorkoutReportData } from "@/lib/validations/workout-report";
+
+/** The heaviest set in a list (ties broken by reps) — used for PR notification text. */
+function bestSet(sets: { setNumber: number; weight: number; reps: number }[]) {
+  return sets.reduce<{ setNumber: number; weight: number; reps: number } | null>((best, s) => {
+    if (!best) return s;
+    if (s.weight > best.weight) return s;
+    if (s.weight === best.weight && s.reps > best.reps) return s;
+    return best;
+  }, null);
+}
 
 function formatDuration(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60);
@@ -70,16 +81,44 @@ export async function createWorkoutReport(
   const endedAt = new Date(data.endedAt);
   const durationSeconds = Math.max(0, Math.round((endedAt.getTime() - startedAt.getTime()) / 1000));
 
-  const exercises = data.exercises.map((ex) => ({
-    exercise: ex.exerciseId ? new Types.ObjectId(ex.exerciseId) : null,
-    nameAr: ex.nameAr,
-    nameEn: ex.nameEn,
-    targetSets: ex.targetSets,
-    targetReps: ex.targetReps,
-    sets: ex.sets,
-    wasDeferred: ex.wasDeferred,
-    skipped: ex.skipped,
-  }));
+  // Log each completed exercise first so we know, per exercise, how it compares to the
+  // client's previous session and whether it set a new personal record.
+  const logResults = new Map<number, { comparisonStatus: ComparisonStatus; isPr: boolean; previous: { sets: { setNumber: number; weight: number; reps: number }[]; estimatedOneRm: number } | null }>();
+  await Promise.all(
+    data.exercises.map(async (ex, i) => {
+      if (ex.skipped || ex.sets.length === 0) return;
+      const result = await logExercise(clientId, coachId, {
+        exerciseId: ex.exerciseId,
+        exerciseNameAr: ex.nameAr,
+        exerciseNameEn: ex.nameEn,
+        programId: data.programId,
+        weekNumber: data.weekNumber,
+        dayNumber: data.dayNumber,
+        sets: ex.sets,
+        completed: true,
+        date: endedAt,
+      });
+      logResults.set(i, result);
+    }),
+  );
+
+  const exercises = data.exercises.map((ex, i) => {
+    const cmp = logResults.get(i);
+    return {
+      exercise: ex.exerciseId ? new Types.ObjectId(ex.exerciseId) : null,
+      nameAr: ex.nameAr,
+      nameEn: ex.nameEn,
+      targetSets: ex.targetSets,
+      targetReps: ex.targetReps,
+      sets: ex.sets,
+      wasDeferred: ex.wasDeferred,
+      skipped: ex.skipped,
+      comparisonStatus: cmp?.comparisonStatus ?? null,
+      isPr: cmp?.isPr ?? false,
+      previousSets: cmp?.previous?.sets ?? [],
+      previousOneRm: cmp?.previous?.estimatedOneRm ?? null,
+    };
+  });
 
   const skippedCount = exercises.filter((e) => e.skipped).length;
   const completedCount = exercises.filter((e) => !e.skipped).length;
@@ -108,28 +147,30 @@ export async function createWorkoutReport(
     User.findById(coachId).select("coachProfile.whatsappNumber").lean(),
   ]);
 
+  const prExercises = exercises.filter((e) => e.isPr);
+
   await Promise.all([
-    ...data.exercises
-      .filter((ex) => !ex.skipped && ex.sets.length > 0)
-      .map((ex) =>
-        logExercise(clientId, coachId, {
-          exerciseId: ex.exerciseId,
-          exerciseNameAr: ex.nameAr,
-          exerciseNameEn: ex.nameEn,
-          programId: data.programId,
-          weekNumber: data.weekNumber,
-          dayNumber: data.dayNumber,
-          sets: ex.sets,
-          completed: true,
-          date: endedAt,
-        }),
-      ),
     createNotification({
       recipient: coachId,
       type: "workout_report",
       titleAr: `تقرير تمرين جديد: ${client?.name ?? ""}`,
       titleEn: `New workout report: ${client?.name ?? ""}`,
       link: `/coach/workout-reports/${doc._id.toString()}`,
+    }),
+    ...prExercises.map((ex) => {
+      const top = bestSet(ex.sets);
+      const prevTop = bestSet(ex.previousSets);
+      const newDesc = top ? `${top.weight}kg × ${top.reps}` : "";
+      const oldDesc = prevTop ? `${prevTop.weight}kg × ${prevTop.reps}` : "";
+      return createNotification({
+        recipient: coachId,
+        type: "personal_record",
+        titleAr: `🏆 ${client?.name ?? ""} حقق رقماً قياسياً جديداً في ${ex.nameAr}`,
+        titleEn: `🏆 ${client?.name ?? ""} set a new personal record in ${ex.nameEn}`,
+        bodyAr: oldDesc ? `${newDesc} بدلاً من ${oldDesc}` : newDesc,
+        bodyEn: oldDesc ? `${newDesc} instead of ${oldDesc}` : newDesc,
+        link: `/coach/workout-reports/${doc._id.toString()}`,
+      });
     }),
   ]);
 
@@ -165,5 +206,21 @@ export async function getReportForCoach(coachId: string, reportId: string) {
   const doc = await WorkoutReport.findOne({ _id: reportId, coach: new Types.ObjectId(coachId) })
     .populate("client", "name")
     .lean();
+  return doc ? serialize(doc) : null;
+}
+
+export async function listReportsForClient(clientId: string, limit = 100) {
+  await connectToDatabase();
+  const docs = await WorkoutReport.find({ client: new Types.ObjectId(clientId) })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+  return serialize(docs);
+}
+
+export async function getReportForClient(clientId: string, reportId: string) {
+  await connectToDatabase();
+  if (!Types.ObjectId.isValid(reportId)) return null;
+  const doc = await WorkoutReport.findOne({ _id: reportId, client: new Types.ObjectId(clientId) }).lean();
   return doc ? serialize(doc) : null;
 }

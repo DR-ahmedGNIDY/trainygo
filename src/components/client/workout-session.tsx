@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { ExerciseMedia } from "@/components/library/exercise-media";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { submitWorkoutReportAction } from "@/lib/actions/client";
+import type { PreviousPerformance } from "@/lib/services/workout-logs";
 
 export interface SessionExerciseSource {
   exercise?: string | null;
@@ -61,6 +62,7 @@ export function WorkoutSession({
   dayNameEn,
   onExit,
   onSubmitted,
+  lastPerformance,
 }: {
   exercises: SessionExerciseSource[];
   programId: string;
@@ -71,6 +73,7 @@ export function WorkoutSession({
   dayNameEn: string;
   onExit: () => void;
   onSubmitted: () => void;
+  lastPerformance?: Record<string, PreviousPerformance>;
 }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
@@ -390,6 +393,28 @@ export function WorkoutSession({
           <Badge variant="outline">{current.reps} {t.client.reps}</Badge>
           {current.restSeconds ? <Badge variant="outline">{current.restSeconds}{L("ث راحة", "s rest")}</Badge> : null}
           {current.youtubeUrl && !current.videoUrl && <Youtube className="h-4 w-4 text-destructive" />}
+        </div>
+
+        <div className="mt-4 rounded-xl border bg-muted/20 p-3">
+          <p className="mb-1.5 text-xs font-semibold text-muted-foreground">{L("آخر أداء لهذا التمرين", "Last performance for this exercise")}</p>
+          {(() => {
+            const last = current.exercise ? lastPerformance?.[current.exercise] : undefined;
+            if (!last) {
+              return <p className="text-sm text-muted-foreground">{L("لا يوجد سجل سابق لهذا التمرين.", "No previous record for this exercise.")}</p>;
+            }
+            return (
+              <div>
+                <p className="mb-1.5 text-xs text-muted-foreground" dir="ltr">{new Date(last.date).toLocaleDateString("en-GB")}</p>
+                <div className="flex flex-wrap gap-2">
+                  {last.sets.map((s, i) => (
+                    <span key={i} className="rounded-md bg-background px-2 py-1 text-xs">
+                      {L("مجموعة", "Set")} {s.setNumber}: {s.weight}{L("كجم", "kg")} × {s.reps}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         <div className="mt-5 rounded-xl border bg-muted/30 p-4 text-center">

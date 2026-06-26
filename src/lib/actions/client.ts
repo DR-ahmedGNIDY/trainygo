@@ -6,7 +6,7 @@ import { runAction, ok, fail, type ActionResult } from "./result";
 import { getOwnCoachId, updateOwnProfile, changeOwnPassword } from "@/lib/services/client-self";
 import { submitCheckin } from "@/lib/services/checkins";
 import { addMeasurement, type MeasurementInput } from "@/lib/services/progress";
-import { logExercise, type LogExerciseInput } from "@/lib/services/workout-logs";
+import { logExercise, getExerciseHistoryByName, type LogExerciseInput } from "@/lib/services/workout-logs";
 import { createWorkoutReport } from "@/lib/services/workout-reports";
 import { workoutReportSchema, type WorkoutReportInput } from "@/lib/validations/workout-report";
 import { setMealDone } from "@/lib/services/meal-logs";
@@ -88,6 +88,17 @@ export async function setMealDoneAction(
     revalidatePath("/client/nutrition");
     revalidatePath("/coach/nutrition/progress");
     return ok();
+  });
+}
+
+export async function searchExerciseHistoryAction(
+  query: string,
+): Promise<ActionResult<unknown[]>> {
+  return runAction(async () => {
+    const { clientId } = await getClientCtx();
+    if (!query.trim()) return ok([]);
+    const docs = await getExerciseHistoryByName(clientId, query);
+    return ok(docs);
   });
 }
 

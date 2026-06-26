@@ -1,12 +1,32 @@
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/lib/db";
-import { WorkoutLog } from "@/models/WorkoutLog";
+import { WorkoutLog, type ComparisonStatus } from "@/models/WorkoutLog";
 import { serialize } from "@/lib/serialize";
 
 export interface LoggedSetInput {
   setNumber: number;
   weight: number;
   reps: number;
+}
+
+export interface PreviousPerformance {
+  date: string;
+  sets: LoggedSetInput[];
+  estimatedOneRm: number;
+}
+
+/** Determines how a new performance compares to the previous one and the all-time best. */
+export function comparePerformance(
+  newOneRm: number,
+  previous: PreviousPerformance | null,
+  allTimeBestOneRm: number,
+): ComparisonStatus {
+  if (!previous) return "first_time";
+  if (newOneRm > allTimeBestOneRm) return "pr";
+  const delta = newOneRm - previous.estimatedOneRm;
+  if (delta > 0.5) return "improved";
+  if (delta < -0.5) return "decline";
+  return "steady";
 }
 
 export interface LogExerciseInput {
@@ -33,13 +53,59 @@ export function bestOneRm(sets: LoggedSetInput[]): number {
   return sets.reduce((max, s) => Math.max(max, epley1RM(s.weight, s.reps)), 0);
 }
 
+/** The client's most recent previous log for an exercise, before any given date. */
+async function getPreviousLog(
+  clientId: string,
+  exerciseId: string,
+  before?: Date,
+): Promise<PreviousPerformance | null> {
+  const doc = await WorkoutLog.findOne({
+    client: new Types.ObjectId(clientId),
+    exercise: new Types.ObjectId(exerciseId),
+    ...(before ? { date: { $lt: before } } : {}),
+  })
+    .sort({ date: -1 })
+    .lean();
+  if (!doc) return null;
+  return { date: doc.date.toISOString(), sets: doc.sets, estimatedOneRm: doc.estimatedOneRm };
+}
+
+/** The client's all-time best 1RM for an exercise, before any given date. */
+async function getAllTimeBestOneRm(clientId: string, exerciseId: string, before?: Date): Promise<number> {
+  const agg = await WorkoutLog.aggregate([
+    {
+      $match: {
+        client: new Types.ObjectId(clientId),
+        exercise: new Types.ObjectId(exerciseId),
+        ...(before ? { date: { $lt: before } } : {}),
+      },
+    },
+    { $group: { _id: null, max: { $max: "$estimatedOneRm" } } },
+  ]);
+  return agg[0]?.max ?? 0;
+}
+
 /** Record a client's exercise log. coachId derives from the client's coach. */
 export async function logExercise(
   clientId: string,
   coachId: string,
   input: LogExerciseInput,
-) {
+): Promise<{ id: string; comparisonStatus: ComparisonStatus; isPr: boolean; previous: PreviousPerformance | null }> {
   await connectToDatabase();
+  const date = input.date ?? new Date();
+  const newOneRm = bestOneRm(input.sets);
+
+  let previous: PreviousPerformance | null = null;
+  let allTimeBest = 0;
+  if (input.exerciseId) {
+    [previous, allTimeBest] = await Promise.all([
+      getPreviousLog(clientId, input.exerciseId, date),
+      getAllTimeBestOneRm(clientId, input.exerciseId, date),
+    ]);
+  }
+  const comparisonStatus = comparePerformance(newOneRm, previous, allTimeBest);
+  const isPr = comparisonStatus === "pr";
+
   const doc = await WorkoutLog.create({
     client: new Types.ObjectId(clientId),
     coach: new Types.ObjectId(coachId),
@@ -49,13 +115,57 @@ export async function logExercise(
     exerciseNameEn: input.exerciseNameEn,
     weekNumber: input.weekNumber,
     dayNumber: input.dayNumber,
-    date: input.date ?? new Date(),
+    date,
     sets: input.sets,
     notes: input.notes,
     completed: input.completed ?? true,
-    estimatedOneRm: bestOneRm(input.sets),
+    estimatedOneRm: newOneRm,
+    isPr,
+    comparisonStatus,
   });
-  return doc._id.toString();
+  return { id: doc._id.toString(), comparisonStatus, isPr, previous };
+}
+
+/** Most recent previous performance for each given exercise (for the "last time" card during a session). */
+export async function getLastPerformanceMap(
+  clientId: string,
+  exerciseIds: string[],
+): Promise<Record<string, PreviousPerformance>> {
+  await connectToDatabase();
+  const ids = [...new Set(exerciseIds)].filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
+  if (ids.length === 0) return {};
+  const docs = await WorkoutLog.aggregate([
+    { $match: { client: new Types.ObjectId(clientId), exercise: { $in: ids } } },
+    { $sort: { date: -1 } },
+    {
+      $group: {
+        _id: "$exercise",
+        date: { $first: "$date" },
+        sets: { $first: "$sets" },
+        estimatedOneRm: { $first: "$estimatedOneRm" },
+      },
+    },
+  ]);
+  const map: Record<string, PreviousPerformance> = {};
+  for (const d of docs) {
+    map[String(d._id)] = { date: d.date.toISOString(), sets: d.sets, estimatedOneRm: d.estimatedOneRm };
+  }
+  return map;
+}
+
+/** All logs whose exercise name matches a search query (Arabic or English), oldest first — for progress charts. */
+export async function getExerciseHistoryByName(clientId: string, query: string) {
+  await connectToDatabase();
+  const escaped = query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (!escaped) return [];
+  const regex = new RegExp(escaped, "i");
+  const docs = await WorkoutLog.find({
+    client: new Types.ObjectId(clientId),
+    $or: [{ exerciseNameAr: regex }, { exerciseNameEn: regex }],
+  })
+    .sort({ date: 1 })
+    .lean();
+  return serialize(docs);
 }
 
 /** All logs for one exercise (ascending — strength-progress chart). */
