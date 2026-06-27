@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  X,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -386,6 +387,32 @@ function ExerciseFormDialog({
           <div className="space-y-2"><Label>{L("العضلات المستهدفة", "Target muscles")}</Label><Input value={f.targetMuscles} onChange={(e) => set("targetMuscles")(e.target.value)} placeholder={L("صدر، ترايسبس", "Chest, Triceps")} /></div>
           <div className="space-y-2 sm:col-span-2"><Label>{L("الوصف (عربي)", "Description (AR)")}</Label><textarea className={ta} value={f.descAr} onChange={(e) => set("descAr")(e.target.value)} /></div>
           <div className="space-y-2 sm:col-span-2"><Label>{L("التعليمات (عربي)", "Instructions (AR)")}</Label><textarea className={ta} value={f.instrAr} onChange={(e) => set("instrAr")(e.target.value)} /></div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>{L("الوسائط", "Media")}</Label>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-lg border bg-muted">
+                <ExerciseMedia
+                  media={{ videoUrl: f.videoUrl, youtubeUrl: f.youtubeUrl, imageUrlStart: f.imageUrlStart, imageUrlEnd: f.imageUrlEnd, gifUrl: f.gifUrl }}
+                  alt={f.nameAr || f.nameEn || "exercise"}
+                  className="absolute inset-0 flex h-full w-full items-center justify-center overflow-hidden"
+                  iconClassName="h-8 w-8 text-muted-foreground/40"
+                />
+              </div>
+              <div className="flex flex-1 flex-wrap items-center gap-2">
+                <CloudinaryUpload folder="trainygo/exercises" label={L("رفع صورة", "Upload image")} onUploaded={(url) => set("imageUrlStart")(url)} />
+                <CloudinaryUpload folder="trainygo/exercises/videos" resourceType="video" label={L("رفع فيديو", "Upload video")} onUploaded={(url) => set("videoUrl")(url)} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-1.5 text-destructive hover:text-destructive"
+                  onClick={() => setF((s) => ({ ...s, videoUrl: "", imageUrlStart: "", imageUrlEnd: "", gifUrl: "" }))}
+                >
+                  <X className="h-4 w-4" />{L("حذف الوسائط", "Remove media")}
+                </Button>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label>{L("رابط GIF", "GIF URL")}</Label>
             <div className="flex gap-2">

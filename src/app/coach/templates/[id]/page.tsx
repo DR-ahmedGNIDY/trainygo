@@ -37,6 +37,7 @@ export default async function TemplateBuilderPage({
       initialNameEn={tpl.nameEn}
       initialWeeks={tpl.weeks as unknown as BWeek[]}
       onSave={save}
+      flat
     />
   );
 }

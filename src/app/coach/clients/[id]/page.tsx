@@ -5,6 +5,7 @@ import { getClient } from "@/lib/services/clients";
 import { getProgressHistory, toWeightSeries } from "@/lib/services/progress";
 import { getActiveProgram } from "@/lib/services/programs";
 import { getActivePlan } from "@/lib/services/nutrition-plans";
+import { getClientPerformanceAnalysis } from "@/lib/services/workout-analytics";
 import { mealsToBuilder } from "@/lib/builder-mappers";
 import type { IMeal } from "@/models/NutritionTemplate";
 import { ClientProfileView, type ProfileClient } from "./client-profile-view";
@@ -48,9 +49,10 @@ export default async function ClientProfilePage({
     thighs?: number;
   }[];
 
-  const [program, plan] = await Promise.all([
+  const [program, plan, performanceAnalysis] = await Promise.all([
     getActiveProgram(session.user.id, id),
     getActivePlan(session.user.id, id),
+    getClientPerformanceAnalysis(id),
   ]);
 
   return (
@@ -59,6 +61,7 @@ export default async function ClientProfilePage({
       weightSeries={toWeightSeries(history)}
       history={history}
       canWrite={coachCanWrite(session.user.status)}
+      performanceAnalysis={performanceAnalysis}
       program={
         program
           ? {

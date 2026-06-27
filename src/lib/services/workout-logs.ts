@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/lib/db";
-import { WorkoutLog, type ComparisonStatus } from "@/models/WorkoutLog";
+import { WorkoutLog, type ComparisonStatus, type DifficultyRating } from "@/models/WorkoutLog";
 import { serialize } from "@/lib/serialize";
 
 export interface LoggedSetInput {
@@ -13,6 +13,22 @@ export interface PreviousPerformance {
   date: string;
   sets: LoggedSetInput[];
   estimatedOneRm: number;
+  difficultyRating?: DifficultyRating | null;
+  /** The heaviest set ever logged for this exercise (by estimated 1RM), which may predate this session. */
+  bestSet?: { weight: number; reps: number } | null;
+}
+
+/**
+ * A plain weight-increase suggestion (never applied automatically) based on how
+ * easy the client found the previous session for this exercise.
+ */
+export function suggestedWeightIncrease(previous: PreviousPerformance | null): number | null {
+  if (!previous?.difficultyRating) return null;
+  const lastWeight = previous.bestSet?.weight ?? previous.sets[previous.sets.length - 1]?.weight ?? 0;
+  const step = lastWeight >= 40 ? 5 : 2.5;
+  if (previous.difficultyRating === "very_easy") return step * 2;
+  if (previous.difficultyRating === "easy") return step;
+  return null;
 }
 
 /** Determines how a new performance compares to the previous one and the all-time best. */
@@ -40,6 +56,7 @@ export interface LogExerciseInput {
   notes?: string;
   completed?: boolean;
   date?: Date;
+  difficultyRating?: DifficultyRating | null;
 }
 
 /** Epley estimated one-rep max for a single set. */
@@ -51,6 +68,14 @@ export function epley1RM(weight: number, reps: number): number {
 /** Best estimated 1RM across a set list. */
 export function bestOneRm(sets: LoggedSetInput[]): number {
   return sets.reduce((max, s) => Math.max(max, epley1RM(s.weight, s.reps)), 0);
+}
+
+/** The single heaviest set in a list, by estimated 1RM. */
+export function bestSetOf(sets: LoggedSetInput[]): { weight: number; reps: number } | null {
+  return sets.reduce<{ weight: number; reps: number } | null>((best, s) => {
+    if (!best || epley1RM(s.weight, s.reps) > epley1RM(best.weight, best.reps)) return { weight: s.weight, reps: s.reps };
+    return best;
+  }, null);
 }
 
 /** The client's most recent previous log for an exercise, before any given date. */
@@ -85,12 +110,31 @@ async function getAllTimeBestOneRm(clientId: string, exerciseId: string, before?
   return agg[0]?.max ?? 0;
 }
 
+/** True if the client's last 3 logs for this exercise (most recent first, including this one) are all declines. */
+async function hasDeclineStreak(clientId: string, exerciseId: string): Promise<boolean> {
+  const recent = await WorkoutLog.find({
+    client: new Types.ObjectId(clientId),
+    exercise: new Types.ObjectId(exerciseId),
+  })
+    .sort({ date: -1 })
+    .limit(3)
+    .select("comparisonStatus")
+    .lean();
+  return recent.length === 3 && recent.every((r) => r.comparisonStatus === "decline");
+}
+
 /** Record a client's exercise log. coachId derives from the client's coach. */
 export async function logExercise(
   clientId: string,
   coachId: string,
   input: LogExerciseInput,
-): Promise<{ id: string; comparisonStatus: ComparisonStatus; isPr: boolean; previous: PreviousPerformance | null }> {
+): Promise<{
+  id: string;
+  comparisonStatus: ComparisonStatus;
+  isPr: boolean;
+  previous: PreviousPerformance | null;
+  declineStreak: boolean;
+}> {
   await connectToDatabase();
   const date = input.date ?? new Date();
   const newOneRm = bestOneRm(input.sets);
@@ -122,8 +166,13 @@ export async function logExercise(
     estimatedOneRm: newOneRm,
     isPr,
     comparisonStatus,
+    difficultyRating: input.difficultyRating ?? null,
   });
-  return { id: doc._id.toString(), comparisonStatus, isPr, previous };
+
+  const declineStreak =
+    comparisonStatus === "decline" && input.exerciseId ? await hasDeclineStreak(clientId, input.exerciseId) : false;
+
+  return { id: doc._id.toString(), comparisonStatus, isPr, previous, declineStreak };
 }
 
 /** Most recent previous performance for each given exercise (for the "last time" card during a session). */
@@ -134,21 +183,38 @@ export async function getLastPerformanceMap(
   await connectToDatabase();
   const ids = [...new Set(exerciseIds)].filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
   if (ids.length === 0) return {};
-  const docs = await WorkoutLog.aggregate([
-    { $match: { client: new Types.ObjectId(clientId), exercise: { $in: ids } } },
-    { $sort: { date: -1 } },
-    {
-      $group: {
-        _id: "$exercise",
-        date: { $first: "$date" },
-        sets: { $first: "$sets" },
-        estimatedOneRm: { $first: "$estimatedOneRm" },
+  const [lastDocs, bestSets] = await Promise.all([
+    WorkoutLog.aggregate([
+      { $match: { client: new Types.ObjectId(clientId), exercise: { $in: ids } } },
+      { $sort: { date: -1 } },
+      {
+        $group: {
+          _id: "$exercise",
+          date: { $first: "$date" },
+          sets: { $first: "$sets" },
+          estimatedOneRm: { $first: "$estimatedOneRm" },
+          difficultyRating: { $first: "$difficultyRating" },
+        },
       },
-    },
+    ]),
+    WorkoutLog.aggregate([
+      { $match: { client: new Types.ObjectId(clientId), exercise: { $in: ids } } },
+      { $unwind: "$sets" },
+      { $addFields: { setOneRm: { $multiply: ["$sets.weight", { $add: [1, { $divide: ["$sets.reps", 30] }] }] } } },
+      { $sort: { setOneRm: -1 } },
+      { $group: { _id: "$exercise", weight: { $first: "$sets.weight" }, reps: { $first: "$sets.reps" } } },
+    ]),
   ]);
+  const bestSetMap = new Map(bestSets.map((b) => [String(b._id), { weight: b.weight, reps: b.reps }]));
   const map: Record<string, PreviousPerformance> = {};
-  for (const d of docs) {
-    map[String(d._id)] = { date: d.date.toISOString(), sets: d.sets, estimatedOneRm: d.estimatedOneRm };
+  for (const d of lastDocs) {
+    map[String(d._id)] = {
+      date: d.date.toISOString(),
+      sets: d.sets,
+      estimatedOneRm: d.estimatedOneRm,
+      difficultyRating: d.difficultyRating ?? null,
+      bestSet: bestSetMap.get(String(d._id)) ?? null,
+    };
   }
   return map;
 }

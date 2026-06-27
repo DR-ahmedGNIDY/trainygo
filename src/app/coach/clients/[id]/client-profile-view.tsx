@@ -18,6 +18,10 @@ import {
   Copy,
   Check,
   MoreVertical,
+  TrendingUp,
+  TrendingDown,
+  Trophy,
+  Timer,
 } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -61,6 +65,7 @@ import {
 } from "@/lib/actions/programs";
 import { WorkoutBuilder, type BWeek } from "@/components/builders/workout-builder";
 import { NutritionBuilder } from "@/components/builders/nutrition-builder";
+import type { ClientPerformanceAnalysis } from "@/lib/services/workout-analytics";
 import type { AccountStatus, ClientGoal, Gender } from "@/lib/constants";
 import type { IWorkoutWeek } from "@/models/WorkoutTemplate";
 import type { IMeal } from "@/models/NutritionTemplate";
@@ -113,6 +118,7 @@ export function ClientProfileView({
   canWrite,
   program,
   nutritionPlan,
+  performanceAnalysis,
 }: {
   client: ProfileClient;
   weightSeries: { label: string; value: number }[];
@@ -120,6 +126,7 @@ export function ClientProfileView({
   canWrite: boolean;
   program: ClientProgramSummary | null;
   nutritionPlan: ClientNutritionSummary | null;
+  performanceAnalysis: ClientPerformanceAnalysis;
 }) {
   const { t, locale, dir } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
@@ -294,6 +301,43 @@ export function ClientProfileView({
               ) : (
                 <EmptyState icon={Scale} title={L("لا توجد قياسات بعد", "No measurements yet")} />
               )}
+            </CardContent>
+          </Card>
+
+          <Card className="mt-4">
+            <CardHeader><CardTitle className="text-base">{L(`تحليل الأداء — آخر ${performanceAnalysis.periodDays} يوماً`, `Performance analysis — last ${performanceAnalysis.periodDays} days`)}</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-lg border p-3 text-center">
+                {performanceAnalysis.strengthChangePercent != null && performanceAnalysis.strengthChangePercent < 0 ? (
+                  <TrendingDown className="mx-auto mb-1 h-4 w-4 text-destructive" />
+                ) : (
+                  <TrendingUp className="mx-auto mb-1 h-4 w-4 text-success" />
+                )}
+                <p className="text-lg font-bold">
+                  {performanceAnalysis.strengthChangePercent != null ? `${performanceAnalysis.strengthChangePercent > 0 ? "+" : ""}${performanceAnalysis.strengthChangePercent}%` : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground">{L("زيادة قوة", "Strength change")}</p>
+              </div>
+              <div className="rounded-lg border p-3 text-center">
+                <TrendingUp className="mx-auto mb-1 h-4 w-4 text-success" />
+                <p className="text-lg font-bold">{performanceAnalysis.topGain ? `+${performanceAnalysis.topGain.deltaKg}kg` : "—"}</p>
+                <p className="truncate text-xs text-muted-foreground">{performanceAnalysis.topGain ? (locale === "ar" ? performanceAnalysis.topGain.nameAr : performanceAnalysis.topGain.nameEn) : L("لا يوجد", "None")}</p>
+              </div>
+              <div className="rounded-lg border p-3 text-center">
+                <TrendingDown className="mx-auto mb-1 h-4 w-4 text-destructive" />
+                <p className="text-lg font-bold">{performanceAnalysis.topLoss ? `${performanceAnalysis.topLoss.deltaKg}kg` : "—"}</p>
+                <p className="truncate text-xs text-muted-foreground">{performanceAnalysis.topLoss ? (locale === "ar" ? performanceAnalysis.topLoss.nameAr : performanceAnalysis.topLoss.nameEn) : L("لا يوجد", "None")}</p>
+              </div>
+              <div className="rounded-lg border p-3 text-center">
+                <Trophy className="mx-auto mb-1 h-4 w-4 text-amber-500" />
+                <p className="text-lg font-bold">{performanceAnalysis.prCount}</p>
+                <p className="text-xs text-muted-foreground">{L("رقم قياسي", "PRs")}</p>
+              </div>
+              <div className="rounded-lg border p-3 text-center sm:col-span-4">
+                <Timer className="mx-auto mb-1 h-4 w-4 text-primary" />
+                <p className="text-lg font-bold">{performanceAnalysis.avgSessionDurationSeconds != null ? `${Math.round(performanceAnalysis.avgSessionDurationSeconds / 60)} ${L("دقيقة", "min")}` : "—"}</p>
+                <p className="text-xs text-muted-foreground">{L("متوسط مدة الجلسة", "Avg. session duration")}</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

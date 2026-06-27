@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Dumbbell } from "lucide-react";
+import { youtubeVideoId, youtubeMaxResThumbnail, youtubeHqThumbnail } from "@/lib/youtube";
 
 export interface ExerciseMediaSource {
   videoUrl?: string;
@@ -12,19 +13,22 @@ export interface ExerciseMediaSource {
   gifUrl?: string;
 }
 
-/** Extracts the video id from common YouTube URL formats (watch/short/embed). */
-function youtubeEmbedUrl(url: string): string | null {
-  const patterns = [
-    /youtube\.com\/watch\?v=([\w-]+)/,
-    /youtu\.be\/([\w-]+)/,
-    /youtube\.com\/shorts\/([\w-]+)/,
-    /youtube\.com\/embed\/([\w-]+)/,
-  ];
-  for (const re of patterns) {
-    const m = url.match(re);
-    if (m?.[1]) return `https://www.youtube.com/embed/${m[1]}`;
-  }
-  return null;
+/** YouTube thumbnail with automatic maxres -> hq fallback (maxres doesn't exist for every video). */
+function YoutubeThumbnail({ videoId, alt }: { videoId: string; alt: string }) {
+  const [src, setSrc] = useState(youtubeMaxResThumbnail(videoId));
+  return (
+    <div className="relative h-full w-full">
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes="(max-width: 768px) 50vw, 25vw"
+        className="object-cover"
+        unoptimized
+        onError={() => setSrc(youtubeHqThumbnail(videoId))}
+      />
+    </div>
+  );
 }
 
 /**
@@ -105,17 +109,11 @@ export function ExerciseMedia({
     );
   }
 
-  const embed = media.youtubeUrl ? youtubeEmbedUrl(media.youtubeUrl) : null;
-  if (embed) {
+  const videoId = media.youtubeUrl ? youtubeVideoId(media.youtubeUrl) : null;
+  if (videoId) {
     return (
       <div className={className}>
-        <iframe
-          src={embed}
-          title={alt}
-          className="h-full w-full"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
+        <YoutubeThumbnail videoId={videoId} alt={alt} />
       </div>
     );
   }

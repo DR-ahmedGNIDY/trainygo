@@ -8,13 +8,16 @@ import {
   MessageSquare,
   UserPlus,
   Activity,
+  Trophy,
 } from "lucide-react";
+import type { TopImprovingClient } from "@/lib/services/workout-analytics";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { AreaTrend, BarTrend } from "@/components/dashboard/charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/i18n-provider";
@@ -47,6 +50,7 @@ export function CoachDashboard({
   recentClients,
   growthSeries,
   adherenceSeries,
+  topImproving,
   canWrite,
 }: {
   kpis: CoachKpis;
@@ -54,6 +58,7 @@ export function CoachDashboard({
   recentClients: RecentClient[];
   growthSeries: { label: string; value: number }[];
   adherenceSeries: { label: string; value: number }[];
+  topImproving: TopImprovingClient[];
   canWrite: boolean;
 }) {
   const { t, locale } = useI18n();
@@ -138,18 +143,42 @@ export function CoachDashboard({
         </Card>
       </div>
 
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base"><Activity className="h-4 w-4 text-primary" />{s.adherence} · {t.dashboard.ui.thisMonth}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {adherenceSeries.length > 0 ? (
-            <BarTrend data={adherenceSeries} xKey="label" yKey="value" />
-          ) : (
-            <EmptyState icon={Activity} title={t.common.emptyTitle} description={t.dashboard.stats.pendingCheckins} />
-          )}
-        </CardContent>
-      </Card>
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><Activity className="h-4 w-4 text-primary" />{s.adherence} · {t.dashboard.ui.thisMonth}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {adherenceSeries.length > 0 ? (
+              <BarTrend data={adherenceSeries} xKey="label" yKey="value" />
+            ) : (
+              <EmptyState icon={Activity} title={t.common.emptyTitle} description={t.dashboard.stats.pendingCheckins} />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><Trophy className="h-4 w-4 text-amber-500" />{L("أكثر اللاعبين تطوراً هذا الأسبوع", "Most improved this week")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {topImproving.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">{t.common.emptyTitle}</p>
+            ) : (
+              topImproving.map((c, i) => (
+                <Link key={c.clientId} href={`/coach/clients/${c.clientId}`} className="flex items-center gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">{c.prCount} {L("رقم قياسي", "PR")}</p>
+                  </div>
+                  {c.improvementScore > 0 && <Badge variant="success">+{c.improvementScore}</Badge>}
+                </Link>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

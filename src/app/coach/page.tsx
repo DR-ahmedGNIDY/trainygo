@@ -3,6 +3,7 @@ import { coachCanWrite } from "@/lib/permissions";
 import { listClients } from "@/lib/services/clients";
 import { listResponses, countPendingCheckins } from "@/lib/services/checkins";
 import { getCoachSubscriptionSummary } from "@/lib/services/subscription";
+import { getTopImprovingClients } from "@/lib/services/workout-analytics";
 import { CoachDashboard, type RecentClient } from "./coach-dashboard";
 import type { AccountStatus, ClientGoal } from "@/lib/constants";
 
@@ -12,11 +13,12 @@ export default async function CoachHome() {
   const session = await requireRole("coach");
   const coachId = session.user.id;
 
-  const [allClients, pending, responses, subscription] = await Promise.all([
+  const [allClients, pending, responses, subscription, topImproving] = await Promise.all([
     listClients(coachId, { includeArchived: true }),
     countPendingCheckins(coachId),
     listResponses(coachId),
     getCoachSubscriptionSummary(coachId),
+    getTopImprovingClients(coachId),
   ]);
 
   const activeClients = allClients.filter(
@@ -72,6 +74,7 @@ export default async function CoachHome() {
       recentClients={recentClients}
       growthSeries={growthSeries}
       adherenceSeries={adherenceSeries}
+      topImproving={topImproving}
       canWrite={coachCanWrite(session.user.status)}
     />
   );

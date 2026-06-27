@@ -177,6 +177,7 @@ export function WorkoutBuilder({
     const day = days[activeDay];
     return (
       <div>
+        {backHref && <Button asChild variant="ghost" size="sm" className="mb-3 -ms-2"><Link href={backHref}><BackArrow className="h-4 w-4" />{title}</Link></Button>}
         {nameFields}
         {subtitle && <p className="mb-4 text-sm text-muted-foreground">{subtitle}</p>}
 

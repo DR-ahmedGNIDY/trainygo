@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DIFFICULTY_RATINGS } from "@/models/WorkoutLog";
 
 const reportSetSchema = z.object({
   setNumber: z.number().int().min(1),
@@ -15,6 +16,7 @@ const reportExerciseSchema = z.object({
   sets: z.array(reportSetSchema),
   wasDeferred: z.boolean().default(false),
   skipped: z.boolean().default(false),
+  difficultyRating: z.enum(DIFFICULTY_RATINGS).nullish(),
 });
 
 export const workoutReportSchema = z.object({

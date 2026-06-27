@@ -12,6 +12,7 @@ import {
   Apple,
   FileText,
   Trophy,
+  AlertTriangle,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
@@ -46,6 +47,7 @@ const ICONS: Partial<Record<NotificationType, typeof Bell>> = {
   new_nutrition_plan: Apple,
   workout_report: FileText,
   personal_record: Trophy,
+  performance_decline: AlertTriangle,
 };
 
 export function NotificationsMenu({

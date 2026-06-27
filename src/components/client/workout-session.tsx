@@ -20,6 +20,17 @@ import { ExerciseMedia } from "@/components/library/exercise-media";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { submitWorkoutReportAction } from "@/lib/actions/client";
 import type { PreviousPerformance } from "@/lib/services/workout-logs";
+import type { DifficultyRating } from "@/models/WorkoutLog";
+
+/** Plain weight-increase suggestion (never applied automatically), mirroring the server-side heuristic. */
+function suggestedWeightIncrease(previous: PreviousPerformance | null | undefined): number | null {
+  if (!previous?.difficultyRating) return null;
+  const lastWeight = previous.bestSet?.weight ?? previous.sets[previous.sets.length - 1]?.weight ?? 0;
+  const step = lastWeight >= 40 ? 5 : 2.5;
+  if (previous.difficultyRating === "very_easy") return step * 2;
+  if (previous.difficultyRating === "easy") return step;
+  return null;
+}
 
 export interface SessionExerciseSource {
   exercise?: string | null;
@@ -40,9 +51,18 @@ interface SessionExercise extends SessionExerciseSource {
   loggedSets: { weight: string; reps: string }[];
   wasDeferred: boolean;
   skipped: boolean;
+  difficultyRating?: DifficultyRating | null;
 }
 
-type Phase = "exercise" | "rest" | "summary";
+type Phase = "exercise" | "rest" | "difficulty" | "summary";
+
+const DIFFICULTY_OPTIONS: { value: DifficultyRating; ar: string; en: string; emoji: string }[] = [
+  { value: "very_easy", ar: "سهل جداً", en: "Very easy", emoji: "😴" },
+  { value: "easy", ar: "سهل", en: "Easy", emoji: "🙂" },
+  { value: "moderate", ar: "مناسب", en: "Moderate", emoji: "😐" },
+  { value: "hard", ar: "صعب", en: "Hard", emoji: "😓" },
+  { value: "very_hard", ar: "صعب جداً", en: "Very hard", emoji: "🥵" },
+];
 /** What comes after the current rest screen — another set of the same exercise, or the next exercise. */
 type RestTarget = "set" | "exercise" | null;
 
@@ -80,13 +100,22 @@ export function WorkoutSession({
 
   const initial = useMemo<SessionExercise[]>(
     () =>
-      exercises.map((ex, i) => ({
-        ...ex,
-        key: `${i}-${ex.nameEn}`,
-        loggedSets: Array.from({ length: ex.sets }).map(() => ({ weight: "", reps: "" })),
-        wasDeferred: false,
-        skipped: false,
-      })),
+      exercises.map((ex, i) => {
+        const last = ex.exercise ? lastPerformance?.[ex.exercise] : undefined;
+        return {
+          ...ex,
+          key: `${i}-${ex.nameEn}`,
+          // Pre-fill each set's weight from the client's last session for this exercise — purely a
+          // starting point, never auto-incremented; the client can always edit it.
+          loggedSets: Array.from({ length: ex.sets }).map((_, si) => ({
+            weight: last?.sets[si]?.weight ? String(last.sets[si].weight) : last?.sets[last.sets.length - 1]?.weight ? String(last.sets[last.sets.length - 1].weight) : "",
+            reps: "",
+          })),
+          wasDeferred: false,
+          skipped: false,
+        };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [exercises],
   );
 
@@ -104,6 +133,7 @@ export function WorkoutSession({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [whatsappLink, setWhatsappLink] = useState<string | null>(null);
+  const [pendingRest, setPendingRest] = useState<SessionExercise[] | null>(null);
 
   const current = queue[0];
 
@@ -133,12 +163,21 @@ export function WorkoutSession({
     setDone((d) => [...d, finished]);
     setQueue(rest);
     setSetIndex(0);
+    setPendingRest(rest);
+    setPhase("difficulty");
+  }
+
+  function chooseDifficulty(value: DifficultyRating) {
+    const finishedRestSeconds = done.length > 0 ? done[done.length - 1].restSeconds : undefined;
+    setDone((d) => (d.length === 0 ? d : [...d.slice(0, -1), { ...d[d.length - 1], difficultyRating: value }]));
+    const rest = pendingRest ?? [];
+    setPendingRest(null);
     if (rest.length === 0) {
       setEndedAt(new Date());
       setPhase("summary");
     } else {
       setRestTarget("exercise");
-      setRestRemaining(finished.restSeconds || 60);
+      setRestRemaining(finishedRestSeconds || 60);
       setPhase("rest");
     }
   }
@@ -242,6 +281,7 @@ export function WorkoutSession({
         targetReps: ex.reps,
         wasDeferred: ex.wasDeferred,
         skipped: ex.skipped,
+        difficultyRating: ex.difficultyRating ?? undefined,
         sets: ex.skipped
           ? []
           : ex.loggedSets
@@ -359,6 +399,26 @@ export function WorkoutSession({
     );
   }
 
+  // ---- Difficulty check-in (right after finishing an exercise) ----
+  if (phase === "difficulty") {
+    const finished = done[done.length - 1];
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background p-6 text-center">
+        <div>
+          <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">{finished ? (locale === "ar" ? finished.nameAr : finished.nameEn) : ""}</p>
+          <h2 className="mt-1 text-xl font-bold">{L("كيف كان التمرين؟", "How was the exercise?")}</h2>
+        </div>
+        <div className="grid w-full max-w-sm grid-cols-1 gap-2">
+          {DIFFICULTY_OPTIONS.map((opt) => (
+            <Button key={opt.value} variant="outline" size="lg" className="justify-start gap-2 text-base" onClick={() => chooseDifficulty(opt.value)}>
+              <span className="text-xl">{opt.emoji}</span>{L(opt.ar, opt.en)}
+            </Button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // ---- Exercise screen (one set at a time) ----
   if (!current) return null;
   const index = done.length + 1;
@@ -402,6 +462,7 @@ export function WorkoutSession({
             if (!last) {
               return <p className="text-sm text-muted-foreground">{L("لا يوجد سجل سابق لهذا التمرين.", "No previous record for this exercise.")}</p>;
             }
+            const suggestion = suggestedWeightIncrease(last);
             return (
               <div>
                 <p className="mb-1.5 text-xs text-muted-foreground" dir="ltr">{new Date(last.date).toLocaleDateString("en-GB")}</p>
@@ -412,6 +473,16 @@ export function WorkoutSession({
                     </span>
                   ))}
                 </div>
+                {last.bestSet && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {L("أفضل مجموعة", "Best set")}: <span className="font-semibold text-foreground">{last.bestSet.weight}{L("كجم", "kg")} × {last.bestSet.reps}</span>
+                  </p>
+                )}
+                {suggestion != null && (
+                  <p className="mt-2 rounded-md bg-success/10 px-2 py-1 text-xs text-success">
+                    💡 {L(`أداؤك السابق كان سهلاً — جرّب زيادة +${suggestion}كجم`, `Your last session looked easy — try +${suggestion}kg`)}
+                  </p>
+                )}
               </div>
             );
           })()}

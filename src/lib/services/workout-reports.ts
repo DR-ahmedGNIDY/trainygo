@@ -83,7 +83,15 @@ export async function createWorkoutReport(
 
   // Log each completed exercise first so we know, per exercise, how it compares to the
   // client's previous session and whether it set a new personal record.
-  const logResults = new Map<number, { comparisonStatus: ComparisonStatus; isPr: boolean; previous: { sets: { setNumber: number; weight: number; reps: number }[]; estimatedOneRm: number } | null }>();
+  const logResults = new Map<
+    number,
+    {
+      comparisonStatus: ComparisonStatus;
+      isPr: boolean;
+      previous: { sets: { setNumber: number; weight: number; reps: number }[]; estimatedOneRm: number } | null;
+      declineStreak: boolean;
+    }
+  >();
   await Promise.all(
     data.exercises.map(async (ex, i) => {
       if (ex.skipped || ex.sets.length === 0) return;
@@ -97,6 +105,7 @@ export async function createWorkoutReport(
         sets: ex.sets,
         completed: true,
         date: endedAt,
+        difficultyRating: ex.difficultyRating,
       });
       logResults.set(i, result);
     }),
@@ -148,6 +157,7 @@ export async function createWorkoutReport(
   ]);
 
   const prExercises = exercises.filter((e) => e.isPr);
+  const decliningExercises = data.exercises.filter((_, i) => logResults.get(i)?.declineStreak);
 
   await Promise.all([
     createNotification({
@@ -172,6 +182,17 @@ export async function createWorkoutReport(
         link: `/coach/workout-reports/${doc._id.toString()}`,
       });
     }),
+    ...decliningExercises.map((ex) =>
+      createNotification({
+        recipient: coachId,
+        type: "performance_decline",
+        titleAr: `⚠️ انخفاض أداء ${client?.name ?? ""} في ${ex.nameAr} لـ 3 جلسات متتالية`,
+        titleEn: `⚠️ ${client?.name ?? ""}'s performance in ${ex.nameEn} has declined for 3 sessions in a row`,
+        bodyAr: "قد يكون اللاعب مرهقاً أو يحتاج تعديل البرنامج.",
+        bodyEn: "The client may be fatigued or need a program adjustment.",
+        link: `/coach/workout-reports/${doc._id.toString()}`,
+      }),
+    ),
   ]);
 
   const whatsappLink = buildWhatsAppLink(coach?.coachProfile?.whatsappNumber, {

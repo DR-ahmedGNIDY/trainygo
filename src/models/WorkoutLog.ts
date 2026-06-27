@@ -11,6 +11,10 @@ export interface ILoggedSet {
 export const COMPARISON_STATUSES = ["pr", "improved", "steady", "decline", "first_time"] as const;
 export type ComparisonStatus = (typeof COMPARISON_STATUSES)[number];
 
+/** Client-reported perceived difficulty for one exercise, used to tune future weight suggestions. */
+export const DIFFICULTY_RATINGS = ["very_easy", "easy", "moderate", "hard", "very_hard"] as const;
+export type DifficultyRating = (typeof DIFFICULTY_RATINGS)[number];
+
 /**
  * A client's workout log for one exercise on one day. History across logs is
  * used to derive personal records and strength progress.
@@ -34,6 +38,7 @@ export interface IWorkoutLog {
   /** true if this log beat the client's all-time best 1RM for this exercise. */
   isPr: boolean;
   comparisonStatus?: ComparisonStatus | null;
+  difficultyRating?: DifficultyRating | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -78,6 +83,7 @@ const WorkoutLogSchema = new Schema<IWorkoutLog>(
     estimatedOneRm: { type: Number, default: 0 },
     isPr: { type: Boolean, default: false },
     comparisonStatus: { type: String, enum: COMPARISON_STATUSES, default: null },
+    difficultyRating: { type: String, enum: DIFFICULTY_RATINGS, default: null },
   },
   { timestamps: true },
 );

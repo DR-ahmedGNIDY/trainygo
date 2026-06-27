@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/auth/session";
 import { getOwnProfile, getOwnCoachId } from "@/lib/services/client-self";
+import { getClientPerformanceStats } from "@/lib/services/workout-analytics";
 import { User } from "@/models/User";
 import { ProfileView, type ClientSelf } from "./profile-view";
 import type { ClientGoal } from "@/lib/constants";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function ClientProfilePage() {
   const session = await requireRole("client");
   const id = session.user.id;
-  const [profile, coachId] = await Promise.all([getOwnProfile(id), getOwnCoachId(id)]);
+  const [profile, coachId, stats] = await Promise.all([getOwnProfile(id), getOwnCoachId(id), getClientPerformanceStats(id)]);
   const coach = coachId ? await User.findById(coachId).select("name").lean() : null;
 
   const cp = (profile?.clientProfile ?? {}) as Record<string, unknown>;
@@ -24,5 +25,5 @@ export default async function ClientProfilePage() {
     weight: (cp.currentWeight as number) ?? null,
   };
 
-  return <ProfileView self={self} />;
+  return <ProfileView self={self} stats={stats} />;
 }

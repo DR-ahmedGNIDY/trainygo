@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Save, User, Palette, Loader2 } from "lucide-react";
+import { Save, User, Palette, Loader2, Trophy, Dumbbell, Activity, Clock, Weight } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { useI18n } from "@/components/providers/i18n-provider";
 import { GOAL_LABELS, label } from "@/lib/i18n/labels";
 import { updateOwnProfileAction } from "@/lib/actions/client";
 import type { ClientGoal } from "@/lib/constants";
+import type { ClientPerformanceStats } from "@/lib/services/workout-analytics";
 
 export interface ClientSelf {
   name: string;
@@ -25,7 +26,7 @@ export interface ClientSelf {
   weight: number | null;
 }
 
-export function ProfileView({ self }: { self: ClientSelf }) {
+export function ProfileView({ self, stats }: { self: ClientSelf; stats: ClientPerformanceStats }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const [savingP, startP] = useTransition();
@@ -60,6 +61,42 @@ export function ProfileView({ self }: { self: ClientSelf }) {
       </Card>
 
       <div className="space-y-6">
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Trophy className="h-4 w-4 text-primary" />{L("إحصائيات الأداء", "Performance stats")}</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border p-3 text-center">
+              <Trophy className="mx-auto mb-1 h-4 w-4 text-amber-500" />
+              <p className="text-lg font-bold">{stats.totalPRs}</p>
+              <p className="text-xs text-muted-foreground">{L("أرقام قياسية", "Total PRs")}</p>
+            </div>
+            <div className="rounded-lg border p-3 text-center">
+              <Dumbbell className="mx-auto mb-1 h-4 w-4 text-primary" />
+              <p className="truncate text-sm font-bold">{stats.bestExercise ? (locale === "ar" ? stats.bestExercise.nameAr : stats.bestExercise.nameEn) : "—"}</p>
+              <p className="text-xs text-muted-foreground">{L("أفضل تمرين", "Best exercise")}</p>
+            </div>
+            <div className="rounded-lg border p-3 text-center">
+              <Activity className="mx-auto mb-1 h-4 w-4 text-primary" />
+              <p className="truncate text-sm font-bold">{stats.mostImprovedMuscle ?? "—"}</p>
+              <p className="text-xs text-muted-foreground">{L("أكثر عضلة تطورت", "Most improved muscle")}</p>
+            </div>
+            <div className="rounded-lg border p-3 text-center">
+              <Activity className="mx-auto mb-1 h-4 w-4 text-primary" />
+              <p className="text-lg font-bold">{stats.avgAdherencePercent != null ? `${stats.avgAdherencePercent}%` : "—"}</p>
+              <p className="text-xs text-muted-foreground">{L("متوسط الالتزام", "Avg. adherence")}</p>
+            </div>
+            <div className="rounded-lg border p-3 text-center">
+              <Clock className="mx-auto mb-1 h-4 w-4 text-primary" />
+              <p className="text-lg font-bold">{stats.avgSessionDurationSeconds != null ? `${Math.round(stats.avgSessionDurationSeconds / 60)} ${L("د", "min")}` : "—"}</p>
+              <p className="text-xs text-muted-foreground">{L("متوسط مدة الجلسة", "Avg. session length")}</p>
+            </div>
+            <div className="rounded-lg border p-3 text-center">
+              <Weight className="mx-auto mb-1 h-4 w-4 text-primary" />
+              <p className="text-lg font-bold">{stats.totalVolumeKg.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">{L("إجمالي الحجم (كجم)", "Total volume (kg)")}</p>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4 text-primary" />{L("البيانات الشخصية", "Personal details")}</CardTitle></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
