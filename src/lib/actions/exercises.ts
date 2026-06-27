@@ -95,6 +95,25 @@ export async function searchExercisesAction(
   });
 }
 
+export interface ExerciseMediaInfo {
+  videoUrl?: string;
+  youtubeUrl?: string;
+  imageUrlStart?: string;
+  imageUrlEnd?: string;
+  gifUrl?: string;
+}
+
+export async function getExerciseMediaAction(
+  ids: string[],
+): Promise<ActionResult<Record<string, ExerciseMediaInfo>>> {
+  return runAction(async () => {
+    const session = await auth();
+    if (!session?.user) throw new PermissionError("Forbidden", "FORBIDDEN");
+    const map = await exercises.getExerciseMediaByIds(ids);
+    return ok(map);
+  });
+}
+
 export async function deleteExerciseAction(id: string): Promise<ActionResult> {
   return runAction(async () => {
     const scope = await resolveScope();

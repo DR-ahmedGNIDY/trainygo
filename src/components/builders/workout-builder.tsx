@@ -27,7 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useI18n } from "@/components/providers/i18n-provider";
-import { searchExercisesAction, type ExercisePickerItem } from "@/lib/actions/exercises";
+import { searchExercisesAction, getExerciseMediaAction, type ExercisePickerItem, type ExerciseMediaInfo } from "@/lib/actions/exercises";
 import type { ActionResult } from "@/lib/actions/result";
 import { cn } from "@/lib/utils";
 import { ExerciseMedia } from "@/components/library/exercise-media";
@@ -90,6 +90,18 @@ export function WorkoutBuilder({
   const [activeDay, setActiveDay] = useState(0);
   const [saving, startSaving] = useTransition();
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [mediaMap, setMediaMap] = useState<Record<string, ExerciseMediaInfo>>({});
+
+  // Fetch thumbnails for any exercise already in the program that we don't have media for yet.
+  useEffect(() => {
+    const ids = [...new Set(weeks.flatMap((w) => w.days.flatMap((d) => d.exercises.map((e) => e.exercise).filter(Boolean) as string[])))];
+    const missing = ids.filter((id) => !(id in mediaMap));
+    if (missing.length === 0) return;
+    getExerciseMediaAction(missing).then((res) => {
+      if (res.ok) setMediaMap((prev) => ({ ...prev, ...res.data! }));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weeks]);
 
   const mut = (fn: (draft: BWeek[]) => void) =>
     setWeeks((prev) => {
@@ -118,10 +130,19 @@ export function WorkoutBuilder({
   }
 
   function exerciseRow(wi: number, di: number, ex: BExercise, ei: number, total: number) {
+    const media = ex.exercise ? mediaMap[ex.exercise] : undefined;
     return (
       <div key={ei} className="rounded-md border bg-muted/30 p-2">
         <div className="flex items-center gap-2">
           <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="relative h-[60px] w-[60px] shrink-0 overflow-hidden rounded-lg bg-muted">
+            <ExerciseMedia
+              media={media ?? {}}
+              alt={locale === "ar" ? ex.nameAr : ex.nameEn}
+              className="absolute inset-0 flex h-full w-full items-center justify-center overflow-hidden"
+              iconClassName="h-5 w-5 text-muted-foreground/40"
+            />
+          </div>
           <span className="flex-1 truncate text-sm font-medium">{locale === "ar" ? ex.nameAr : ex.nameEn}</span>
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => moveExercise(wi, di, ei, -1)} disabled={ei === 0}><ChevronUp className="h-4 w-4" /></Button>
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => moveExercise(wi, di, ei, 1)} disabled={ei === total - 1}><ChevronDown className="h-4 w-4" /></Button>
@@ -388,44 +409,48 @@ function ExercisePicker({
 }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
+  const [tab, setTab] = useState<"system" | "mine">("system");
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("all");
   const [results, setResults] = useState<ExercisePickerItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const muscleFilters: { value: string; ar: string; en: string }[] = [
-    { value: "all", ar: "الكل", en: "All" },
-    { value: "chest", ar: "صدر", en: "Chest" },
-    { value: "back", ar: "ظهر", en: "Back" },
-    { value: "shoulders", ar: "أكتاف", en: "Shoulders" },
-    { value: "biceps", ar: "بايسبس", en: "Biceps" },
-    { value: "triceps", ar: "ترايسبس", en: "Triceps" },
-    { value: "legs", ar: "أرجل", en: "Legs" },
-    { value: "abs", ar: "بطن", en: "Abs" },
-    { value: "cardio", ar: "كارديو", en: "Cardio" },
-  ];
-
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     const id = setTimeout(async () => {
-      const res = await searchExercisesAction(q, category);
+      const res = await searchExercisesAction(q, category, tab);
       if (res.ok) setResults(res.data!.items);
       setLoading(false);
     }, 300);
     return () => clearTimeout(id);
-  }, [q, category, open]);
+  }, [q, category, tab, open]);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>{L("اختر تمريناً", "Pick an exercise")}</DialogTitle></DialogHeader>
+        <div className="flex gap-1.5">
+          {(["system", "mine"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setTab(v)}
+              className={cn(
+                "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
+                tab === v ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-accent",
+              )}
+            >
+              {v === "system" ? L("تمارين النظام", "System exercises") : L("مكتبتي", "My library")}
+            </button>
+          ))}
+        </div>
         <div className="relative">
           <Search className="absolute top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground start-3" />
           <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t.dashboard.ui.search} className="ps-9" />
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {muscleFilters.map((m) => (
+          {MUSCLE_FILTERS.map((m) => (
             <button
               key={m.value}
               type="button"
