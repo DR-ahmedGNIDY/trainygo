@@ -31,6 +31,19 @@ function YoutubeThumbnail({ videoId, alt }: { videoId: string; alt: string }) {
   );
 }
 
+/** Real, playable YouTube embed (play/pause/replay via the native YouTube controls). */
+function YoutubePlayer({ videoId, alt }: { videoId: string; alt: string }) {
+  return (
+    <iframe
+      src={`https://www.youtube.com/embed/${videoId}`}
+      title={alt}
+      className="h-full w-full"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowFullScreen
+    />
+  );
+}
+
 /**
  * Simulates a smooth GIF from two static photos (start/end of the movement)
  * by cross-fading between them every 500ms.
@@ -81,18 +94,24 @@ function MotionFadeImage({
 
 /**
  * Renders the best available media for an exercise, in priority order:
- * 1) uploaded video  2) YouTube embed  3) start/end photo cross-fade  4) icon.
+ * 1) uploaded video  2) YouTube (thumbnail or real player)  3) start/end photo cross-fade  4) icon.
+ *
+ * `variant="player"` is reserved for the workout-execution screen, where a YouTube
+ * exercise should be a real, playable embed. Everywhere else (libraries, programs,
+ * templates, history, reports, PR cards...) stays a lightweight static thumbnail.
  */
 export function ExerciseMedia({
   media,
   alt,
   className,
   iconClassName,
+  variant = "thumbnail",
 }: {
   media: ExerciseMediaSource;
   alt: string;
   className?: string;
   iconClassName?: string;
+  variant?: "thumbnail" | "player";
 }) {
   if (media.videoUrl) {
     return (
@@ -104,6 +123,7 @@ export function ExerciseMedia({
           loop
           muted
           playsInline
+          controls={false}
         />
       </div>
     );
@@ -113,7 +133,7 @@ export function ExerciseMedia({
   if (videoId) {
     return (
       <div className={className}>
-        <YoutubeThumbnail videoId={videoId} alt={alt} />
+        {variant === "player" ? <YoutubePlayer videoId={videoId} alt={alt} /> : <YoutubeThumbnail videoId={videoId} alt={alt} />}
       </div>
     );
   }

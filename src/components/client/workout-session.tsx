@@ -44,6 +44,8 @@ export interface SessionExerciseSource {
   imageUrlStart?: string;
   imageUrlEnd?: string;
   gifUrl?: string;
+  /** Coach's per-exercise note (e.g. cueing/form reminders), shown to the client during the session. */
+  notes?: string;
 }
 
 interface SessionExercise extends SessionExerciseSource {
@@ -306,8 +308,9 @@ export function WorkoutSession({
   // ---- Summary screen ----
   if (phase === "summary") {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background">
-        <div className="mx-auto w-full max-w-lg flex-1 p-4 pb-24">
+      <div className="fixed inset-0 z-50 flex flex-col bg-background">
+        <div className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
+        <div className="mx-auto w-full max-w-lg p-4">
           <div className="mb-6 text-center">
             <CheckCircle2 className="mx-auto mb-3 h-14 w-14 text-success" />
             <h2 className="text-xl font-bold">{L("اكتملت الجلسة!", "Session complete!")}</h2>
@@ -348,8 +351,9 @@ export function WorkoutSession({
             ))}
           </div>
         </div>
+        </div>
 
-        <div className="fixed inset-x-0 bottom-0 border-t bg-background p-4">
+        <div className="shrink-0 border-t bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto max-w-lg">
             <Button className="w-full gap-2" size="lg" onClick={submitReport} disabled={submitting || submitted}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -375,7 +379,7 @@ export function WorkoutSession({
     const nextSetNumber = isSetRest ? setIndex + 2 : null;
     const upcomingExercise = isSetRest ? current : queue[0];
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background p-6 text-center">
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 overflow-y-auto bg-background p-6 text-center" style={{ WebkitOverflowScrolling: "touch" }}>
         <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">{L("وقت الراحة", "Rest time")}</p>
         <div className="flex h-44 w-44 items-center justify-center rounded-full border-8 border-primary/20">
           <span className="text-5xl font-bold tabular-nums text-primary">{restRemaining}</span>
@@ -403,7 +407,7 @@ export function WorkoutSession({
   if (phase === "difficulty") {
     const finished = done[done.length - 1];
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background p-6 text-center">
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 overflow-y-auto bg-background p-6 text-center" style={{ WebkitOverflowScrolling: "touch" }}>
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">{finished ? (locale === "ar" ? finished.nameAr : finished.nameEn) : ""}</p>
           <h2 className="mt-1 text-xl font-bold">{L("كيف كان التمرين؟", "How was the exercise?")}</h2>
@@ -425,25 +429,27 @@ export function WorkoutSession({
   const set = current.loggedSets[setIndex];
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background">
-      <div className="flex items-center justify-between border-b px-4 py-3">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">
         <Button variant="ghost" size="sm" onClick={onExit}>{t.common.close}</Button>
         <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
           <Clock className="h-4 w-4" />{formatDuration(elapsed)}
         </div>
         <span className="text-sm font-semibold tabular-nums">{index} / {total}</span>
       </div>
-      <div className="border-b bg-muted/30 px-4 py-1.5 text-center text-xs text-muted-foreground">
+      <div className="shrink-0 border-b bg-muted/30 px-4 py-1.5 text-center text-xs text-muted-foreground">
         {programName} · {L(dayNameAr, dayNameEn)}
       </div>
 
-      <div className="mx-auto w-full max-w-lg flex-1 p-4 pb-28">
+      <div className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
+      <div className="mx-auto w-full max-w-lg p-4">
         <div className="relative mb-4 aspect-video w-full overflow-hidden rounded-xl bg-muted">
           <ExerciseMedia
             media={{ videoUrl: current.videoUrl, youtubeUrl: current.youtubeUrl, imageUrlStart: current.imageUrlStart, imageUrlEnd: current.imageUrlEnd, gifUrl: current.gifUrl }}
             alt={locale === "ar" ? current.nameAr : current.nameEn}
             className="absolute inset-0 flex h-full w-full items-center justify-center overflow-hidden"
             iconClassName="h-12 w-12 text-muted-foreground/40"
+            variant="player"
           />
         </div>
 
@@ -454,6 +460,13 @@ export function WorkoutSession({
           {current.restSeconds ? <Badge variant="outline">{current.restSeconds}{L("ث راحة", "s rest")}</Badge> : null}
           {current.youtubeUrl && !current.videoUrl && <Youtube className="h-4 w-4 text-destructive" />}
         </div>
+
+        {current.notes && (
+          <div className="mt-4 rounded-xl border bg-amber-50 p-3 dark:bg-amber-950/20">
+            <p className="mb-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">📌 {L("ملاحظات المدرب", "Coach's notes")}</p>
+            <p className="whitespace-pre-line text-sm text-foreground">{current.notes}</p>
+          </div>
+        )}
 
         <div className="mt-4 rounded-xl border bg-muted/20 p-3">
           <p className="mb-1.5 text-xs font-semibold text-muted-foreground">{L("آخر أداء لهذا التمرين", "Last performance for this exercise")}</p>
@@ -524,8 +537,9 @@ export function WorkoutSession({
           </div>
         )}
       </div>
+      </div>
 
-      <div className="fixed inset-x-0 bottom-0 border-t bg-background p-4">
+      <div className="shrink-0 border-t bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto max-w-lg space-y-2">
           <Button onClick={completeSet} className="w-full gap-1.5">
             <CheckCircle2 className="h-4 w-4" />

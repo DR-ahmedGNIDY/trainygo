@@ -14,6 +14,7 @@ interface RawExercise {
   sets: number;
   reps: string;
   restSeconds?: number;
+  notes?: string;
 }
 interface RawDay { dayNumber: number; name: { ar: string; en: string }; exercises: RawExercise[] }
 interface RawWeek { weekNumber: number; days: RawDay[] }

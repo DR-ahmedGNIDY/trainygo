@@ -1,21 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { CldUploadWidget } from "next-cloudinary";
+import { useRef, useState } from "react";
 import { ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/components/providers/i18n-provider";
-
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-export const cloudinaryConfigured = Boolean(CLOUD_NAME && UPLOAD_PRESET);
+import { getCloudinarySignatureAction } from "@/lib/actions/media";
 
 /**
- * Image upload that returns a stored URL.
- * - When Cloudinary is configured (NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME + preset),
- *   uses the Cloudinary upload widget.
- * - Otherwise falls back to manual URL entry so the feature still works (we
- *   store URLs only either way).
+ * Opens the device's native image/video picker (gallery or file explorer — no
+ * URL field, no third-party widget UI) and uploads the chosen file straight to
+ * Cloudinary using a server-signed request, then returns the stored URL.
  */
 export function CloudinaryUpload({
   folder,
@@ -28,61 +22,67 @@ export function CloudinaryUpload({
   onUploaded: (url: string, publicId?: string) => void;
   iconOnly?: boolean;
   label?: string;
-  resourceType?: "image" | "video" | "auto";
+  resourceType?: "image" | "video";
 }) {
   const { locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const [busy, setBusy] = useState(false);
+  const [unconfigured, setUnconfigured] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const text = label ?? (resourceType === "video" ? L("رفع فيديو", "Upload video") : L("رفع صورة", "Upload image"));
 
-  if (!cloudinaryConfigured) {
-    // Graceful fallback: prompt for a URL (store-URL-only contract preserved).
-    return (
+  async function handleFile(file: File) {
+    setBusy(true);
+    const sig = await getCloudinarySignatureAction(folder);
+    if (!sig.ok) {
+      setBusy(false);
+      setUnconfigured(true);
+      return;
+    }
+    const { cloudName, apiKey, timestamp, signature } = sig.data!;
+    const form = new FormData();
+    form.append("file", file);
+    form.append("api_key", apiKey);
+    form.append("timestamp", String(timestamp));
+    form.append("signature", signature);
+    if (folder) form.append("folder", folder);
+
+    try {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
+        method: "POST",
+        body: form,
+      });
+      const json = await res.json();
+      if (json?.secure_url) onUploaded(json.secure_url, json.public_id);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={resourceType === "video" ? "video/*" : "image/*"}
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) handleFile(file);
+        }}
+      />
       <Button
         type="button"
         variant="outline"
         size={iconOnly ? "icon" : "default"}
-        onClick={() => {
-          const url = window.prompt(L("أدخل رابط الصورة", "Enter image URL"));
-          if (url && /^https?:\/\//.test(url)) onUploaded(url);
-        }}
-        title={L("Cloudinary غير مُعدّ — أدخل رابطاً", "Cloudinary not configured — paste a URL")}
+        disabled={busy}
+        title={unconfigured ? L("الرفع غير متاح حالياً — Cloudinary غير مُعدّ على الخادم", "Upload unavailable — Cloudinary isn't configured on the server") : undefined}
+        onClick={() => inputRef.current?.click()}
       >
-        <ImagePlus className="h-4 w-4" />
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
         {!iconOnly && text}
       </Button>
-    );
-  }
-
-  return (
-    <CldUploadWidget
-      uploadPreset={UPLOAD_PRESET}
-      options={{ folder, sources: ["local", "camera", "url"], multiple: false, maxFiles: 1, resourceType }}
-      onUpload={() => setBusy(true)}
-      onSuccess={(result) => {
-        setBusy(false);
-        const info = result?.info;
-        if (info && typeof info === "object" && "secure_url" in info) {
-          onUploaded(
-            (info as { secure_url: string }).secure_url,
-            (info as { public_id?: string }).public_id,
-          );
-        }
-      }}
-      onError={() => setBusy(false)}
-    >
-      {({ open }) => (
-        <Button
-          type="button"
-          variant="outline"
-          size={iconOnly ? "icon" : "default"}
-          disabled={busy}
-          onClick={() => open()}
-        >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-          {!iconOnly && text}
-        </Button>
-      )}
-    </CldUploadWidget>
+    </>
   );
 }
