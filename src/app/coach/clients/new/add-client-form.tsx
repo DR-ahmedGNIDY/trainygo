@@ -93,7 +93,7 @@ export function AddClientForm() {
 
   function copyAll() {
     if (!creds) return;
-    const text = `Trainygo\n${L("اسم المستخدم", "Username")}: ${creds.username}\n${L("كلمة المرور", "Password")}: ${creds.password}\n${L("كود العميل", "Client code")}: ${creds.code}`;
+    const text = `FITXNET\n${L("اسم المستخدم", "Username")}: ${creds.username}\n${L("كلمة المرور", "Password")}: ${creds.password}`;
     navigator.clipboard?.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

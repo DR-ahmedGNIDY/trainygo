@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Save, User, Palette, Loader2, Trophy, Dumbbell, Activity, Clock, Weight } from "lucide-react";
+import { Save, User, Palette, Loader2, Trophy, Dumbbell, Activity, Clock, Weight, KeyRound } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { GOAL_LABELS, label } from "@/lib/i18n/labels";
-import { updateOwnProfileAction } from "@/lib/actions/client";
+import { updateOwnProfileAction, changeOwnPasswordAction } from "@/lib/actions/client";
 import type { ClientGoal } from "@/lib/constants";
 import type { ClientPerformanceStats } from "@/lib/services/workout-analytics";
 
@@ -34,11 +34,36 @@ export function ProfileView({ self, stats }: { self: ClientSelf; stats: ClientPe
   const [form, setForm] = useState({ name: self.name, phone: self.phone, height: self.height?.toString() ?? "", weight: self.weight?.toString() ?? "" });
   const set = (k: keyof typeof form) => (v: string) => setForm((s) => ({ ...s, [k]: v }));
 
+  const [savingPw, startPw] = useTransition();
+  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
+  const [pwMsg, setPwMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+
   function saveProfile() {
     startP(async () => {
       await updateOwnProfileAction({ name: form.name, phone: form.phone, height: form.height ? Number(form.height) : undefined, weight: form.weight ? Number(form.weight) : undefined });
       setSavedP(true);
       setTimeout(() => setSavedP(false), 2000);
+    });
+  }
+
+  function changePassword() {
+    setPwMsg(null);
+    if (pwForm.next.length < 8) {
+      setPwMsg({ type: "error", text: L("كلمة المرور 8 أحرف على الأقل", "Password must be at least 8 characters") });
+      return;
+    }
+    if (pwForm.next !== pwForm.confirm) {
+      setPwMsg({ type: "error", text: L("كلمتا المرور غير متطابقتين", "Passwords don't match") });
+      return;
+    }
+    startPw(async () => {
+      const res = await changeOwnPasswordAction(pwForm.current, pwForm.next);
+      if (!res.ok) {
+        setPwMsg({ type: "error", text: L("كلمة المرور الحالية غير صحيحة", "Current password is incorrect") });
+        return;
+      }
+      setPwForm({ current: "", next: "", confirm: "" });
+      setPwMsg({ type: "ok", text: L("تم تغيير كلمة المرور بنجاح", "Password changed successfully") });
     });
   }
 
@@ -105,6 +130,17 @@ export function ProfileView({ self, stats }: { self: ClientSelf; stats: ClientPe
             <div className="space-y-2"><Label>{L("الطول (سم)", "Height (cm)")}</Label><Input type="number" value={form.height} onChange={(e) => set("height")(e.target.value)} /></div>
             <div className="space-y-2"><Label>{L("الوزن الحالي (كجم)", "Current weight (kg)")}</Label><Input type="number" value={form.weight} onChange={(e) => set("weight")(e.target.value)} /></div>
             <div className="sm:col-span-2 flex justify-end"><Button onClick={saveProfile} disabled={savingP}>{savingP ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{savedP ? t.common.saved : t.common.save}</Button></div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2 text-base"><KeyRound className="h-4 w-4 text-primary" />{L("كلمة المرور", "Password")}</CardTitle></CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2"><Label>{L("كلمة المرور الحالية", "Current password")}</Label><Input type="password" dir="ltr" value={pwForm.current} onChange={(e) => setPwForm((s) => ({ ...s, current: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>{L("كلمة المرور الجديدة", "New password")}</Label><Input type="password" dir="ltr" value={pwForm.next} onChange={(e) => setPwForm((s) => ({ ...s, next: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>{L("تأكيد كلمة المرور", "Confirm password")}</Label><Input type="password" dir="ltr" value={pwForm.confirm} onChange={(e) => setPwForm((s) => ({ ...s, confirm: e.target.value }))} /></div>
+            {pwMsg && <p className={`sm:col-span-2 text-sm ${pwMsg.type === "error" ? "text-destructive" : "text-emerald-600"}`}>{pwMsg.text}</p>}
+            <div className="sm:col-span-2 flex justify-end"><Button onClick={changePassword} disabled={savingPw}>{savingPw ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}{L("تغيير كلمة المرور", "Change password")}</Button></div>
           </CardContent>
         </Card>
 

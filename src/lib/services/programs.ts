@@ -114,6 +114,12 @@ export async function createBlankProgram(
   return program._id.toString();
 }
 
+/** If `name` contains `fromName`, swap it for `toName`; otherwise leave untouched (generic names like "Push Pull Legs" stay as-is). */
+function renameForClient(name: string, fromName: string | undefined, toName: string | undefined): string {
+  if (!fromName || !toName || !name.includes(fromName)) return name;
+  return name.split(fromName).join(toName);
+}
+
 export async function duplicateProgram(
   coachId: string,
   programId: string,
@@ -123,16 +129,22 @@ export async function duplicateProgram(
   const src = await ClientProgram.findOne({
     _id: programId,
     coach: new Types.ObjectId(coachId),
-  }).lean();
+  })
+    .populate("client", "name")
+    .lean();
   if (!src) throw new PermissionError("Program not found", "NOT_FOUND");
   await assertOwnsClient(coachId, toClientId);
+
+  const toClient = await User.findById(toClientId).select("name").lean();
+  const fromName = (src.client as unknown as { name?: string } | null)?.name;
+  const toName = toClient?.name;
 
   const copy = await ClientProgram.create({
     client: new Types.ObjectId(toClientId),
     coach: new Types.ObjectId(coachId),
     sourceTemplate: src.sourceTemplate ?? null,
-    nameAr: src.nameAr,
-    nameEn: src.nameEn,
+    nameAr: renameForClient(src.nameAr, fromName, toName),
+    nameEn: renameForClient(src.nameEn, fromName, toName),
     description: src.description,
     goal: src.goal,
     weeks: deepClone(src.weeks),

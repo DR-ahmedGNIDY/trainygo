@@ -24,7 +24,7 @@ export function SubscriptionView({
 }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
-  const waLink = `https://wa.me/${whatsapp}?text=${encodeURIComponent(L("مرحباً، أرغب في تفعيل اشتراك Trainygo", "Hello, I'd like to activate my Trainygo subscription"))}`;
+  const waLink = `https://wa.me/${whatsapp}?text=${encodeURIComponent(L("مرحباً، أرغب في تفعيل اشتراك FITXNET", "Hello, I'd like to activate my FITXNET subscription"))}`;
 
   return (
     <div>

@@ -136,6 +136,12 @@ export async function updatePlanMeals(coachId: string, planId: string, meals: IM
   return true;
 }
 
+/** If `name` contains `fromName`, swap it for `toName`; otherwise leave untouched (generic names stay as-is). */
+function renameForClient(name: string, fromName: string | undefined, toName: string | undefined): string {
+  if (!fromName || !toName || !name.includes(fromName)) return name;
+  return name.split(fromName).join(toName);
+}
+
 export async function duplicateNutritionPlan(
   coachId: string,
   planId: string,
@@ -145,16 +151,22 @@ export async function duplicateNutritionPlan(
   const src = await NutritionPlan.findOne({
     _id: planId,
     coach: new Types.ObjectId(coachId),
-  }).lean();
+  })
+    .populate("client", "name")
+    .lean();
   if (!src) throw new PermissionError("Plan not found", "NOT_FOUND");
   await assertOwnsClient(coachId, toClientId);
+
+  const toClient = await User.findById(toClientId).select("name").lean();
+  const fromName = (src.client as unknown as { name?: string } | null)?.name;
+  const toName = toClient?.name;
 
   const copy = await NutritionPlan.create({
     client: new Types.ObjectId(toClientId),
     coach: new Types.ObjectId(coachId),
     sourceTemplate: src.sourceTemplate ?? null,
-    nameAr: src.nameAr,
-    nameEn: src.nameEn,
+    nameAr: renameForClient(src.nameAr, fromName, toName),
+    nameEn: renameForClient(src.nameEn, fromName, toName),
     meals: deepClone(src.meals),
     totals: src.totals,
     status: "active",

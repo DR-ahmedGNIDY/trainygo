@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Clock,
@@ -11,6 +11,7 @@ import {
   Timer as TimerIcon,
   Undo2,
   Youtube,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -68,6 +69,24 @@ const DIFFICULTY_OPTIONS: { value: DifficultyRating; ar: string; en: string; emo
 /** What comes after the current rest screen — another set of the same exercise, or the next exercise. */
 type RestTarget = "set" | "exercise" | null;
 
+/** Persisted snapshot of an in-progress session, saved to localStorage so the client can resume after closing the app, refreshing, losing connectivity, or restarting the phone. */
+interface SessionDraft {
+  v: 1;
+  queue: SessionExercise[];
+  done: SessionExercise[];
+  setIndex: number;
+  phase: Phase;
+  restTarget: RestTarget;
+  restRemaining: number;
+  totalRestSeconds: number;
+  startedAt: string;
+  savedAt: string;
+}
+
+function draftKey(programId: string, weekNumber: number, dayNumber: number) {
+  return `ftx_workout_draft_${programId}_${weekNumber}_${dayNumber}`;
+}
+
 function formatDuration(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
@@ -122,6 +141,7 @@ export function WorkoutSession({
   );
 
   const total = initial.length;
+  const storageKey = useMemo(() => draftKey(programId, weekNumber, dayNumber), [programId, weekNumber, dayNumber]);
   const [queue, setQueue] = useState<SessionExercise[]>(initial);
   const [done, setDone] = useState<SessionExercise[]>([]);
   const [setIndex, setSetIndex] = useState(0);
@@ -129,13 +149,88 @@ export function WorkoutSession({
   const [restTarget, setRestTarget] = useState<RestTarget>(null);
   const [restRemaining, setRestRemaining] = useState(0);
   const [totalRestSeconds, setTotalRestSeconds] = useState(0);
-  const [startedAt] = useState(() => new Date());
+  const [startedAt, setStartedAt] = useState(() => new Date());
   const [endedAt, setEndedAt] = useState<Date | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [whatsappLink, setWhatsappLink] = useState<string | null>(null);
   const [pendingRest, setPendingRest] = useState<SessionExercise[] | null>(null);
+
+  // ---- Resume-from-draft gate: check localStorage once on mount before showing any session UI. ----
+  const [resumeStatus, setResumeStatus] = useState<"checking" | "prompt" | "decided">("checking");
+  const [foundDraft, setFoundDraft] = useState<SessionDraft | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      const draft = raw ? (JSON.parse(raw) as SessionDraft) : null;
+      if (draft && draft.v === 1 && (draft.queue.length > 0 || draft.done.length > 0)) {
+        setFoundDraft(draft);
+        setResumeStatus("prompt");
+      } else {
+        setResumeStatus("decided");
+      }
+    } catch {
+      setResumeStatus("decided");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function resumeFromDraft() {
+    if (!foundDraft) return;
+    setQueue(foundDraft.queue);
+    setDone(foundDraft.done);
+    setSetIndex(foundDraft.setIndex);
+    setPhase(foundDraft.phase);
+    setRestTarget(foundDraft.restTarget);
+    setRestRemaining(foundDraft.restRemaining);
+    setTotalRestSeconds(foundDraft.totalRestSeconds);
+    setStartedAt(new Date(foundDraft.startedAt));
+    setResumeStatus("decided");
+  }
+
+  function startOver() {
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      // ignore
+    }
+    setResumeStatus("decided");
+  }
+
+  // ---- Autosave: persist the latest session state so it survives a close/refresh/crash. ----
+  const draftRef = useRef({ queue, done, setIndex, phase, restTarget, restRemaining, totalRestSeconds });
+  useEffect(() => {
+    draftRef.current = { queue, done, setIndex, phase, restTarget, restRemaining, totalRestSeconds };
+  }, [queue, done, setIndex, phase, restTarget, restRemaining, totalRestSeconds]);
+
+  function saveDraft() {
+    if (typeof window === "undefined") return;
+    const s = draftRef.current;
+    if (s.phase === "summary") return;
+    try {
+      const draft: SessionDraft = { v: 1, ...s, startedAt: startedAt.toISOString(), savedAt: new Date().toISOString() };
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+    } catch {
+      // storage full/unavailable — non-fatal, session just won't resume
+    }
+  }
+
+  // Save immediately whenever the meaningful session state changes (set completed, weight/reps edited, skip, defer...).
+  useEffect(() => {
+    if (resumeStatus !== "decided" || submitted) return;
+    saveDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queue, done, setIndex, phase, restTarget, restRemaining, totalRestSeconds, resumeStatus, submitted]);
+
+  // Heartbeat save every 15s in case nothing else triggered a save (e.g. idle on a screen).
+  useEffect(() => {
+    if (resumeStatus !== "decided" || submitted) return;
+    const id = setInterval(saveDraft, 15_000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeStatus, submitted]);
 
   const current = queue[0];
 
@@ -295,6 +390,11 @@ export function WorkoutSession({
     if (res.ok) {
       setSubmitted(true);
       setWhatsappLink(res.data!.whatsappLink);
+      try {
+        localStorage.removeItem(storageKey);
+      } catch {
+        // ignore
+      }
       onSubmitted();
       if (res.data!.whatsappLink) window.open(res.data!.whatsappLink, "_blank");
     }
@@ -304,6 +404,40 @@ export function WorkoutSession({
   const deferredCount = done.filter((e) => e.wasDeferred && !e.skipped).length;
   const skippedCount = done.filter((e) => e.skipped).length;
   const sessionSeconds = endedAt ? Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000) : elapsed;
+
+  // ---- Gate: checking for a draft, or asking the client whether to resume it ----
+  if (resumeStatus === "checking") {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  if (resumeStatus === "prompt" && foundDraft) {
+    const draftExerciseIndex = foundDraft.done.length + 1;
+    const draftCurrent = foundDraft.queue[0];
+    const draftSetNumber = foundDraft.setIndex + 1;
+    const draftTotalSets = draftCurrent?.loggedSets.length ?? 0;
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-background p-6 text-center">
+        <History className="h-12 w-12 text-primary" />
+        <div>
+          <h2 className="text-lg font-bold">{L("لديك تمرين غير مكتمل", "You have an unfinished workout")}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{programName} · {L(dayNameAr, dayNameEn)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {L(
+              `وصلت إلى: التمرين ${draftExerciseIndex} من ${total}${draftTotalSets ? ` — المجموعة ${draftSetNumber} من ${draftTotalSets}` : ""}`,
+              `You reached: exercise ${draftExerciseIndex} of ${total}${draftTotalSets ? ` — set ${draftSetNumber} of ${draftTotalSets}` : ""}`,
+            )}
+          </p>
+        </div>
+        <div className="grid w-full max-w-xs grid-cols-1 gap-2">
+          <Button size="lg" className="gap-2" onClick={resumeFromDraft}><History className="h-4 w-4" />{L("استكمال", "Resume")}</Button>
+          <Button size="lg" variant="outline" onClick={startOver}>{L("بدء من جديد", "Start over")}</Button>
+        </div>
+      </div>
+    );
+  }
 
   // ---- Summary screen ----
   if (phase === "summary") {

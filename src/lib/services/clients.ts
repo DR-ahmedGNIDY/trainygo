@@ -62,8 +62,21 @@ export async function getClient(coachId: string, clientId: string) {
 }
 
 /**
- * Create a client under a coach. Generates the next sequential code (TRG00001),
- * derives the username from it (trg00001 — NOT random), and a temp password.
+ * Generates a random, code-free username (not derived from the client code),
+ * retrying on the rare collision since usernames must be unique.
+ */
+async function generateUsername(): Promise<string> {
+  for (let i = 0; i < 5; i++) {
+    const candidate = `m${randomString(7).toLowerCase()}`;
+    if (!(await User.exists({ username: candidate }))) return candidate;
+  }
+  throw new Error("Could not generate a unique username");
+}
+
+/**
+ * Create a client under a coach. The client code (TRG00001) is kept only as
+ * an internal reference shown to the coach — it is never used as the
+ * username or password.
  */
 export async function createClient(
   coachId: string,
@@ -71,8 +84,8 @@ export async function createClient(
 ): Promise<{ clientId: string; credentials: GeneratedCredentials }> {
   await connectToDatabase();
 
-  const code = await nextClientCode(); // TRG00001
-  const username = code.toLowerCase(); // trg00001
+  const code = await nextClientCode(); // TRG00001 — internal reference only
+  const username = await generateUsername();
   const password = randomString(8);
   const now = new Date();
   const subEnd = input.subscriptionMonths
@@ -88,7 +101,7 @@ export async function createClient(
     role: "client",
     status: "active",
     locale: "ar",
-    mustChangePassword: true,
+    mustChangePassword: false,
     clientProfile: {
       coach: new Types.ObjectId(coachId),
       clientCode: code,

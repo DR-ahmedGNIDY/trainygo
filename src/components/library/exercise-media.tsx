@@ -116,15 +116,17 @@ export function ExerciseMedia({
   if (media.videoUrl) {
     return (
       <div className={className}>
-        <video
-          src={media.videoUrl}
-          className="h-full w-full object-cover"
-          autoPlay
-          loop
-          muted
-          playsInline
-          controls={false}
-        />
+        <div className="flex h-full w-full items-center justify-center bg-black">
+          <video
+            src={media.videoUrl}
+            className="h-full w-full object-contain"
+            autoPlay
+            loop
+            muted
+            playsInline
+            controls={false}
+          />
+        </div>
       </div>
     );
   }

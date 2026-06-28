@@ -30,10 +30,10 @@ export interface ISettings {
 const SettingsSchema = new Schema<ISettings>(
   {
     key: { type: String, default: "global", unique: true },
-    platformName: { type: String, default: "Trainygo" },
-    domain: { type: String, default: "trainygo.com" },
+    platformName: { type: String, default: "FITXNET" },
+    domain: { type: String, default: "fitxnet.com" },
     adminWhatsapp: { type: String, default: "201000000000" },
-    supportEmail: { type: String, default: "support@trainygo.com" },
+    supportEmail: { type: String, default: "support@fitxnet.com" },
     payment: {
       vodafoneCashNumber: { type: String, default: "" },
       instapayHandle: { type: String, default: "" },
