@@ -323,17 +323,17 @@ export function WorkoutSession({
     // No rest screen after a skip — move straight to the next exercise.
   }
 
-  function deferCurrent() {
+  /** Pure navigation to the next exercise — keeps all entered data, doesn't mark the exercise skipped/deferred/completed-with-rest. On the last exercise this moves straight to the summary. */
+  function goNext() {
     if (!current) return;
-    const deferred = { ...current, wasDeferred: true };
     const rest = queue.slice(1);
+    setDone((d) => [...d, current]);
+    setQueue(rest);
     setSetIndex(0);
     if (rest.length === 0) {
-      // Only exercise left — nothing to defer past, keep it in place.
-      setQueue([deferred]);
-      return;
+      setEndedAt(new Date());
+      setPhase("summary");
     }
-    setQueue([...rest, deferred]);
   }
 
   function goPrevious() {
@@ -681,7 +681,10 @@ export function WorkoutSession({
           </Button>
           <div className="grid grid-cols-3 gap-2">
             <Button variant="outline" onClick={goPrevious} disabled={done.length === 0 && setIndex === 0} className="gap-1.5"><Undo2 className="h-4 w-4" />{t.common.previous}</Button>
-            <Button variant="outline" onClick={deferCurrent} className="gap-1.5"><SkipForward className="h-4 w-4" />{L("اجعله لاحقاً", "Do later")}</Button>
+            <Button variant="outline" onClick={goNext} className="gap-1.5">
+              <SkipForward className="h-4 w-4" />
+              {queue.length <= 1 ? L("إنهاء التمرين", "Finish workout") : L("التالي", "Next")}
+            </Button>
             <Button variant="outline" onClick={skipCurrent} className="gap-1.5 text-destructive hover:text-destructive"><XCircle className="h-4 w-4" />{L("تخطي", "Skip")}</Button>
           </div>
         </div>

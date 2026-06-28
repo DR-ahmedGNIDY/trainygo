@@ -57,6 +57,8 @@ export interface ExercisePickerItem {
   nameEn: string;
   category: string;
   targetMuscles?: string[];
+  videoUrl?: string;
+  youtubeUrl?: string;
   imageUrlStart?: string;
   imageUrlEnd?: string;
   gifUrl?: string;
@@ -77,6 +79,8 @@ export async function searchExercisesAction(
         nameEn: string;
         category: string;
         targetMuscles?: string[];
+        videoUrl?: string;
+        youtubeUrl?: string;
         imageUrlStart?: string;
         imageUrlEnd?: string;
         gifUrl?: string;
@@ -87,6 +91,8 @@ export async function searchExercisesAction(
       nameEn: e.nameEn,
       category: e.category,
       targetMuscles: e.targetMuscles,
+      videoUrl: e.videoUrl,
+      youtubeUrl: e.youtubeUrl,
       imageUrlStart: e.imageUrlStart,
       imageUrlEnd: e.imageUrlEnd,
       gifUrl: e.gifUrl,

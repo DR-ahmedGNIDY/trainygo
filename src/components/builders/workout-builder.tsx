@@ -372,7 +372,7 @@ function ExerciseBrowserInline({
               <div key={ex.id} className="overflow-hidden rounded-lg border">
                 <div className="relative aspect-video bg-muted">
                   <ExerciseMedia
-                    media={{ imageUrlStart: ex.imageUrlStart, imageUrlEnd: ex.imageUrlEnd, gifUrl: ex.gifUrl }}
+                    media={{ videoUrl: ex.videoUrl, youtubeUrl: ex.youtubeUrl, imageUrlStart: ex.imageUrlStart, imageUrlEnd: ex.imageUrlEnd, gifUrl: ex.gifUrl }}
                     alt={locale === "ar" ? ex.nameAr : ex.nameEn}
                     className="absolute inset-0 flex h-full w-full items-center justify-center overflow-hidden"
                     iconClassName="h-8 w-8 text-muted-foreground/40"
@@ -475,7 +475,7 @@ function ExercisePicker({
               <button key={ex.id} onClick={() => { onPick({ id: ex.id, nameAr: ex.nameAr, nameEn: ex.nameEn }); onClose(); }} className={cn("flex w-full items-center gap-3 rounded-md border px-3 py-2 text-start transition-colors hover:bg-accent")}>
                 <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-muted">
                   <ExerciseMedia
-                    media={{ imageUrlStart: ex.imageUrlStart, imageUrlEnd: ex.imageUrlEnd, gifUrl: ex.gifUrl }}
+                    media={{ videoUrl: ex.videoUrl, youtubeUrl: ex.youtubeUrl, imageUrlStart: ex.imageUrlStart, imageUrlEnd: ex.imageUrlEnd, gifUrl: ex.gifUrl }}
                     alt={locale === "ar" ? ex.nameAr : ex.nameEn}
                     className="absolute inset-0 flex h-full w-full items-center justify-center"
                     iconClassName="h-5 w-5 text-muted-foreground/40"
