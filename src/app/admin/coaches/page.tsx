@@ -14,17 +14,26 @@ export default async function AdminCoachesPage() {
 
   const coaches: CoachRow[] = rawCoaches.map((c) => {
     const cp = (c.coachProfile ?? {}) as Record<string, unknown>;
+    const latestSub = (c as { latestSub?: { startDate?: string } }).latestSub;
     const planId = cp.currentPlan ? String(cp.currentPlan) : "";
     const planName = planId ? planNameById.get(planId) : undefined;
+    const isTrial = cp.subscriptionStatus === "trial" || (!cp.subscriptionStatus && c.status === "trial");
+    const startDate = isTrial
+      ? (cp.trialStartDate ? String(cp.trialStartDate) : null)
+      : (latestSub?.startDate ? String(latestSub.startDate) : null);
+    const endDate = isTrial
+      ? (cp.trialEndDate ? String(cp.trialEndDate) : null)
+      : (cp.subscriptionEndDate ? String(cp.subscriptionEndDate) : null);
     return {
       id: String(c._id),
       name: c.name,
       email: c.email ?? "",
       brand: cp.brandName as string | undefined,
-      planName: planName?.ar ? `${planName.ar}` : undefined,
+      planName: isTrial ? "Trial" : (planName?.ar ? `${planName.ar}` : undefined),
       clients: (c as { clientCount?: number }).clientCount ?? 0,
       status: c.status as AccountStatus,
-      endDate: cp.subscriptionEndDate ? String(cp.subscriptionEndDate) : null,
+      startDate,
+      endDate,
       suspendedByAdmin: Boolean(cp.suspendedByAdmin),
     };
   });

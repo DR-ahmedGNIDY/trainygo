@@ -55,6 +55,19 @@ export async function listCoaches(opts: { query?: string; status?: string } = {}
     { $match: match },
     { $lookup: { from: "users", localField: "_id", foreignField: "clientProfile.coach", as: "clients" } },
     { $addFields: { clientCount: { $size: "$clients" } } },
+    {
+      $lookup: {
+        from: "subscriptions",
+        let: { cid: "$_id" },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$coach", "$$cid"] }, status: "active" } },
+          { $sort: { activatedAt: -1 } },
+          { $limit: 1 },
+        ],
+        as: "latestSub",
+      },
+    },
+    { $addFields: { latestSub: { $arrayElemAt: ["$latestSub", 0] } } },
     { $project: { clients: 0, passwordHash: 0 } },
     { $sort: { createdAt: -1 } },
   ]);

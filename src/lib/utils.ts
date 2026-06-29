@@ -29,3 +29,20 @@ export function formatNumber(value: number, locale = "en"): string {
     value,
   );
 }
+
+/**
+ * Full "day month year hour:minute AM/PM" date-time, locale-aware (Arabic
+ * month names with Latin digits in ar, English in en). e.g. "12 يوليو 2026 03:45 PM".
+ */
+export function formatFullDateTime(date: Date | string, locale: "ar" | "en" = "en"): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-US", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    numberingSystem: "latn",
+  }).format(d);
+}

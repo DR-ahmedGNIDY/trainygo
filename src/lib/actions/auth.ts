@@ -15,7 +15,7 @@ export type RegisterResult =
   | { ok: false; error: "USERNAME_TAKEN" | "EMAIL_TAKEN" | "VALIDATION" | "SERVER"; field?: string };
 
 /**
- * Register a new coach. Starts a 3-day free trial. Username & email must be
+ * Register a new coach. Starts a 7-day free trial. Username & email must be
  * unique. The temporary record is created with status "trial".
  */
 export async function registerCoach(

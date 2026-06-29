@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -50,7 +50,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useI18n } from "@/components/providers/i18n-provider";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, formatFullDateTime } from "@/lib/utils";
+import { formatRemaining } from "@/components/dashboard/subscription-countdown";
 import {
   activateSubscriptionAction,
   setCoachStatusAction,
@@ -68,6 +69,7 @@ export interface CoachRow {
   planName?: string;
   clients: number;
   status: AccountStatus;
+  startDate?: string | null;
   endDate?: string | null;
   suspendedByAdmin?: boolean;
 }
@@ -91,6 +93,12 @@ export function CoachesView({
   const [status, setStatus] = useState("all");
   const [activateFor, setActivateFor] = useState<CoachRow | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const filtered = coaches.filter((c) => {
     const q = query.toLowerCase();
@@ -147,6 +155,9 @@ export function CoachesView({
                   <TableHead className="hidden sm:table-cell">{t.dashboard.ui.plan}</TableHead>
                   <TableHead>{t.dashboard.stats.myClients}</TableHead>
                   <TableHead>{t.common.status}</TableHead>
+                  <TableHead className="hidden lg:table-cell">{L("الوقت المتبقي", "Time remaining")}</TableHead>
+                  <TableHead className="hidden 2xl:table-cell">{L("تاريخ البداية", "Start date")}</TableHead>
+                  <TableHead className="hidden xl:table-cell">{L("ينتهي في", "Ends at")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -166,6 +177,15 @@ export function CoachesView({
                     <TableCell className="hidden sm:table-cell">{c.planName ?? "—"}</TableCell>
                     <TableCell>{formatNumber(c.clients, locale)}</TableCell>
                     <TableCell><StatusBadge status={c.status} /></TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      <RemainingCell endDate={c.endDate} status={c.status} now={now} locale={locale} />
+                    </TableCell>
+                    <TableCell className="hidden text-muted-foreground 2xl:table-cell">
+                      {c.startDate ? formatFullDateTime(c.startDate, locale) : "—"}
+                    </TableCell>
+                    <TableCell className="hidden text-muted-foreground xl:table-cell">
+                      {c.endDate ? formatFullDateTime(c.endDate, locale) : "—"}
+                    </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -280,5 +300,36 @@ function ActivateDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Live "time left" cell for the admin coaches table — ticking, real countdown from the actual end date. */
+function RemainingCell({
+  endDate,
+  status,
+  now,
+  locale,
+}: {
+  endDate?: string | null;
+  status: AccountStatus;
+  now: number;
+  locale: "ar" | "en";
+}) {
+  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
+
+  if (status === "expired" || status === "suspended" || !endDate) {
+    return <span className="font-medium text-destructive">{L("منتهي", "Expired")}</span>;
+  }
+
+  const remainingMs = new Date(endDate).getTime() - now;
+  if (remainingMs <= 0) {
+    return <span className="font-medium text-destructive">{L("منتهي", "Expired")}</span>;
+  }
+
+  const urgent = remainingMs < 24 * 3600_000;
+  return (
+    <span className={urgent ? "font-medium text-destructive" : "font-medium"}>
+      {L("متبقي: ", "")}{formatRemaining(remainingMs, locale)}
+    </span>
   );
 }

@@ -2,6 +2,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
+/** Unified "FITXNET" wordmark: FIT/NET in the default text color, X in brand red. */
+export function BrandText({ className }: { className?: string }) {
+  return (
+    <span className={cn("font-bold tracking-tight", className)}>
+      FIT<span className="text-primary">X</span>NET
+    </span>
+  );
+}
+
 export function Logo({
   className,
   href = "/",
@@ -29,11 +38,7 @@ export function Logo({
         className="shrink-0"
         priority
       />
-      {showText && (
-        <span className={cn("font-bold tracking-tight", sizes.text)}>
-          FITX<span className="text-primary">NET</span>
-        </span>
-      )}
+      {showText && <BrandText className={sizes.text} />}
     </span>
   );
 

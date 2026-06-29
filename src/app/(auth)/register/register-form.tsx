@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -10,6 +10,13 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -23,16 +30,22 @@ import {
   type CoachRegisterInput,
 } from "@/lib/validations/auth";
 import { registerCoach } from "@/lib/actions/auth";
+import { ARAB_COUNTRIES } from "@/lib/constants";
 
 export function RegisterForm() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [country, setCountry] = useState<string>(ARAB_COUNTRIES[0].value);
+  const [nationalPhone, setNationalPhone] = useState("");
+  const dialCode = ARAB_COUNTRIES.find((c) => c.value === country)?.dialCode ?? "+20";
 
   const {
     register,
     handleSubmit,
     setError,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<CoachRegisterInput>({
     resolver: zodResolver(coachRegisterSchema),
@@ -46,6 +59,11 @@ export function RegisterForm() {
       confirmPassword: "",
     },
   });
+
+  useEffect(() => {
+    setValue("phone", `${dialCode}${nationalPhone}`, { shouldValidate: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialCode, nationalPhone]);
 
   async function onSubmit(values: CoachRegisterInput) {
     setServerError(null);
@@ -122,19 +140,39 @@ export function RegisterForm() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">{t.common.phone}</Label>
+              <Label>{L("الدولة", "Country")}</Label>
+              <Select value={country} onValueChange={setCountry}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ARAB_COUNTRIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.flag} {L(c.ar, c.en)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone">{t.common.phone}</Label>
+            <input type="hidden" {...register("phone")} />
+            <div className="flex gap-2">
+              <Input dir="ltr" value={dialCode} readOnly disabled className="w-24 shrink-0 text-center" />
               <Input
                 id="phone"
                 dir="ltr"
                 autoComplete="tel"
-                {...register("phone")}
+                value={nationalPhone}
+                onChange={(e) => setNationalPhone(e.target.value)}
+                className="flex-1"
               />
-              {errors.phone && (
-                <p className="text-sm text-destructive">
-                  {errors.phone.message}
-                </p>
-              )}
             </div>
+            {errors.phone && (
+              <p className="text-sm text-destructive">
+                {errors.phone.message}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
