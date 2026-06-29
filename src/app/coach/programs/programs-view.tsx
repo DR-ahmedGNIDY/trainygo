@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/dialog";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { CopyDialog } from "@/components/copy/copy-dialog";
+import { ActionErrorAlert, type ActionErrorInfo } from "@/components/dashboard/action-error-alert";
 import {
   assignTemplateAction,
   archiveProgramAction,
@@ -188,7 +189,7 @@ function AssignDialog({
   const [templateId, setTemplateId] = useState("");
   const [clientId, setClientId] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ActionErrorInfo | null>(null);
 
   async function save() {
     if (!templateId || !clientId) return;
@@ -197,7 +198,7 @@ function AssignDialog({
     const res = await assignTemplateAction(templateId, clientId);
     setSaving(false);
     if (res.ok) { setTemplateId(""); setClientId(""); onSaved(); }
-    else setError(t.common.errorDescription);
+    else setError({ error: res.error, code: res.code });
   }
 
   return (
@@ -222,7 +223,7 @@ function AssignDialog({
               <SelectContent>{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          <ActionErrorAlert result={error} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>

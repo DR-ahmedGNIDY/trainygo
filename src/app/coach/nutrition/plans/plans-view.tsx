@@ -40,6 +40,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useI18n } from "@/components/providers/i18n-provider";
+import { ActionErrorAlert, type ActionErrorInfo } from "@/components/dashboard/action-error-alert";
 import {
   assignNutritionTemplateAction,
   archiveNutritionPlanAction,
@@ -155,13 +156,16 @@ function AssignDialog({
   const [templateId, setTemplateId] = useState("");
   const [clientId, setClientId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<ActionErrorInfo | null>(null);
 
   async function save() {
     if (!templateId || !clientId) return;
     setSaving(true);
+    setError(null);
     const res = await assignNutritionTemplateAction(templateId, clientId);
     setSaving(false);
     if (res.ok) { setTemplateId(""); setClientId(""); onSaved(); }
+    else setError({ error: res.error, code: res.code });
   }
 
   return (
@@ -186,6 +190,7 @@ function AssignDialog({
               <SelectContent>{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>)}</SelectContent>
             </Select>
           </div>
+          <ActionErrorAlert result={error} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>

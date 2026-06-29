@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useI18n } from "@/components/providers/i18n-provider";
+import { ActionErrorAlert, type ActionErrorInfo } from "@/components/dashboard/action-error-alert";
 import {
   copyTemplatesToClientsAction,
   copyClientToClientsAction,
@@ -52,6 +53,7 @@ export function CopyDialog({
   const [targets, setTargets] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ programs: number; plans: number } | null>(null);
+  const [error, setError] = useState<ActionErrorInfo | null>(null);
 
   const toggle = (id: string) => setTargets((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
@@ -59,15 +61,17 @@ export function CopyDialog({
     if (targets.length === 0) return;
     setSaving(true);
     setResult(null);
+    setError(null);
     const res = mode === "template"
       ? await copyTemplatesToClientsAction({ workoutTemplateId: wt || undefined, nutritionTemplateId: nt || undefined }, targets)
       : await copyClientToClientsAction(fromClient, what, targets);
     setSaving(false);
     if (res.ok) { setResult(res.data!); router.refresh(); }
+    else setError({ error: res.error, code: res.code });
   }
 
   function reset() {
-    setWt(""); setNt(""); setFromClient(""); setTargets([]); setResult(null);
+    setWt(""); setNt(""); setFromClient(""); setTargets([]); setResult(null); setError(null);
   }
 
   const canRun = targets.length > 0 && (mode === "template" ? (wt || nt) : fromClient);
@@ -145,6 +149,8 @@ export function CopyDialog({
                 ))}
               </div>
             </div>
+
+            <ActionErrorAlert result={error} />
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>{t.common.cancel}</Button>
