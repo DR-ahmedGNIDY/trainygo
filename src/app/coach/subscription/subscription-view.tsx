@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { formatNumber } from "@/lib/utils";
+import { SubscriptionCountdown } from "@/components/dashboard/subscription-countdown";
+import { getCoachSubscriptionLiveAction } from "@/lib/actions/subscription";
+import { coachIsFrozen } from "@/lib/permissions";
 import type { AccountStatus } from "@/lib/constants";
 
 const PLANS = [
@@ -17,9 +20,11 @@ const PLANS = [
 
 export function SubscriptionView({
   status,
+  endDate,
   whatsapp,
 }: {
   status: AccountStatus;
+  endDate: string | null;
   whatsapp: string;
 }) {
   const { t, locale } = useI18n();
@@ -40,7 +45,19 @@ export function SubscriptionView({
             <div>
               <p className="text-sm text-muted-foreground">{L("حالة الاشتراك", "Subscription status")}</p>
               <p className="text-lg font-bold">{t.account[status]}</p>
-              {status === "trial" && <p className="text-sm text-muted-foreground">{L("استمتع بالفترة التجريبية المجانية.", "Enjoy your free trial.")}</p>}
+              {(status === "trial" || status === "active") && endDate && (
+                <div className="mt-1">
+                  <SubscriptionCountdown
+                    endDate={endDate}
+                    expired={coachIsFrozen(status)}
+                    onPoll={async () => {
+                      const res = await getCoachSubscriptionLiveAction();
+                      if (!res.ok) return null;
+                      return { expired: coachIsFrozen(res.data!.status), endDate: res.data!.endDate };
+                    }}
+                  />
+                </div>
+              )}
               {status === "expired" && <p className="text-sm text-destructive">{t.account.trialExpiredDesc}</p>}
             </div>
           </div>

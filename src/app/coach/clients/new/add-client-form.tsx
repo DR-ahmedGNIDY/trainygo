@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Loader2,
+  MessageCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,7 @@ import type { ClientGoal } from "@/lib/constants";
 
 type Form = {
   name: string;
+  country: string;
   phone: string;
   email: string;
   age: string;
@@ -39,8 +41,16 @@ type Form = {
   subscriptionMonths: string;
 };
 
+const COUNTRIES = [
+  { value: "EG", flag: "🇪🇬", ar: "مصر", en: "Egypt", dialCode: "+20" },
+  { value: "SA", flag: "🇸🇦", ar: "السعودية", en: "Saudi Arabia", dialCode: "+966" },
+  { value: "KW", flag: "🇰🇼", ar: "الكويت", en: "Kuwait", dialCode: "+965" },
+  { value: "QA", flag: "🇶🇦", ar: "قطر", en: "Qatar", dialCode: "+974" },
+];
+
 const EMPTY: Form = {
   name: "",
+  country: "EG",
   phone: "",
   email: "",
   age: "",
@@ -63,6 +73,8 @@ export function AddClientForm() {
   const [copied, setCopied] = useState(false);
 
   const set = (k: keyof Form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const dialCode = COUNTRIES.find((c) => c.value === form.country)?.dialCode ?? "+20";
+  const fullPhone = `${dialCode}${form.phone}`;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,7 +82,7 @@ export function AddClientForm() {
     setSubmitting(true);
     const res = await createClientAction({
       name: form.name,
-      phone: form.phone,
+      phone: fullPhone,
       email: form.email || undefined,
       age: form.age || undefined,
       gender: form.gender ? (form.gender as "male" | "female") : undefined,
@@ -97,6 +109,17 @@ export function AddClientForm() {
     navigator.clipboard?.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  function whatsappLink() {
+    if (!creds) return "#";
+    const loginUrl = typeof window !== "undefined" ? `${window.location.origin}/login` : "/login";
+    const message = L(
+      `مرحباً ${form.name}،\nتم إنشاء حسابك في FITXNET.\nاسم المستخدم: ${creds.username}\nكلمة المرور: ${creds.password}\nرابط تسجيل الدخول: ${loginUrl}`,
+      `Hi ${form.name},\nYour FITXNET account is ready.\nUsername: ${creds.username}\nPassword: ${creds.password}\nLogin link: ${loginUrl}`,
+    );
+    const digits = fullPhone.replace(/[^\d]/g, "");
+    return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
   }
 
   if (creds) {
@@ -129,6 +152,12 @@ export function AddClientForm() {
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 {copied ? t.common.copied : L("نسخ البيانات", "Copy details")}
               </Button>
+              <Button asChild className="gap-2 bg-[#25D366] text-white hover:bg-[#1fb955]">
+                <a href={whatsappLink()} target="_blank" rel="noopener noreferrer">
+                  <MessageCircle className="h-4 w-4" />
+                  {L("إرسال واتساب", "Send via WhatsApp")}
+                </a>
+              </Button>
               <Button asChild variant="outline">
                 <Link href="/coach/clients">{L("الذهاب للعملاء", "Go to clients")}</Link>
               </Button>
@@ -154,8 +183,22 @@ export function AddClientForm() {
                 <Input value={form.name} onChange={(e) => set("name")(e.target.value)} required />
               </div>
               <div className="space-y-2">
+                <Label>{L("الدولة", "Country")}</Label>
+                <Select value={form.country} onValueChange={set("country")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {COUNTRIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.flag} {L(c.ar, c.en)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label>{t.common.phone}</Label>
-                <Input dir="ltr" value={form.phone} onChange={(e) => set("phone")(e.target.value)} required />
+                <div className="flex gap-2">
+                  <Input dir="ltr" value={dialCode} readOnly disabled className="w-20 shrink-0 text-center" />
+                  <Input dir="ltr" value={form.phone} onChange={(e) => set("phone")(e.target.value)} required className="flex-1" />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>{t.common.email} <span className="text-xs text-muted-foreground">({t.common.optional})</span></Label>
@@ -188,11 +231,9 @@ export function AddClientForm() {
                 <Select value={form.goal} onValueChange={set("goal")}>
                   <SelectTrigger><SelectValue placeholder={L("اختر الهدف", "Select goal")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fat_loss">{L("خسارة دهون", "Fat loss")}</SelectItem>
-                    <SelectItem value="muscle_gain">{L("بناء عضل", "Muscle gain")}</SelectItem>
-                    <SelectItem value="maintenance">{L("صيانة", "Maintenance")}</SelectItem>
-                    <SelectItem value="strength">{L("قوة", "Strength")}</SelectItem>
-                    <SelectItem value="general_fitness">{L("لياقة عامة", "General fitness")}</SelectItem>
+                    <SelectItem value="muscle_building">{L("زيادة كتلة عضلية", "Muscle Building")}</SelectItem>
+                    <SelectItem value="fat_loss">{L("نزول في الوزن", "Fat Loss")}</SelectItem>
+                    <SelectItem value="athletic_conditioning">{L("إعداد بدني", "Athletic Conditioning")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

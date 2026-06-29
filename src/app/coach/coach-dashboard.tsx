@@ -23,6 +23,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { formatNumber } from "@/lib/utils";
 import { GOAL_LABELS, label } from "@/lib/i18n/labels";
+import { SubscriptionCountdown } from "@/components/dashboard/subscription-countdown";
+import { getCoachSubscriptionLiveAction } from "@/lib/actions/subscription";
+import { coachIsFrozen } from "@/lib/permissions";
 import type { AccountStatus, ClientGoal } from "@/lib/constants";
 
 export interface CoachKpis {
@@ -33,6 +36,8 @@ export interface CoachKpis {
 }
 export interface CoachSubscriptionInfo {
   daysRemaining: number | null;
+  endDate: string | null;
+  status: AccountStatus;
   planName: string | null;
   maxClients: number;
   clientCount: number;
@@ -64,7 +69,6 @@ export function CoachDashboard({
   const { t, locale } = useI18n();
   const s = t.dashboard.stats;
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
-  const urgent = subscription.daysRemaining != null && subscription.daysRemaining <= 3;
 
   return (
     <div>
@@ -83,10 +87,21 @@ export function CoachDashboard({
             <p className="font-semibold">{subscription.planName ?? "—"}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">{L("الأيام المتبقية", "Days remaining")}</p>
-            <p className={"font-semibold " + (urgent ? "text-destructive" : "")}>
-              {subscription.daysRemaining != null ? `${subscription.daysRemaining} ${L("يوم", "days")}` : "—"}
-            </p>
+            <p className="text-xs text-muted-foreground">{L("الوقت المتبقي", "Time remaining")}</p>
+            {subscription.endDate ? (
+              <SubscriptionCountdown
+                endDate={subscription.endDate}
+                expired={coachIsFrozen(subscription.status)}
+                renewHref="/coach/subscription"
+                onPoll={async () => {
+                  const res = await getCoachSubscriptionLiveAction();
+                  if (!res.ok) return null;
+                  return { expired: coachIsFrozen(res.data!.status), endDate: res.data!.endDate };
+                }}
+              />
+            ) : (
+              <p className="font-semibold">—</p>
+            )}
           </div>
           <div>
             <p className="text-xs text-muted-foreground">{L("العملاء", "Clients")}</p>

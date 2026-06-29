@@ -132,7 +132,7 @@ export function WorkoutBuilder({
   function exerciseRow(wi: number, di: number, ex: BExercise, ei: number, total: number) {
     const media = ex.exercise ? mediaMap[ex.exercise] : undefined;
     return (
-      <div key={ei} className="rounded-md border bg-muted/30 p-2">
+      <div key={ex.exercise ?? `${ex.nameEn}-${ei}`} className="rounded-md border bg-muted/30 p-2">
         <div className="flex items-center gap-2">
           <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" />
           <div className="relative h-[60px] w-[60px] shrink-0 overflow-hidden rounded-lg bg-muted">

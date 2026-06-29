@@ -135,7 +135,11 @@ export function ExerciseMedia({
   if (videoId) {
     return (
       <div className={className}>
-        {variant === "player" ? <YoutubePlayer videoId={videoId} alt={alt} /> : <YoutubeThumbnail videoId={videoId} alt={alt} />}
+        {variant === "player" ? (
+          <YoutubePlayer key={videoId} videoId={videoId} alt={alt} />
+        ) : (
+          <YoutubeThumbnail key={videoId} videoId={videoId} alt={alt} />
+        )}
       </div>
     );
   }
@@ -144,7 +148,7 @@ export function ExerciseMedia({
   if (start) {
     return (
       <div className={className}>
-        <MotionFadeImage start={start} end={media.imageUrlEnd} alt={alt} />
+        <MotionFadeImage key={`${start}|${media.imageUrlEnd ?? ""}`} start={start} end={media.imageUrlEnd} alt={alt} />
       </div>
     );
   }

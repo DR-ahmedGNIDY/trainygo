@@ -70,12 +70,9 @@ export const GENDERS = ["male", "female"] as const;
 export type Gender = (typeof GENDERS)[number];
 
 export const CLIENT_GOALS = [
+  "muscle_building",
   "fat_loss",
-  "muscle_gain",
-  "maintenance",
-  "strength",
-  "general_fitness",
-  "rehabilitation",
+  "athletic_conditioning",
 ] as const;
 export type ClientGoal = (typeof CLIENT_GOALS)[number];
 

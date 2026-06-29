@@ -155,7 +155,6 @@ export function WorkoutSession({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [whatsappLink, setWhatsappLink] = useState<string | null>(null);
-  const [pendingRest, setPendingRest] = useState<SessionExercise[] | null>(null);
 
   // ---- Resume-from-draft gate: check localStorage once on mount before showing any session UI. ----
   const [resumeStatus, setResumeStatus] = useState<"checking" | "prompt" | "decided">("checking");
@@ -260,15 +259,13 @@ export function WorkoutSession({
     setDone((d) => [...d, finished]);
     setQueue(rest);
     setSetIndex(0);
-    setPendingRest(rest);
     setPhase("difficulty");
   }
 
   function chooseDifficulty(value: DifficultyRating) {
     const finishedRestSeconds = done.length > 0 ? done[done.length - 1].restSeconds : undefined;
     setDone((d) => (d.length === 0 ? d : [...d.slice(0, -1), { ...d[d.length - 1], difficultyRating: value }]));
-    const rest = pendingRest ?? [];
-    setPendingRest(null);
+    const rest = queue;
     if (rest.length === 0) {
       setEndedAt(new Date());
       setPhase("summary");

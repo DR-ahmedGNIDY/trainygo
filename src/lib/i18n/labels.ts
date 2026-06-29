@@ -11,12 +11,9 @@ import type {
 type L = { ar: string; en: string };
 
 export const GOAL_LABELS: Record<ClientGoal, L> = {
-  fat_loss: { ar: "خسارة دهون", en: "Fat loss" },
-  muscle_gain: { ar: "بناء عضل", en: "Muscle gain" },
-  maintenance: { ar: "صيانة", en: "Maintenance" },
-  strength: { ar: "قوة", en: "Strength" },
-  general_fitness: { ar: "لياقة عامة", en: "General fitness" },
-  rehabilitation: { ar: "تأهيل", en: "Rehabilitation" },
+  muscle_building: { ar: "زيادة كتلة عضلية", en: "Muscle Building" },
+  fat_loss: { ar: "نزول في الوزن", en: "Fat Loss" },
+  athletic_conditioning: { ar: "إعداد بدني", en: "Athletic Conditioning" },
 };
 
 export const GENDER_LABELS: Record<Gender, L> = {

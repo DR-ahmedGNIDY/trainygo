@@ -22,7 +22,7 @@ export const SYSTEM_WORKOUT_TEMPLATES: SeedWorkoutTemplate[] = [
   {
     nameAr: "بوش بول ليجز",
     nameEn: "Push Pull Legs",
-    goal: "muscle_gain",
+    goal: "muscle_building",
     weeks: [
       {
         weekNumber: 1,
@@ -65,7 +65,7 @@ export const SYSTEM_WORKOUT_TEMPLATES: SeedWorkoutTemplate[] = [
   {
     nameAr: "فول بودي للمبتدئين",
     nameEn: "Beginner Full Body",
-    goal: "general_fitness",
+    goal: "athletic_conditioning",
     weeks: [
       {
         weekNumber: 1,

@@ -590,11 +590,9 @@ function EditClientDialog({
             <Select value={form.goal} onValueChange={set("goal")}>
               <SelectTrigger><SelectValue placeholder={L("اختر الهدف", "Select goal")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="fat_loss">{L("خسارة دهون", "Fat loss")}</SelectItem>
-                <SelectItem value="muscle_gain">{L("بناء عضل", "Muscle gain")}</SelectItem>
-                <SelectItem value="maintenance">{L("صيانة", "Maintenance")}</SelectItem>
-                <SelectItem value="strength">{L("قوة", "Strength")}</SelectItem>
-                <SelectItem value="general_fitness">{L("لياقة عامة", "General fitness")}</SelectItem>
+                <SelectItem value="muscle_building">{L("زيادة كتلة عضلية", "Muscle Building")}</SelectItem>
+                <SelectItem value="fat_loss">{L("نزول في الوزن", "Fat Loss")}</SelectItem>
+                <SelectItem value="athletic_conditioning">{L("إعداد بدني", "Athletic Conditioning")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
