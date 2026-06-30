@@ -109,7 +109,7 @@ export async function cloneWorkoutTemplate(id: string, scope: TplScope) {
   const copy = await WorkoutTemplate.create({
     nameAr: `${src.nameAr} (نسخة)`,
     nameEn: `${src.nameEn} (copy)`,
-    goal: src.goal,
+    goal: normalizeGoal(src.goal),
     description: src.description,
     weeks: src.weeks, // deep structural copy (embedded, no shared refs)
     isSystemTemplate: isSystem,
