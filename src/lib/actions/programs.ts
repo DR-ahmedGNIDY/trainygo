@@ -9,6 +9,7 @@ import * as copy from "@/lib/services/copy";
 import type { CopyWhat } from "@/lib/services/copy";
 import type { IWorkoutWeek } from "@/models/WorkoutTemplate";
 import type { IMeal } from "@/models/NutritionTemplate";
+import { logError } from "@/lib/logging/error-log";
 
 /* ---- Workout programs ---- */
 
@@ -18,7 +19,24 @@ export async function assignTemplateAction(
 ): Promise<ActionResult<{ id: string }>> {
   return runAction(async () => {
     const { coachId } = await getCoachWriteCtx();
-    const id = await programs.assignTemplateToClient(coachId, templateId, clientId);
+    let id: string;
+    try {
+      id = await programs.assignTemplateToClient(coachId, templateId, clientId);
+    } catch (error) {
+      await logError(
+        {
+          type: "ASSIGN_TEMPLATE_ERROR",
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          coachId,
+          route: "/coach/programs",
+          action: "assignTemplate",
+          context: { templateId, clientId },
+        },
+        error,
+      );
+      throw error;
+    }
     revalidatePath("/coach/programs");
     revalidatePath(`/coach/clients/${clientId}`);
     return ok({ id });
@@ -137,7 +155,24 @@ export async function copyTemplatesToClientsAction(
   return runAction(async () => {
     if (clientIds.length === 0) return fail("اختر عميلاً واحداً على الأقل", "VALIDATION");
     const { coachId } = await getCoachWriteCtx();
-    const res = await copy.copyTemplatesToClients(coachId, source, clientIds);
+    let res: { programs: number; plans: number };
+    try {
+      res = await copy.copyTemplatesToClients(coachId, source, clientIds);
+    } catch (error) {
+      await logError(
+        {
+          type: "COPY_PROGRAM_ERROR",
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          coachId,
+          route: "/coach/programs",
+          action: "copyTemplatesToClients",
+          context: { ...source, clientIds },
+        },
+        error,
+      );
+      throw error;
+    }
     revalidatePath("/coach/programs");
     revalidatePath("/coach/nutrition/plans");
     return ok(res);
@@ -152,7 +187,24 @@ export async function copyClientToClientsAction(
   return runAction(async () => {
     if (clientIds.length === 0) return fail("اختر عميلاً واحداً على الأقل", "VALIDATION");
     const { coachId } = await getCoachWriteCtx();
-    const res = await copy.copyClientToClients(coachId, fromClientId, what, clientIds);
+    let res: { programs: number; plans: number };
+    try {
+      res = await copy.copyClientToClients(coachId, fromClientId, what, clientIds);
+    } catch (error) {
+      await logError(
+        {
+          type: "COPY_PROGRAM_ERROR",
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          coachId,
+          route: "/coach/programs",
+          action: "copyClientToClients",
+          context: { fromClientId, what, clientIds },
+        },
+        error,
+      );
+      throw error;
+    }
     revalidatePath("/coach/programs");
     revalidatePath("/coach/nutrition/plans");
     return ok(res);

@@ -1,4 +1,7 @@
+import type { Session } from "next-auth";
 import { PermissionError } from "@/lib/permissions";
+import { auth } from "@/lib/auth";
+import { logError, wasLogged } from "@/lib/logging/error-log";
 
 export type ActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -35,6 +38,25 @@ export async function runAction<T>(
       return fail("DUPLICATE", "DUPLICATE", field);
     }
     console.error("[action error]", e);
+    // Safety net: persist any exception not already logged richly by the
+    // caller, so it's never lost behind the generic message below.
+    if (!wasLogged(e)) {
+      const error = e instanceof Error ? e : new Error(String(e));
+      let session: Session | null = null;
+      try {
+        session = await auth();
+      } catch {
+        // auth() requires a request scope; ignore if called outside one.
+      }
+      await logError({
+        type: "UNKNOWN",
+        message: error.message,
+        stack: error.stack,
+        userId: session?.user?.id,
+        coachId: session?.user?.role === "coach" ? session.user.id : undefined,
+        email: session?.user?.email ?? undefined,
+      });
+    }
     return fail("حدث خطأ في الخادم", "SERVER_ERROR");
   }
 }

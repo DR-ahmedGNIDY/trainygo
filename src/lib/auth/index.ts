@@ -7,6 +7,7 @@ import { comparePassword } from "./password";
 import { accountCanLogin } from "@/lib/permissions";
 import { loginSchema } from "@/lib/validations/auth";
 import { syncCoachStatus } from "@/lib/services/subscription";
+import { logError } from "@/lib/logging/error-log";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -21,39 +22,54 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
         const { identifier, password } = parsed.data;
 
-        await connectToDatabase();
-        const id = identifier.toLowerCase().trim();
-        const user = await User.findOne({
-          $or: [{ username: id }, { email: id }],
-        });
-        if (!user) return null;
+        try {
+          await connectToDatabase();
+          const id = identifier.toLowerCase().trim();
+          const user = await User.findOne({
+            $or: [{ username: id }, { email: id }],
+          });
+          if (!user) return null;
 
-        const ok = await comparePassword(password, user.passwordHash);
-        if (!ok) return null;
+          const ok = await comparePassword(password, user.passwordHash);
+          if (!ok) return null;
 
-        // Suspended accounts cannot sign in. Expired coaches CAN (read-only).
-        if (!accountCanLogin(user.status)) return null;
+          // Suspended accounts cannot sign in. Expired coaches CAN (read-only).
+          if (!accountCanLogin(user.status)) return null;
 
-        // Best-effort last-login stamp.
-        user.lastLoginAt = new Date();
-        await user.save().catch(() => {});
+          // Best-effort last-login stamp.
+          user.lastLoginAt = new Date();
+          await user.save().catch(() => {});
 
-        // Coaches: lapsed trial/subscription dates flip status to "expired" here.
-        const effectiveStatus =
-          user.role === "coach"
-            ? await syncCoachStatus(user._id.toString()).catch(() => user.status)
-            : user.status;
+          // Coaches: lapsed trial/subscription dates flip status to "expired" here.
+          const effectiveStatus =
+            user.role === "coach"
+              ? await syncCoachStatus(user._id.toString()).catch(() => user.status)
+              : user.status;
 
-        return {
-          id: user._id.toString(),
-          name: user.name,
-          email: user.email ?? undefined,
-          username: user.username,
-          role: user.role,
-          status: effectiveStatus,
-          locale: user.locale,
-          mustChangePassword: user.mustChangePassword,
-        };
+          return {
+            id: user._id.toString(),
+            name: user.name,
+            email: user.email ?? undefined,
+            username: user.username,
+            role: user.role,
+            status: effectiveStatus,
+            locale: user.locale,
+            mustChangePassword: user.mustChangePassword,
+          };
+        } catch (error) {
+          // Unexpected failure (DB down, etc.) — NOT a normal wrong-password
+          // rejection, so this is worth recording. Still return null so the
+          // login form just shows "invalid credentials" as before.
+          await logError({
+            type: "AUTH_ERROR",
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            email: identifier,
+            route: "/login",
+            action: "authorize",
+          });
+          return null;
+        }
       },
     }),
   ],

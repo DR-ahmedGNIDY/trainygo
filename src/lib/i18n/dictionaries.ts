@@ -189,6 +189,7 @@ const ar = {
       foods: "مكتبة الأطعمة",
       notifications: "الإشعارات",
       settings: "الإعدادات",
+      systemLogs: "سجل الأخطاء",
     },
     clientNav: {
       home: "الرئيسية",
@@ -457,6 +458,7 @@ const en: Dictionary = {
       foods: "Food Library",
       notifications: "Notifications",
       settings: "Settings",
+      systemLogs: "System Logs",
     },
     clientNav: {
       home: "Home",

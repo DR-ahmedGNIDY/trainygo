@@ -9,6 +9,7 @@ import {
 } from "@/lib/validations/auth";
 import { TRIAL_DURATION_DAYS } from "@/lib/constants";
 import { getLocale } from "@/lib/i18n/server";
+import { logError } from "@/lib/logging/error-log";
 
 export type RegisterResult =
   | { ok: true }
@@ -71,6 +72,15 @@ export async function registerCoach(
         field,
       };
     }
+    const error = e instanceof Error ? e : new Error(String(e));
+    await logError({
+      type: "AUTH_ERROR",
+      message: error.message,
+      stack: error.stack,
+      email: mail,
+      route: "/register",
+      action: "registerCoach",
+    });
     return { ok: false, error: "SERVER" };
   }
 

@@ -4,6 +4,7 @@ import { createHash } from "crypto";
 import { auth } from "@/lib/auth";
 import { PermissionError } from "@/lib/permissions";
 import { runAction, ok, fail, type ActionResult } from "./result";
+import { logError } from "@/lib/logging/error-log";
 
 export interface CloudinarySignature {
   cloudName: string;
@@ -28,7 +29,20 @@ export async function getCloudinarySignatureAction(
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
-    if (!cloudName || !apiKey || !apiSecret) return fail("Cloudinary غير مُعدّ على الخادم", "NOT_CONFIGURED");
+    if (!cloudName || !apiKey || !apiSecret) {
+      await logError({
+        type: "UPLOAD_ERROR",
+        severity: "critical",
+        message: "Cloudinary environment variables are not configured",
+        userId: session.user.id,
+        coachId: session.user.role === "coach" ? session.user.id : undefined,
+        email: session.user.email ?? undefined,
+        route: "media",
+        action: "getCloudinarySignature",
+        context: { folder },
+      });
+      return fail("Cloudinary غير مُعدّ على الخادم", "NOT_CONFIGURED");
+    }
 
     const timestamp = Math.floor(Date.now() / 1000);
     const paramsToSign = folder ? { folder, timestamp } : { timestamp };

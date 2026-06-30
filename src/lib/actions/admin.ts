@@ -7,6 +7,7 @@ import * as admin from "@/lib/services/admin";
 import * as plans from "@/lib/services/plans";
 import type { AccountStatus, PaymentMethod } from "@/lib/constants";
 import type { PlanInput } from "@/lib/services/plans";
+import { logError } from "@/lib/logging/error-log";
 
 /* ---- Coach management ---- */
 
@@ -65,7 +66,23 @@ export async function activateSubscriptionAction(
 ): Promise<ActionResult> {
   return runAction(async () => {
     const { adminId } = await getAdminCtx();
-    await admin.activateSubscription(adminId, coachId, input);
+    try {
+      await admin.activateSubscription(adminId, coachId, input);
+    } catch (error) {
+      await logError(
+        {
+          type: "SUBSCRIPTION_ERROR",
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          userId: adminId,
+          route: "/admin/coaches",
+          action: "activateSubscription",
+          context: { coachId, ...input },
+        },
+        error,
+      );
+      throw error;
+    }
     revalidatePath("/admin/coaches");
     revalidatePath("/admin");
     return ok();
