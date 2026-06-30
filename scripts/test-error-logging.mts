@@ -65,6 +65,28 @@ async function main() {
   check("version auto-captured", typeof doc?.version === "string" && doc.version.length > 0);
   check("fingerprint computed (sha1 hex, 40 chars)", typeof doc?.fingerprint === "string" && /^[a-f0-9]{40}$/.test(doc.fingerprint));
   check("resolved defaults to false", doc?.resolved === false);
+  check("count defaults to 1 on first occurrence", doc?.count === 1);
+  check("lastOccurredAt set on first occurrence", !!doc?.lastOccurredAt);
+
+  // ---- 1b. repeating the identical error updates the existing doc, not a new one ----
+  const firstLastOccurredAt = doc!.lastOccurredAt as Date;
+  await new Promise((r) => setTimeout(r, 10)); // ensure lastOccurredAt actually advances
+  await logError({
+    type: "ASSIGN_TEMPLATE_ERROR",
+    message: "Template not found",
+    stack: "Error: Template not found\n    at assignTemplateToClient (programs.ts:71)",
+    coachId,
+    email: coach.email,
+    route: "/coach/programs",
+    action: "assignTemplate",
+    context: { templateId: "64f000000000000000000001", clientId: "64f000000000000000000002" },
+  });
+  const docsAfterRepeat = await ErrorLog.find({}).lean();
+  check(`repeating identical error does NOT create a new document (still ${docsAfterRepeat.length})`, docsAfterRepeat.length === 1);
+  const repeatedDoc = await ErrorLog.findById(doc!._id).lean();
+  check(`count incremented to 2 on repeat (got ${repeatedDoc?.count})`, repeatedDoc?.count === 2);
+  check("lastOccurredAt advanced on repeat", (repeatedDoc?.lastOccurredAt as Date).getTime() > firstLastOccurredAt.getTime());
+  check("createdAt (first occurrence) unchanged on repeat", new Date(repeatedDoc!.createdAt).getTime() === new Date(doc!.createdAt).getTime());
 
   // ---- 2. logError() never throws, even if DB is unreachable ----
   const badOldUri = process.env.MONGODB_URI;
@@ -83,13 +105,16 @@ async function main() {
   }
   check("logError() call sites never throw", !threw);
 
-  // ---- 3. fingerprint groups identical recurring errors ----
+  // ---- 3. fingerprint groups identical recurring errors into ONE document with count ----
   await logError({ type: "UPLOAD_ERROR", message: "Cloudinary timeout", action: "uploadMedia" });
   await logError({ type: "UPLOAD_ERROR", message: "Cloudinary timeout", action: "uploadMedia" });
   await logError({ type: "UPLOAD_ERROR", message: "Different message", action: "uploadMedia" });
   const uploadDocs = await ErrorLog.find({ type: "UPLOAD_ERROR" }).lean();
-  const fingerprints = new Set(uploadDocs.map((d) => d.fingerprint));
-  check(`3 UPLOAD_ERROR logs collapse to 2 fingerprints (got ${fingerprints.size})`, fingerprints.size === 2);
+  check(`3 calls (2 identical + 1 different) collapse to 2 documents (got ${uploadDocs.length})`, uploadDocs.length === 2);
+  const timeoutDoc = uploadDocs.find((d) => d.message === "Cloudinary timeout");
+  check(`the 2 identical "Cloudinary timeout" calls produced count=2 (got ${timeoutDoc?.count})`, timeoutDoc?.count === 2);
+  const differentDoc = uploadDocs.find((d) => d.message === "Different message");
+  check("the differing message got its own document with count=1", differentDoc?.count === 1);
 
   // ---- 4. markLogged/wasLogged round-trip ----
   const sentinel = new Error("sentinel");
@@ -105,7 +130,7 @@ async function main() {
   check("runAction() still returns a clean ActionResult (no leak)", result.ok === false && result.error === "حدث خطأ في الخادم" && result.code === "SERVER_ERROR");
   const afterCount = await ErrorLog.countDocuments({});
   check("runAction() safety net wrote exactly 1 new log", afterCount === beforeCount + 1);
-  const safetyNetDoc = await ErrorLog.findOne({}).sort({ createdAt: -1 }).lean();
+  const safetyNetDoc = await ErrorLog.findOne({}).sort({ lastOccurredAt: -1 }).lean();
   check("safety-net log has type UNKNOWN", safetyNetDoc?.type === "UNKNOWN");
   check("safety-net log captured the real message (not the generic user-facing one)", safetyNetDoc?.message === "boom — unexpected runtime error");
 
@@ -165,7 +190,7 @@ async function main() {
     console.log(JSON.stringify({
       type: e.type, severity: e.severity, message: e.message, action: e.action,
       route: e.route, fingerprint: e.fingerprint.slice(0, 12) + "…", environment: e.environment,
-      version: e.version, resolved: e.resolved,
+      version: e.version, count: e.count, resolved: e.resolved,
     }, null, 2));
   }
 

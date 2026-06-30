@@ -67,25 +67,37 @@ export async function logError(input: LogErrorInput, sourceError?: unknown): Pro
     }
 
     await connectToDatabase();
-    await ErrorLog.create({
-      type: input.type,
-      severity: input.severity ?? "error",
-      message: input.message?.slice(0, 2000) ?? "Unknown error",
-      stack: input.stack?.slice(0, 8000),
-      code: input.code,
-      coachId: input.coachId,
-      userId: input.userId,
-      email: input.email,
-      route: input.route,
-      action: input.action,
-      context: input.context,
-      environment: (process.env.NODE_ENV as "production" | "development") ?? "development",
-      version: pkg.version ?? process.env.NEXT_PUBLIC_APP_VERSION,
-      browser,
-      device,
-      ipAddress,
-      fingerprint: computeFingerprint(input),
-    });
+    const fingerprint = computeFingerprint(input);
+    const now = new Date();
+    // Same fingerprint = same recurring error: bump count/lastOccurredAt on
+    // the existing document instead of creating a duplicate row per occurrence.
+    await ErrorLog.findOneAndUpdate(
+      { fingerprint },
+      {
+        $set: {
+          type: input.type,
+          severity: input.severity ?? "error",
+          message: input.message?.slice(0, 2000) ?? "Unknown error",
+          stack: input.stack?.slice(0, 8000),
+          code: input.code,
+          coachId: input.coachId,
+          userId: input.userId,
+          email: input.email,
+          route: input.route,
+          action: input.action,
+          context: input.context,
+          environment: (process.env.NODE_ENV as "production" | "development") ?? "development",
+          version: pkg.version ?? process.env.NEXT_PUBLIC_APP_VERSION,
+          browser,
+          device,
+          ipAddress,
+          lastOccurredAt: now,
+        },
+        $setOnInsert: { fingerprint, resolved: false },
+        $inc: { count: 1 },
+      },
+      { upsert: true },
+    );
   } catch (loggingError) {
     console.error("Error logger failed", loggingError);
   }

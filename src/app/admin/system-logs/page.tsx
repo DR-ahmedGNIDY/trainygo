@@ -31,7 +31,9 @@ export default async function AdminSystemLogsPage() {
       resolvedByName: resolver?.name,
       resolvedAt: l.resolvedAt ? String(l.resolvedAt) : null,
       notes: l.notes,
+      count: l.count,
       createdAt: String(l.createdAt),
+      lastOccurredAt: String(l.lastOccurredAt),
     };
   });
 

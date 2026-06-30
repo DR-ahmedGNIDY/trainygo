@@ -75,7 +75,9 @@ export interface ErrorLogRow {
   resolvedByName?: string;
   resolvedAt?: string | null;
   notes?: string;
+  count: number;
   createdAt: string;
+  lastOccurredAt: string;
 }
 
 export interface ErrorLogStats {
@@ -114,7 +116,7 @@ export function SystemLogsView({ logs, stats }: { logs: ErrorLogRow[]; stats: Er
     return logs.filter((l) => {
       if (rangeMs !== null) {
         const start = range === "today" ? new Date(new Date().setHours(0, 0, 0, 0)).getTime() : now - rangeMs;
-        if (new Date(l.createdAt).getTime() < start) return false;
+        if (new Date(l.lastOccurredAt).getTime() < start) return false;
       }
       if (coachQuery.trim()) {
         const q = coachQuery.trim().toLowerCase();
@@ -211,13 +213,14 @@ export function SystemLogsView({ logs, stats }: { logs: ErrorLogRow[]; stats: Er
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{L("التاريخ", "Date")}</TableHead>
+                  <TableHead>{L("آخر حدوث", "Last seen")}</TableHead>
                   <TableHead>{L("النوع", "Type")}</TableHead>
                   <TableHead>{L("الخطورة", "Severity")}</TableHead>
                   <TableHead className="hidden md:table-cell">{L("المدرب", "Coach")}</TableHead>
                   <TableHead className="hidden lg:table-cell">{L("الإيميل", "Email")}</TableHead>
                   <TableHead className="hidden lg:table-cell">{L("العملية", "Action")}</TableHead>
                   <TableHead>{L("الرسالة", "Message")}</TableHead>
+                  <TableHead className="text-center">{L("التكرار", "Count")}</TableHead>
                   <TableHead>{L("الحالة", "Resolved")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
@@ -225,13 +228,16 @@ export function SystemLogsView({ logs, stats }: { logs: ErrorLogRow[]; stats: Er
               <TableBody>
                 {filtered.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{formatFullDateTime(l.createdAt, locale)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{formatFullDateTime(l.lastOccurredAt, locale)}</TableCell>
                     <TableCell className="text-xs">{l.type}</TableCell>
                     <TableCell><Badge variant={SEVERITY_BADGE[l.severity]}>{l.severity}</Badge></TableCell>
                     <TableCell className="hidden md:table-cell">{l.coachName ?? "—"}</TableCell>
                     <TableCell className="hidden text-muted-foreground lg:table-cell" dir="ltr">{l.email ?? "—"}</TableCell>
                     <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">{l.action ?? "—"}</TableCell>
                     <TableCell className="max-w-xs truncate text-sm" title={l.message}>{l.message}</TableCell>
+                    <TableCell className="text-center">
+                      {l.count > 1 ? <Badge variant="secondary">×{l.count}</Badge> : <span className="text-muted-foreground">1</span>}
+                    </TableCell>
                     <TableCell>
                       {l.resolved ? (
                         <Badge variant="success">{L("محلول", "Resolved")}</Badge>
@@ -313,7 +319,9 @@ function DetailDialog({
         {log && (
           <div className="max-h-[70vh] space-y-4 overflow-y-auto text-sm">
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <Field label={L("التاريخ", "Date")} value={formatFullDateTime(log.createdAt, locale)} />
+              <Field label={L("أول حدوث", "First seen")} value={formatFullDateTime(log.createdAt, locale)} />
+              <Field label={L("آخر حدوث", "Last seen")} value={formatFullDateTime(log.lastOccurredAt, locale)} />
+              <Field label={L("عدد مرات التكرار", "Occurrence count")} value={String(log.count)} />
               <Field label={L("الخطورة", "Severity")} value={log.severity} />
               <Field label={L("المدرب", "Coach")} value={log.coachName ?? "—"} />
               <Field label={L("الإيميل", "Email")} value={log.email ?? "—"} />

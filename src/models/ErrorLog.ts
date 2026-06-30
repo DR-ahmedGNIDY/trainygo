@@ -35,6 +35,10 @@ export interface IErrorLog {
   device?: string;
   ipAddress?: string;
   fingerprint: string;
+  /** How many times this fingerprint has occurred (1 on first write, incremented on each repeat). */
+  count: number;
+  /** Timestamp of the most recent occurrence of this fingerprint (createdAt stays the first occurrence). */
+  lastOccurredAt: Date;
   resolved: boolean;
   resolvedBy?: Types.ObjectId;
   resolvedAt?: Date;
@@ -65,7 +69,9 @@ const ErrorLogSchema = new Schema<IErrorLog>(
     browser: { type: String },
     device: { type: String },
     ipAddress: { type: String },
-    fingerprint: { type: String, index: true },
+    fingerprint: { type: String, unique: true },
+    count: { type: Number, default: 1 },
+    lastOccurredAt: { type: Date, default: Date.now },
     resolved: { type: Boolean, default: false, index: true },
     resolvedBy: { type: Schema.Types.ObjectId, ref: "User" },
     resolvedAt: { type: Date },

@@ -23,7 +23,7 @@ export async function listErrorLogs(filters: ListErrorLogsFilters = {}) {
   await connectToDatabase();
   const match: Record<string, unknown> = {};
   const since = rangeStart(filters.range);
-  if (since) match.createdAt = { $gte: since };
+  if (since) match.lastOccurredAt = { $gte: since };
   if (filters.coachId && Types.ObjectId.isValid(filters.coachId)) {
     match.coachId = new Types.ObjectId(filters.coachId);
   }
@@ -34,7 +34,7 @@ export async function listErrorLogs(filters: ListErrorLogsFilters = {}) {
   const docs = await ErrorLog.find(match)
     .populate("coachId", "name email")
     .populate("resolvedBy", "name")
-    .sort({ createdAt: -1 })
+    .sort({ lastOccurredAt: -1 })
     .limit(500)
     .lean();
   return serialize(docs);
@@ -44,19 +44,15 @@ export async function getErrorLogStats() {
   await connectToDatabase();
   const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
 
-  const [critical, open, resolvedToday, mostFrequentAgg] = await Promise.all([
+  const [critical, open, resolvedToday, mostFrequentDoc] = await Promise.all([
     ErrorLog.countDocuments({ severity: "critical", resolved: false }),
     ErrorLog.countDocuments({ resolved: false }),
     ErrorLog.countDocuments({ resolved: true, resolvedAt: { $gte: todayStart } }),
-    ErrorLog.aggregate([
-      { $group: { _id: "$fingerprint", count: { $sum: 1 }, message: { $first: "$message" }, type: { $first: "$type" } } },
-      { $sort: { count: -1 } },
-      { $limit: 1 },
-    ]),
+    ErrorLog.findOne({}).sort({ count: -1 }).select("message type count").lean(),
   ]);
 
-  const mostFrequent = mostFrequentAgg[0]
-    ? { message: mostFrequentAgg[0].message as string, type: mostFrequentAgg[0].type as string, count: mostFrequentAgg[0].count as number }
+  const mostFrequent = mostFrequentDoc
+    ? { message: mostFrequentDoc.message, type: mostFrequentDoc.type, count: mostFrequentDoc.count }
     : null;
 
   return { critical, open, resolvedToday, mostFrequent };
