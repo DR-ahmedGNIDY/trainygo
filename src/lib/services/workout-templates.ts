@@ -4,6 +4,7 @@ import { WorkoutTemplate, type IWorkoutWeek } from "@/models/WorkoutTemplate";
 import { serialize } from "@/lib/serialize";
 import { PermissionError } from "@/lib/permissions";
 import type { ClientGoal } from "@/lib/constants";
+import { normalizeGoal } from "@/lib/utils/goals";
 
 export type TplScope =
   | { role: "super_admin" }
@@ -56,7 +57,7 @@ export async function createWorkoutTemplate(scope: TplScope, input: WorkoutTempl
   const doc = await WorkoutTemplate.create({
     nameAr: input.nameAr,
     nameEn: input.nameEn,
-    goal: input.goal,
+    goal: normalizeGoal(input.goal),
     description: input.description,
     weeks: input.weeks?.length ? input.weeks : [emptyWeek()],
     isSystemTemplate: isSystem,
@@ -83,7 +84,7 @@ export async function updateWorkoutTemplate(id: string, scope: TplScope, input: 
   assertCanMutate(tpl, scope);
   tpl.nameAr = input.nameAr;
   tpl.nameEn = input.nameEn;
-  if (input.goal !== undefined) tpl.goal = input.goal;
+  if (input.goal !== undefined) tpl.goal = normalizeGoal(input.goal);
   if (input.description !== undefined) tpl.description = input.description;
   if (input.weeks !== undefined) tpl.weeks = input.weeks;
   await tpl.save();

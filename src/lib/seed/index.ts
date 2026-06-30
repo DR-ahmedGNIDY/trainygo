@@ -1,4 +1,5 @@
 import { connectToDatabase } from "@/lib/db";
+import { normalizeGoal } from "@/lib/utils/goals";
 import { User } from "@/models/User";
 import { Plan } from "@/models/Plan";
 import { Settings } from "@/models/Settings";
@@ -69,7 +70,7 @@ export async function seedWorkoutTemplates(log: Log) {
   if ((await WorkoutTemplate.countDocuments({ isSystemTemplate: true })) > 0)
     return log("• system workout templates — skipped");
   await WorkoutTemplate.insertMany(
-    SYSTEM_WORKOUT_TEMPLATES.map((t) => ({ ...t, isSystemTemplate: true, createdByCoach: null })),
+    SYSTEM_WORKOUT_TEMPLATES.map((t) => ({ ...t, goal: normalizeGoal(t.goal), isSystemTemplate: true, createdByCoach: null })),
   );
   log(`✓ ${SYSTEM_WORKOUT_TEMPLATES.length} system workout templates seeded`);
 }

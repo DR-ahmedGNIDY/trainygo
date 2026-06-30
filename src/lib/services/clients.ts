@@ -13,6 +13,7 @@ import { nextClientCode } from "@/lib/codes";
 import { randomString } from "@/lib/utils";
 import { serialize } from "@/lib/serialize";
 import { createNotification } from "./notifications";
+import { normalizeGoal } from "@/lib/utils/goals";
 import type {
   ClientCreateData,
   ClientUpdateData,
@@ -110,7 +111,7 @@ export async function createClient(
       height: input.height,
       startWeight: input.weight,
       currentWeight: input.weight,
-      goal: input.goal,
+      goal: normalizeGoal(input.goal),
       subscriptionStartDate: now,
       subscriptionEndDate: subEnd,
       active: true,
@@ -146,7 +147,7 @@ export async function updateClient(
   if (input.gender !== undefined) set["clientProfile.gender"] = input.gender;
   if (input.height !== undefined) set["clientProfile.height"] = input.height;
   if (input.weight !== undefined) set["clientProfile.currentWeight"] = input.weight;
-  if (input.goal !== undefined) set["clientProfile.goal"] = input.goal;
+  if (input.goal !== undefined) set["clientProfile.goal"] = normalizeGoal(input.goal);
   if (input.active !== undefined) set["clientProfile.active"] = input.active;
 
   const res = await User.updateOne(

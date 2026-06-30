@@ -6,6 +6,7 @@ import { User } from "@/models/User";
 import { serialize } from "@/lib/serialize";
 import { PermissionError } from "@/lib/permissions";
 import { createNotification } from "./notifications";
+import { normalizeGoal } from "@/lib/utils/goals";
 
 /** Deep, reference-free clone of an embedded structure (independence rule). */
 function deepClone<T>(v: T): T {
@@ -77,7 +78,7 @@ export async function assignTemplateToClient(
     nameAr: tpl.nameAr,
     nameEn: tpl.nameEn,
     description: tpl.description,
-    goal: tpl.goal,
+    goal: normalizeGoal(tpl.goal),
     weeks: deepClone(tpl.weeks), // independent copy
     status: "active",
   });
@@ -146,7 +147,7 @@ export async function duplicateProgram(
     nameAr: renameForClient(src.nameAr, fromName, toName),
     nameEn: renameForClient(src.nameEn, fromName, toName),
     description: src.description,
-    goal: src.goal,
+    goal: normalizeGoal(src.goal),
     weeks: deepClone(src.weeks),
     status: "active",
   });
