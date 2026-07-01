@@ -11,6 +11,7 @@ export default async function AdminCoachesPage() {
   const [rawCoaches, rawPlans] = await Promise.all([listCoaches(), listPlans()]);
 
   const planNameById = new Map(rawPlans.map((p) => [String(p._id), p.name]));
+  const planBrandingById = new Map(rawPlans.map((p) => [String(p._id), p.planFeatures?.branding ?? false]));
 
   const coaches: CoachRow[] = rawCoaches.map((c) => {
     const cp = (c.coachProfile ?? {}) as Record<string, unknown>;
@@ -35,6 +36,23 @@ export default async function AdminCoachesPage() {
       startDate,
       endDate,
       suspendedByAdmin: Boolean(cp.suspendedByAdmin),
+      academyName: (cp.brandSettings as { academyName?: string } | undefined)?.academyName ?? "FITXNET",
+      hasBranding: Boolean(cp.brandSettings),
+      logoUrl: (cp.brandSettings as { logo?: string } | undefined)?.logo,
+      brandingAccess: (() => {
+        const overrides = cp.featureOverrides as { branding?: boolean | null } | undefined;
+        const override = overrides?.branding;
+        if (override === true) return "manual" as const;
+        if (override === false) return false as const;
+        // null / absent → check plan
+        const activeStatus = cp.subscriptionStatus === "active" || cp.subscriptionStatus === "trial";
+        if (activeStatus && planId && planBrandingById.get(planId)) return "plan" as const;
+        return false as const;
+      })(),
+      brandingOverride: (() => {
+        const overrides = cp.featureOverrides as { branding?: boolean | null } | undefined;
+        return overrides?.branding ?? null;
+      })(),
     };
   });
 

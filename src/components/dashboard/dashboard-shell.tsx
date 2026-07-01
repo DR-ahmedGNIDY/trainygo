@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Menu, AlertTriangle } from "lucide-react";
-import { Logo } from "@/components/brand/logo";
+import { BrandText } from "@/components/brand/logo";
 import { LanguageSwitcher } from "@/components/brand/language-switcher";
 import { ThemeToggle } from "@/components/brand/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -19,8 +20,28 @@ import { NotificationsMenu, type NotificationItem } from "./notifications-menu";
 import { MobileTabBar } from "./mobile-tab-bar";
 import { getNavForRole } from "./nav-config";
 import { useI18n } from "@/components/providers/i18n-provider";
+import { useBrand } from "@/components/providers/brand-provider";
 import { coachIsReadOnly } from "@/lib/permissions";
 import type { AccountStatus, UserRole } from "@/lib/constants";
+
+/** Brand-aware sidebar/sheet logo: shows the coach's custom logo + academy name when configured, else the default FITXNET wordmark. */
+function BrandLogo() {
+  const brand = useBrand();
+  return (
+    <Link href="/" className="inline-flex items-center gap-2" aria-label={brand.academyName}>
+      {brand.logo ? (
+        <Image src={brand.logo} alt={brand.academyName} width={36} height={36} className="shrink-0 rounded object-contain" />
+      ) : (
+        <Image src="/favicon.png" alt={brand.academyName} width={36} height={36} className="shrink-0" priority />
+      )}
+      {brand.logo ? (
+        <span className="text-lg font-bold tracking-tight">{brand.academyName}</span>
+      ) : (
+        <BrandText className="text-lg" />
+      )}
+    </Link>
+  );
+}
 
 export function DashboardShell({
   role,
@@ -30,6 +51,7 @@ export function DashboardShell({
   avatarUrl,
   notifications = [],
   unread = 0,
+  featureFlags,
   children,
 }: {
   role: UserRole;
@@ -39,29 +61,39 @@ export function DashboardShell({
   avatarUrl?: string;
   notifications?: NotificationItem[];
   unread?: number;
+  featureFlags?: { branding?: boolean };
   children: React.ReactNode;
 }) {
-  const { t, dir } = useI18n();
+  const { t, dir, locale } = useI18n();
+  const brand = useBrand();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const sections = getNavForRole(role, t);
+  const sections = getNavForRole(role, t, featureFlags);
   const mobileSide = dir === "rtl" ? "right" : "left";
   const showReadOnly = role === "coach" && coachIsReadOnly(status);
 
   return (
     <div className="flex min-h-screen bg-muted/20">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-e bg-background lg:flex">
-        <div className="flex h-16 items-center border-b px-5">
-          <Logo />
+      <aside
+        className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-e bg-[var(--sidebar)] lg:flex"
+        style={{ colorScheme: "dark" }}
+      >
+        <div className="flex h-16 items-center border-b border-white/10 px-5">
+          <BrandLogo />
         </div>
         <div className="flex-1 overflow-y-auto scrollbar-thin py-3">
           <SidebarNav sections={sections} />
         </div>
+        {brand.showFitxnetBadge && (
+          <div className="border-t border-white/10 px-5 py-3 text-center text-xs text-white/50">
+            {locale === "ar" ? "بدعم من FITXNET" : "Powered by FITXNET"}
+          </div>
+        )}
       </aside>
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-1.5 border-b bg-background/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-1.5 border-b bg-[var(--header)]/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-[var(--header)]/60">
           {/* Mobile nav trigger */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
@@ -75,9 +107,9 @@ export function DashboardShell({
               </Button>
             </SheetTrigger>
             <SheetContent side={mobileSide} className="w-72 p-0">
-              <SheetTitle className="sr-only">FITXNET</SheetTitle>
+              <SheetTitle className="sr-only">{brand.academyName}</SheetTitle>
               <div className="flex h-16 items-center border-b px-5">
-                <Logo />
+                <BrandLogo />
               </div>
               <div className="overflow-y-auto py-3">
                 <SidebarNav
@@ -85,6 +117,11 @@ export function DashboardShell({
                   onNavigate={() => setMobileOpen(false)}
                 />
               </div>
+              {brand.showFitxnetBadge && (
+                <div className="border-t px-5 py-3 text-center text-xs text-muted-foreground">
+                  {locale === "ar" ? "بدعم من FITXNET" : "Powered by FITXNET"}
+                </div>
+              )}
             </SheetContent>
           </Sheet>
 

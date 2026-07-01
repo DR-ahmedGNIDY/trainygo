@@ -17,6 +17,7 @@ export default async function AdminPlansPage() {
     maxClients: p.maxClients,
     featuresAr: (p.features ?? []).map((f) => f.ar).filter(Boolean),
     featuresEn: (p.features ?? []).map((f) => f.en).filter(Boolean),
+    branding: p.planFeatures?.branding ?? false,
   }));
   return <PlansView items={items} />;
 }

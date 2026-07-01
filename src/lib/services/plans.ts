@@ -12,6 +12,7 @@ export interface PlanInput {
   maxClients: number;
   featuresAr?: string[];
   featuresEn?: string[];
+  branding?: boolean;
   isActive?: boolean;
   sortOrder?: number;
 }
@@ -37,6 +38,7 @@ export async function createPlan(input: PlanInput) {
     durationDays: input.durationDays,
     maxClients: input.maxClients,
     features: toFeatures(input.featuresAr, input.featuresEn),
+    planFeatures: { branding: input.branding ?? false },
     isActive: input.isActive ?? true,
     sortOrder: input.sortOrder ?? 0,
   });
@@ -55,6 +57,7 @@ export async function updatePlan(id: string, input: PlanInput) {
         durationDays: input.durationDays,
         maxClients: input.maxClients,
         features: toFeatures(input.featuresAr, input.featuresEn),
+        planFeatures: { branding: input.branding ?? false },
         isActive: input.isActive ?? true,
         sortOrder: input.sortOrder ?? 0,
       },

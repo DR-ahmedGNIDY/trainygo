@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useI18n } from "@/components/providers/i18n-provider";
+import { useBrand } from "@/components/providers/brand-provider";
 import { createClientAction } from "@/lib/actions/clients";
 import type { ClientGoal } from "@/lib/constants";
 
@@ -65,6 +66,7 @@ export function AddClientForm() {
   const { t, locale, dir } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const Arrow = dir === "rtl" ? ArrowLeft : ArrowRight;
+  const { academyName } = useBrand();
 
   const [form, setForm] = useState<Form>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
@@ -105,7 +107,7 @@ export function AddClientForm() {
 
   function copyAll() {
     if (!creds) return;
-    const text = `FITXNET\n${L("اسم المستخدم", "Username")}: ${creds.username}\n${L("كلمة المرور", "Password")}: ${creds.password}`;
+    const text = `${academyName}\n${L("اسم المستخدم", "Username")}: ${creds.username}\n${L("كلمة المرور", "Password")}: ${creds.password}`;
     navigator.clipboard?.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -115,8 +117,8 @@ export function AddClientForm() {
     if (!creds) return "#";
     const loginUrl = typeof window !== "undefined" ? `${window.location.origin}/login` : "/login";
     const message = L(
-      `مرحباً ${form.name}،\nتم إنشاء حسابك في FITXNET.\nاسم المستخدم: ${creds.username}\nكلمة المرور: ${creds.password}\nرابط تسجيل الدخول: ${loginUrl}`,
-      `Hi ${form.name},\nYour FITXNET account is ready.\nUsername: ${creds.username}\nPassword: ${creds.password}\nLogin link: ${loginUrl}`,
+      `مرحباً ${form.name}،\nتم إنشاء حسابك في ${academyName}.\nاسم المستخدم: ${creds.username}\nكلمة المرور: ${creds.password}\nرابط تسجيل الدخول: ${loginUrl}`,
+      `Hi ${form.name},\nYour ${academyName} account is ready.\nUsername: ${creds.username}\nPassword: ${creds.password}\nLogin link: ${loginUrl}`,
     );
     const digits = fullPhone.replace(/[^\d]/g, "");
     return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;

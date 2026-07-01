@@ -5,6 +5,7 @@ import { getAdminCtx } from "./guards";
 import { runAction, ok, type ActionResult } from "./result";
 import * as admin from "@/lib/services/admin";
 import * as plans from "@/lib/services/plans";
+import { setCoachBrandingEnabled } from "@/lib/services/feature-access";
 import type { AccountStatus, PaymentMethod } from "@/lib/constants";
 import type { PlanInput } from "@/lib/services/plans";
 import { logError } from "@/lib/logging/error-log";
@@ -47,6 +48,18 @@ export async function deleteCoachAction(coachId: string): Promise<ActionResult> 
     await admin.deleteCoach(coachId);
     revalidatePath("/admin/coaches");
     revalidatePath("/admin");
+    return ok();
+  });
+}
+
+export async function setCoachBrandingAccessAction(
+  coachId: string,
+  enabled: boolean | null,
+): Promise<ActionResult> {
+  return runAction(async () => {
+    await getAdminCtx();
+    await setCoachBrandingEnabled(coachId, enabled);
+    revalidatePath("/admin/coaches");
     return ok();
   });
 }

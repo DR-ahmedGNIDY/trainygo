@@ -15,6 +15,7 @@ import {
   MessageSquare,
   CreditCard,
   Settings,
+  Palette,
   Package,
   Bell,
   Home,
@@ -40,7 +41,7 @@ export interface NavSection {
   items: NavItem[];
 }
 
-export function getCoachNav(t: Dictionary): NavSection[] {
+export function getCoachNav(t: Dictionary, opts?: { branding?: boolean }): NavSection[] {
   const n = t.dashboard.coachNav;
   const g = t.dashboard.groups;
   return [
@@ -82,6 +83,7 @@ export function getCoachNav(t: Dictionary): NavSection[] {
       items: [
         { label: n.messages, href: "/coach/messages", icon: MessageSquare },
         { label: n.subscription, href: "/coach/subscription", icon: CreditCard },
+        ...(opts?.branding ? [{ label: n.branding, href: "/coach/branding", icon: Palette }] : []),
         { label: n.settings, href: "/coach/settings", icon: Settings },
       ],
     },
@@ -131,12 +133,12 @@ export function getClientNav(t: Dictionary): NavSection[] {
   ];
 }
 
-export function getNavForRole(role: UserRole, t: Dictionary): NavSection[] {
+export function getNavForRole(role: UserRole, t: Dictionary, opts?: { branding?: boolean }): NavSection[] {
   switch (role) {
     case "super_admin":
       return getAdminNav(t);
     case "coach":
-      return getCoachNav(t);
+      return getCoachNav(t, opts);
     case "client":
       return getClientNav(t);
     default:

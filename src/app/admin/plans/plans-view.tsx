@@ -39,6 +39,7 @@ export interface PlanItem {
   maxClients: number;
   featuresAr: string[];
   featuresEn: string[];
+  branding: boolean;
 }
 
 export function PlansView({ items }: { items: PlanItem[] }) {
@@ -75,6 +76,7 @@ export function PlansView({ items }: { items: PlanItem[] }) {
                 {(locale === "ar" ? p.featuresAr : p.featuresEn).map((f, i) => (
                   <div key={i} className="flex items-center gap-2 text-sm"><Check className="h-4 w-4 shrink-0 text-primary" />{f}</div>
                 ))}
+                <PlanFeaturesDisplay branding={p.branding} locale={locale} />
                 <div className="flex gap-2 pt-2">
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditing(p); setOpen(true); }}><Pencil className="h-4 w-4" />{t.common.edit}</Button>
                   <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4" /></Button>
@@ -117,9 +119,10 @@ function PlanDialog({
       maxClients: p?.maxClients?.toString() ?? "",
       featuresAr: (p?.featuresAr ?? []).join("\n"),
       featuresEn: (p?.featuresEn ?? []).join("\n"),
+      branding: p?.branding ?? false,
     };
   }
-  const set = (k: keyof ReturnType<typeof init>) => (v: string) => setF((s) => ({ ...s, [k]: v }));
+  const set = (k: Exclude<keyof ReturnType<typeof init>, "branding">) => (v: string) => setF((s) => ({ ...s, [k]: v }));
 
   async function save() {
     setSaving(true);
@@ -132,6 +135,7 @@ function PlanDialog({
       maxClients: Number(f.maxClients) || 0,
       featuresAr: f.featuresAr.split("\n").map((x) => x.trim()).filter(Boolean),
       featuresEn: f.featuresEn.split("\n").map((x) => x.trim()).filter(Boolean),
+      branding: f.branding,
     };
     const res = editing ? await updatePlanAction(editing.id, payload) : await createPlanAction(payload);
     setSaving(false);
@@ -156,6 +160,27 @@ function PlanDialog({
           <div className="space-y-2"><Label>{L("أقصى عملاء", "Max clients")}</Label><Input type="number" value={f.maxClients} onChange={(e) => set("maxClients")(e.target.value)} /></div>
           <div className="space-y-2 sm:col-span-2"><Label>{L("المميزات (عربي — سطر لكل ميزة)", "Features AR (one per line)")}</Label><textarea className={ta} value={f.featuresAr} onChange={(e) => set("featuresAr")(e.target.value)} /></div>
           <div className="space-y-2 sm:col-span-2"><Label>{L("المميزات (إنجليزي)", "Features EN (one per line)")}</Label><textarea className={ta} value={f.featuresEn} onChange={(e) => set("featuresEn")(e.target.value)} /></div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>{L("الميزات المتاحة", "Plan features")}</Label>
+            <div className="rounded-md border border-input p-3 space-y-2">
+              {/* Branding is the only editable flag currently; others shown as coming-soon placeholders */}
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-input"
+                  checked={f.branding}
+                  onChange={(e) => setF((s) => ({ ...s, branding: e.target.checked }))}
+                />
+                {L("هوية بصرية (White Label)", "Branding (White Label)")}
+              </label>
+              {([ ["AI Coach", "مدرب AI"], ["Custom Domain", "نطاق مخصص"], ["API Access", "الوصول للـ API"], ["PDF Branding", "تحضير PDF"], ["Advanced Analytics", "تحليلات متقدمة"] ] as [string, string][]).map(([en, ar]) => (
+                <label key={en} className="flex items-center gap-2 text-sm text-muted-foreground cursor-not-allowed select-none">
+                  <input type="checkbox" className="h-4 w-4 rounded border-input opacity-40" disabled />
+                  {L(ar, en)} <span className="text-[10px] rounded-full bg-muted px-1.5 py-0.5">{L("قريباً", "Soon")}</span>
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>
@@ -163,5 +188,34 @@ function PlanDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+const PLAN_FEATURES_META = [
+  { key: "branding", ar: "هوية بصرية", en: "Branding" },
+  { key: "aiCoach", ar: "مدرب AI", en: "AI Coach" },
+  { key: "customDomain", ar: "نطاق مخصص", en: "Custom Domain" },
+  { key: "apiAccess", ar: "وصول API", en: "API Access" },
+  { key: "pdfBranding", ar: "PDF مخصص", en: "PDF Branding" },
+  { key: "advancedAnalytics", ar: "تحليلات متقدمة", en: "Advanced Analytics" },
+] as const;
+
+function PlanFeaturesDisplay({ branding, locale }: { branding: boolean; locale: "ar" | "en" }) {
+  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
+  return (
+    <div className="space-y-1 pt-1 border-t border-border/50">
+      {PLAN_FEATURES_META.map((f) => {
+        const active = f.key === "branding" ? branding : false;
+        return (
+          <div key={f.key} className={`flex items-center gap-2 text-xs ${active ? "text-foreground" : "text-muted-foreground"}`}>
+            {active
+              ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+              : <span className="h-3.5 w-3.5 shrink-0 flex items-center justify-center font-bold text-muted-foreground/50">✕</span>
+            }
+            {L(f.ar, f.en)}
+          </div>
+        );
+      })}
+    </div>
   );
 }

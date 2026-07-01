@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Table,
@@ -58,7 +59,9 @@ import {
   suspendCoachSubscriptionAction,
   reactivateCoachSubscriptionAction,
   deleteCoachAction,
+  setCoachBrandingAccessAction,
 } from "@/lib/actions/admin";
+import { Palette } from "lucide-react";
 import type { AccountStatus } from "@/lib/constants";
 
 export interface CoachRow {
@@ -72,6 +75,13 @@ export interface CoachRow {
   startDate?: string | null;
   endDate?: string | null;
   suspendedByAdmin?: boolean;
+  academyName?: string;
+  hasBranding?: boolean;
+  logoUrl?: string;
+  /** Effective branding access: "plan" = granted by plan, "manual" = manually force-enabled, false = disabled. */
+  brandingAccess?: "plan" | "manual" | false;
+  /** Raw featureOverrides.branding: true=force-on, false=force-off, null=use plan. */
+  brandingOverride?: boolean | null;
 }
 export interface PlanOption {
   id: string;
@@ -91,6 +101,7 @@ export function CoachesView({
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
+  const [brandingFilter, setBrandingFilter] = useState("all");
   const [activateFor, setActivateFor] = useState<CoachRow | null>(null);
   const [isPending, startTransition] = useTransition();
   const [now, setNow] = useState(() => Date.now());
@@ -104,7 +115,10 @@ export function CoachesView({
     const q = query.toLowerCase();
     const mq = c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q);
     const ms = status === "all" || c.status === status;
-    return mq && ms;
+    const mb =
+      brandingFilter === "all" ||
+      (brandingFilter === "branded" ? Boolean(c.hasBranding) : !c.hasBranding);
+    return mq && ms && mb;
   });
 
   function setStatusFor(id: string, s: AccountStatus) {
@@ -119,6 +133,14 @@ export function CoachesView({
   function remove(c: CoachRow) {
     if (!window.confirm(L(`حذف المدرب ${c.name} وكل بياناته؟`, `Delete coach ${c.name} and all their data?`))) return;
     startTransition(async () => { await deleteCoachAction(c.id); router.refresh(); });
+  }
+  function toggleBranding(c: CoachRow) {
+    // Cycle: null (plan) → true (force-on) → false (force-off) → null (plan)
+    const next: boolean | null =
+      c.brandingOverride === null || c.brandingOverride === undefined ? true
+      : c.brandingOverride === true ? false
+      : null;
+    startTransition(async () => { await setCoachBrandingAccessAction(c.id, next); router.refresh(); });
   }
 
   return (
@@ -140,6 +162,14 @@ export function CoachesView({
             <SelectItem value="suspended">{t.account.suspended}</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={brandingFilter} onValueChange={setBrandingFilter}>
+          <SelectTrigger className="sm:w-48"><SelectValue placeholder={L("الهوية التجارية", "Branding")} /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t.common.all}</SelectItem>
+            <SelectItem value="branded">{L("لديه هوية تجارية", "Has branding")}</SelectItem>
+            <SelectItem value="default">{L("بدون هوية تجارية", "No branding")}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {filtered.length === 0 ? (
@@ -155,6 +185,7 @@ export function CoachesView({
                   <TableHead className="hidden sm:table-cell">{t.dashboard.ui.plan}</TableHead>
                   <TableHead>{t.dashboard.stats.myClients}</TableHead>
                   <TableHead>{t.common.status}</TableHead>
+                  <TableHead className="hidden md:table-cell">{L("الهوية البصرية", "Branding")}</TableHead>
                   <TableHead className="hidden lg:table-cell">{L("الوقت المتبقي", "Time remaining")}</TableHead>
                   <TableHead className="hidden 2xl:table-cell">{L("تاريخ البداية", "Start date")}</TableHead>
                   <TableHead className="hidden xl:table-cell">{L("ينتهي في", "Ends at")}</TableHead>
@@ -166,9 +197,19 @@ export function CoachesView({
                   <TableRow key={c.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9"><AvatarFallback className="bg-primary/10 text-xs text-primary">{c.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}</AvatarFallback></Avatar>
+                        {c.logoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={c.logoUrl} alt={c.academyName ?? c.name} className="h-9 w-9 rounded-full border object-cover" />
+                        ) : (
+                          <Avatar className="h-9 w-9"><AvatarFallback className="bg-primary/10 text-xs text-primary">{c.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}</AvatarFallback></Avatar>
+                        )}
                         <div>
-                          <div className="font-medium">{c.name}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{c.name}</span>
+                            {c.hasBranding && (
+                              <Badge variant="secondary" className="text-[10px]">{L("هوية مخصصة", "White Label")}</Badge>
+                            )}
+                          </div>
                           {c.brand && <div className="text-xs text-muted-foreground">{c.brand}</div>}
                         </div>
                       </div>
@@ -177,6 +218,26 @@ export function CoachesView({
                     <TableCell className="hidden sm:table-cell">{c.planName ?? "—"}</TableCell>
                     <TableCell>{formatNumber(c.clients, locale)}</TableCell>
                     <TableCell><StatusBadge status={c.status} /></TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {c.brandingAccess === "plan" && (
+                        <Badge className="gap-1 bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 text-[10px] border-0">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          {L("مفعّل (الباقة)", "Branding (Plan)")}
+                        </Badge>
+                      )}
+                      {c.brandingAccess === "manual" && (
+                        <Badge className="gap-1 bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[10px] border-0">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                          {L("مفعّل (يدوي)", "Branding (Manual)")}
+                        </Badge>
+                      )}
+                      {!c.brandingAccess && (
+                        <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+                          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
+                          {L("معطّل", "Disabled")}
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       <RemainingCell endDate={c.endDate} status={c.status} now={now} locale={locale} />
                     </TableCell>
@@ -196,6 +257,15 @@ export function CoachesView({
                           ) : (
                             <DropdownMenuItem onClick={() => suspendSubscription(c.id)}><Ban className="h-4 w-4" />{L("إيقاف الاشتراك", "Suspend subscription")}</DropdownMenuItem>
                           )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => toggleBranding(c)}>
+                            <Palette className="h-4 w-4" />
+                            {c.brandingOverride === null || c.brandingOverride === undefined
+                              ? L("تفعيل الهوية البصرية يدوياً", "Force-enable branding")
+                              : c.brandingOverride === true
+                              ? L("تعطيل الهوية البصرية يدوياً", "Force-disable branding")
+                              : L("إعادة تعيين للباقة", "Reset to plan default")}
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {c.status === "suspended" ? (
                             <DropdownMenuItem onClick={() => setStatusFor(c.id, "active")}><CheckCircle2 className="h-4 w-4" />{L("رفع حظر الحساب", "Unblock account")}</DropdownMenuItem>

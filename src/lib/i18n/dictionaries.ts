@@ -179,6 +179,7 @@ const ar = {
       measurements: "القياسات",
       messages: "المحادثات",
       subscription: "الاشتراك",
+      branding: "هوية العلامة التجارية",
       settings: "الإعدادات",
     },
     adminNav: {
@@ -448,6 +449,7 @@ const en: Dictionary = {
       measurements: "Measurements",
       messages: "Messages",
       subscription: "Subscription",
+      branding: "Branding",
       settings: "Settings",
     },
     adminNav: {

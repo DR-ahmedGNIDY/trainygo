@@ -35,6 +35,30 @@ export interface ICoachProfile {
   suspendedByAdmin?: boolean;
   /** Status to restore when the admin lifts the manual suspension. */
   preSuspendStatus?: AccountStatus;
+  /**
+   * Per-feature manual overrides set by a super admin.
+   * `true`  → force-enable regardless of plan.
+   * `false` → force-disable regardless of plan.
+   * `null` / absent → defer to plan's `planFeatures`.
+   */
+  featureOverrides?: {
+    branding?: boolean | null;
+  };
+  /** White-label branding configuration for this coach's academy. Optional — absence means use FITXNET defaults. */
+  brandSettings?: {
+    academyName: string;
+    logo?: string;
+    primaryColor: string;
+    secondaryColor: string;
+    buttonColor: string;
+    headerColor: string;
+    sidebarColor: string;
+    linkColor: string;
+    loginImage?: string;
+    dashboardImage?: string;
+    favicon?: string;
+    showFitxnetBadge: boolean;
+  };
 }
 
 /** Client-specific profile, populated only when role === "client". */
@@ -81,6 +105,24 @@ const MediaSchema = new Schema<IMedia>(
   { _id: false },
 );
 
+const BrandSettingsSchema = new Schema<NonNullable<ICoachProfile["brandSettings"]>>(
+  {
+    academyName: { type: String, trim: true, default: "FITXNET" },
+    logo: { type: String, default: null },
+    primaryColor: { type: String, default: "#DC2626" },
+    secondaryColor: { type: String, default: "#111827" },
+    buttonColor: { type: String, default: "#DC2626" },
+    headerColor: { type: String, default: "#111827" },
+    sidebarColor: { type: String, default: "#0B0B0B" },
+    linkColor: { type: String, default: "#DC2626" },
+    loginImage: { type: String, default: null },
+    dashboardImage: { type: String, default: null },
+    favicon: { type: String, default: null },
+    showFitxnetBadge: { type: Boolean, default: true },
+  },
+  { _id: false },
+);
+
 const CoachProfileSchema = new Schema<ICoachProfile>(
   {
     brandName: { type: String, trim: true },
@@ -93,6 +135,10 @@ const CoachProfileSchema = new Schema<ICoachProfile>(
     maxClients: { type: Number, default: 0 },
     suspendedByAdmin: { type: Boolean, default: false },
     preSuspendStatus: { type: String, enum: ACCOUNT_STATUSES },
+    featureOverrides: {
+      type: new Schema({ branding: { type: Boolean, default: null } }, { _id: false }),
+    },
+    brandSettings: { type: BrandSettingsSchema },
   },
   { _id: false },
 );

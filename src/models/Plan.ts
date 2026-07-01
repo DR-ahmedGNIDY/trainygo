@@ -1,6 +1,15 @@
 import { Schema, model, models, type Model, type Types } from "mongoose";
 import { PLAN_TIERS, type PlanTier } from "@/lib/constants";
 
+export interface IPlanFeatures {
+  branding: boolean;
+  aiCoach: boolean;
+  customDomain: boolean;
+  apiAccess: boolean;
+  pdfBranding: boolean;
+  advancedAnalytics: boolean;
+}
+
 export interface IPlan {
   _id: Types.ObjectId;
   tier: PlanTier;
@@ -10,6 +19,8 @@ export interface IPlan {
   durationDays: number;
   maxClients: number;
   features: { ar: string; en: string }[];
+  /** Feature flags that unlock gated capabilities for subscribers of this plan. */
+  planFeatures: IPlanFeatures;
   isActive: boolean;
   sortOrder: number;
   createdAt: Date;
@@ -18,6 +29,18 @@ export interface IPlan {
 
 const LocalizedString = new Schema(
   { ar: { type: String, default: "" }, en: { type: String, default: "" } },
+  { _id: false },
+);
+
+const PlanFeaturesSchema = new Schema<IPlanFeatures>(
+  {
+    branding: { type: Boolean, default: false },
+    aiCoach: { type: Boolean, default: false },
+    customDomain: { type: Boolean, default: false },
+    apiAccess: { type: Boolean, default: false },
+    pdfBranding: { type: Boolean, default: false },
+    advancedAnalytics: { type: Boolean, default: false },
+  },
   { _id: false },
 );
 
@@ -30,6 +53,10 @@ const PlanSchema = new Schema<IPlan>(
     durationDays: { type: Number, required: true, min: 1 },
     maxClients: { type: Number, required: true, min: 0 },
     features: { type: [LocalizedString], default: [] },
+    planFeatures: {
+      type: PlanFeaturesSchema,
+      default: () => ({ branding: false, aiCoach: false, customDomain: false, apiAccess: false, pdfBranding: false, advancedAnalytics: false }),
+    },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
   },
