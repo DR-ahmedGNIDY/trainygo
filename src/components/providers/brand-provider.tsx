@@ -17,14 +17,27 @@ export interface BrandContextValue {
   showFitxnetBadge: boolean;
 }
 
-const BrandContext = createContext<BrandContextValue | null>(null);
+/** FITXNET platform defaults — used when no BrandProvider is present (e.g. super admin). */
+const FITXNET_BRAND_DEFAULTS: BrandContextValue = {
+  academyName: "FITXNET",
+  logo: undefined,
+  primaryColor: "#DC2626",
+  secondaryColor: "#111827",
+  buttonColor: "#DC2626",
+  headerColor: "#111827",
+  sidebarColor: "#0B0B0B",
+  linkColor: "#DC2626",
+  loginImage: undefined,
+  dashboardImage: undefined,
+  favicon: undefined,
+  showFitxnetBadge: true,
+};
+
+// Default value avoids the need for every layout (e.g. super admin) to wrap with BrandProvider.
+const BrandContext = createContext<BrandContextValue>(FITXNET_BRAND_DEFAULTS);
 
 export function useBrand(): BrandContextValue {
-  const ctx = useContext(BrandContext);
-  if (!ctx) {
-    throw new Error("useBrand() must be used within a <BrandProvider>");
-  }
-  return ctx;
+  return useContext(BrandContext);
 }
 
 /**
