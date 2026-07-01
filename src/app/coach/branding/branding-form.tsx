@@ -11,16 +11,6 @@ import { Separator } from "@/components/ui/separator";
 import { CloudinaryUpload } from "@/components/media/cloudinary-upload";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { updateBrandingAction, resetBrandingAction } from "@/lib/actions/branding";
-import { FITXNET_DEFAULT_BRAND, type BrandSettings } from "@/lib/services/brand-settings";
-
-const COLOR_FIELDS: { key: keyof BrandSettings; ar: string; en: string }[] = [
-  { key: "primaryColor", ar: "اللون الأساسي", en: "Primary color" },
-  { key: "secondaryColor", ar: "اللون الثانوي", en: "Secondary color" },
-  { key: "buttonColor", ar: "لون الأزرار", en: "Button color" },
-  { key: "headerColor", ar: "لون الترويسة", en: "Header color" },
-  { key: "sidebarColor", ar: "لون الشريط الجانبي", en: "Sidebar color" },
-  { key: "linkColor", ar: "لون الروابط", en: "Link color" },
-];
 
 type FormState = {
   academyName: string;
@@ -37,7 +27,28 @@ type FormState = {
   showFitxnetBadge: boolean;
 };
 
-export function BrandingForm({ initialBrand }: { initialBrand: BrandSettings | null }) {
+// Defined inline to avoid importing server-only modules (brand-settings.ts uses mongoose/db).
+const FITXNET_DEFAULT_BRAND: FormState = {
+  academyName: "FITXNET",
+  primaryColor: "#DC2626",
+  secondaryColor: "#111827",
+  buttonColor: "#DC2626",
+  headerColor: "#111827",
+  sidebarColor: "#0B0B0B",
+  linkColor: "#DC2626",
+  showFitxnetBadge: true,
+};
+
+const COLOR_FIELDS: { key: keyof FormState; ar: string; en: string }[] = [
+  { key: "primaryColor", ar: "اللون الأساسي", en: "Primary color" },
+  { key: "secondaryColor", ar: "اللون الثانوي", en: "Secondary color" },
+  { key: "buttonColor", ar: "لون الأزرار", en: "Button color" },
+  { key: "headerColor", ar: "لون الترويسة", en: "Header color" },
+  { key: "sidebarColor", ar: "لون الشريط الجانبي", en: "Sidebar color" },
+  { key: "linkColor", ar: "لون الروابط", en: "Link color" },
+];
+
+export function BrandingForm({ initialBrand }: { initialBrand: FormState | null }) {
   const { locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
 
