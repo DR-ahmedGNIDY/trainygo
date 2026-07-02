@@ -121,22 +121,17 @@ export function WorkoutSession({
 
   const initial = useMemo<SessionExercise[]>(
     () =>
-      exercises.map((ex, i) => {
-        const last = ex.exercise ? lastPerformance?.[ex.exercise] : undefined;
-        return {
-          ...ex,
-          key: `${i}-${ex.nameEn}`,
-          // Pre-fill each set's weight from the client's last session for this exercise — purely a
-          // starting point, never auto-incremented; the client can always edit it.
-          loggedSets: Array.from({ length: ex.sets }).map((_, si) => ({
-            weight: last?.sets[si]?.weight ? String(last.sets[si].weight) : last?.sets[last.sets.length - 1]?.weight ? String(last.sets[last.sets.length - 1].weight) : "",
-            reps: "",
-          })),
-          wasDeferred: false,
-          skipped: false,
-        };
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      exercises.map((ex, i) => ({
+        ...ex,
+        key: `${i}-${ex.nameEn}`,
+        // Weight/reps inputs always start empty — the suggested reps range and the
+        // client's last-session weight are shown as hint text (placeholder) only,
+        // never as a pre-filled value. Only resuming an in-progress draft (see
+        // resumeFromDraft) restores values the client already entered this session.
+        loggedSets: Array.from({ length: ex.sets }).map(() => ({ weight: "", reps: "" })),
+        wasDeferred: false,
+        skipped: false,
+      })),
     [exercises],
   );
 
@@ -558,6 +553,12 @@ export function WorkoutSession({
   if (!current) return null;
   const index = done.length + 1;
   const set = current.loggedSets[setIndex];
+  // Suggested weight shown as placeholder text only (never pre-filled into the input):
+  // this set's weight from the client's last session for this exercise, falling back
+  // to their last logged set if this specific set index wasn't reached last time.
+  const lastForCurrent = current.exercise ? lastPerformance?.[current.exercise] : undefined;
+  const suggestedWeight =
+    lastForCurrent?.sets[setIndex]?.weight ?? lastForCurrent?.sets[lastForCurrent.sets.length - 1]?.weight ?? null;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
@@ -639,7 +640,7 @@ export function WorkoutSession({
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">{L("الوزن المنفذ (كجم)", "Weight done (kg)")}</label>
-              <Input type="number" inputMode="decimal" placeholder="0" className="h-11 text-center text-lg" value={set.weight} onChange={(e) => updateSet(setIndex, "weight", e.target.value)} />
+              <Input type="number" inputMode="decimal" placeholder={suggestedWeight != null ? String(suggestedWeight) : "0"} className="h-11 text-center text-lg" value={set.weight} onChange={(e) => updateSet(setIndex, "weight", e.target.value)} />
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">{L("التكرارات المنفذة", "Reps done")}</label>
