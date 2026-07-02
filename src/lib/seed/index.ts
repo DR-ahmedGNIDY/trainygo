@@ -27,13 +27,19 @@ export async function seedSettings(log: Log) {
 
 export async function seedPlans(log: Log) {
   if ((await Plan.countDocuments()) > 0) return log("• plans — skipped");
-  await Plan.create([
-    { tier: "starter", name: { ar: "المبتدئ", en: "Starter" }, price: 299, durationDays: 30, maxClients: 15, sortOrder: 1, features: [{ ar: "حتى 15 عميل", en: "Up to 15 clients" }] },
-    { tier: "pro", name: { ar: "الاحترافي", en: "Pro" }, price: 599, durationDays: 30, maxClients: 50, sortOrder: 2, features: [{ ar: "حتى 50 عميل", en: "Up to 50 clients" }] },
-    { tier: "enterprise", name: { ar: "المتقدم", en: "Enterprise" }, price: 1299, durationDays: 30, maxClients: 1000, sortOrder: 3, features: [{ ar: "عملاء غير محدودين", en: "Unlimited clients" }] },
-  ]);
-  log("✓ 3 plans seeded");
+  await Plan.create(NEW_PLANS);
+  log(`✓ ${NEW_PLANS.length} plans seeded`);
 }
+
+/** Current pricing tiers — monthly plans + quarterly packages. Branding is a paid add-on, sold separately (never enabled here). */
+export const NEW_PLANS = [
+  { tier: "starter_10", name: { ar: "10 عملاء", en: "Starter 10" }, price: 200, durationDays: 30, maxClients: 10, sortOrder: 1, features: [{ ar: "حتى 10 عملاء", en: "Up to 10 clients" }] },
+  { tier: "growth_20", name: { ar: "20 عميل", en: "Growth 20" }, price: 350, durationDays: 30, maxClients: 20, sortOrder: 2, features: [{ ar: "حتى 20 عميل", en: "Up to 20 clients" }] },
+  { tier: "professional_30", name: { ar: "30 عميل", en: "Professional 30" }, price: 500, durationDays: 30, maxClients: 30, sortOrder: 3, features: [{ ar: "حتى 30 عميل", en: "Up to 30 clients" }] },
+  { tier: "quarterly_starter", name: { ar: "3 شهور - 10 عملاء", en: "Quarterly Starter" }, price: 500, durationDays: 90, maxClients: 10, sortOrder: 4, features: [{ ar: "حتى 10 عملاء لمدة 3 شهور", en: "Up to 10 clients for 3 months" }] },
+  { tier: "quarterly_growth", name: { ar: "3 شهور - 20 عميل", en: "Quarterly Growth" }, price: 750, durationDays: 90, maxClients: 20, sortOrder: 5, features: [{ ar: "حتى 20 عميل لمدة 3 شهور", en: "Up to 20 clients for 3 months" }] },
+  { tier: "quarterly_professional", name: { ar: "3 شهور - 30 عميل", en: "Quarterly Professional" }, price: 1200, durationDays: 90, maxClients: 30, sortOrder: 6, features: [{ ar: "حتى 30 عميل لمدة 3 شهور", en: "Up to 30 clients for 3 months" }] },
+] as const;
 
 export async function seedAdmin(log: Log) {
   if (await User.exists({ role: "super_admin" })) return log("• super admin — skipped");

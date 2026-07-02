@@ -26,7 +26,14 @@ export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 export const PAYMENT_METHODS = ["vodafone_cash", "instapay"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
-export const PLAN_TIERS = ["starter", "pro", "enterprise"] as const;
+export const PLAN_TIERS = [
+  "starter_10",
+  "growth_20",
+  "professional_30",
+  "quarterly_starter",
+  "quarterly_growth",
+  "quarterly_professional",
+] as const;
 export type PlanTier = (typeof PLAN_TIERS)[number];
 
 export const EXERCISE_CATEGORIES = [

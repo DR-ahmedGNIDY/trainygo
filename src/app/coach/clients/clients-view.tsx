@@ -61,11 +61,14 @@ export interface ClientListItem {
 export function ClientsView({
   clients,
   canWrite,
+  limitReached = false,
 }: {
   clients: ClientListItem[];
   canWrite: boolean;
+  limitReached?: boolean;
 }) {
   const { t, locale } = useI18n();
+  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
@@ -109,14 +112,26 @@ export function ClientsView({
         description={`${clients.length} ${t.dashboard.stats.myClients}`}
       >
         {canWrite && (
-          <Button asChild>
-            <Link href="/coach/clients/new">
-              <UserPlus className="h-4 w-4" />
-              {t.dashboard.coachNav.addClient}
-            </Link>
-          </Button>
+          limitReached ? (
+            <Button asChild>
+              <Link href="/coach/subscription">{L("ترقية الاشتراك", "Upgrade subscription")}</Link>
+            </Button>
+          ) : (
+            <Button asChild>
+              <Link href="/coach/clients/new">
+                <UserPlus className="h-4 w-4" />
+                {t.dashboard.coachNav.addClient}
+              </Link>
+            </Button>
+          )
         )}
       </PageHeader>
+
+      {canWrite && limitReached && (
+        <div className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {L("لقد وصلت إلى الحد الأقصى المسموح به في باقتك", "You've reached the maximum number of clients allowed in your plan")}
+        </div>
+      )}
 
       {clients.length === 0 ? (
         <EmptyState
@@ -124,7 +139,7 @@ export function ClientsView({
           title={t.common.emptyTitle}
           description={t.common.emptyDescription}
         >
-          {canWrite && (
+          {canWrite && !limitReached && (
             <Button asChild>
               <Link href="/coach/clients/new">
                 <UserPlus className="h-4 w-4" />

@@ -27,6 +27,32 @@ export interface GeneratedCredentials {
 
 const monthsToMs = (m: number) => m * 30 * 86_400_000;
 
+/** Error thrown when a coach tries to exceed their plan's client limit. */
+export class ClientLimitError extends Error {
+  code = "CLIENT_LIMIT_REACHED";
+  constructor() {
+    super("لقد وصلت إلى الحد الأقصى المسموح به في باقتك");
+    this.name = "ClientLimitError";
+  }
+}
+
+/**
+ * Enforces a coach's plan `maxClients` limit before adding N more clients.
+ * A `maxClients` of 0 means unlimited (used for legacy/trial accounts).
+ */
+export async function assertClientLimit(coachId: string, adding = 1) {
+  await connectToDatabase();
+  const coach = new Types.ObjectId(coachId);
+  const [profile, currentCount] = await Promise.all([
+    User.findOne({ _id: coach, role: "coach" }).select("coachProfile.maxClients").lean(),
+    User.countDocuments({ role: "client", "clientProfile.coach": coach }),
+  ]);
+  const maxClients = profile?.coachProfile?.maxClients ?? 0;
+  if (maxClients > 0 && currentCount + adding > maxClients) {
+    throw new ClientLimitError();
+  }
+}
+
 /** List a coach's clients, scoped, with optional search + status filter. */
 export async function listClients(
   coachId: string,
@@ -84,6 +110,7 @@ export async function createClient(
   input: ClientCreateData,
 ): Promise<{ clientId: string; credentials: GeneratedCredentials }> {
   await connectToDatabase();
+  await assertClientLimit(coachId);
 
   const code = await nextClientCode(); // TRG00001 — internal reference only
   const username = await generateUsername();

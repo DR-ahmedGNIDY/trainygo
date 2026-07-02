@@ -68,8 +68,13 @@ export function PlansView({ items }: { items: PlanItem[] }) {
           {items.map((p) => (
             <Card key={p.id}>
               <CardHeader>
-                <CardTitle className="text-lg">{locale === "ar" ? p.nameAr : p.nameEn}</CardTitle>
-                <div className="flex items-baseline gap-1"><span className="text-3xl font-bold">{formatNumber(p.price, locale)}</span><span className="text-sm text-muted-foreground">{L("ج.م / شهر", "EGP / mo")}</span></div>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-lg">{locale === "ar" ? p.nameAr : p.nameEn}</CardTitle>
+                  <Badge variant={p.durationDays >= 90 ? "secondary" : "outline"}>
+                    {p.durationDays >= 90 ? L("ربع سنوي", "Quarterly") : L("شهري", "Monthly")}
+                  </Badge>
+                </div>
+                <div className="flex items-baseline gap-1"><span className="text-3xl font-bold">{formatNumber(p.price, locale)}</span><span className="text-sm text-muted-foreground">{L("ج.م", "EGP")} / {formatNumber(p.durationDays, locale)} {L("يوم", "days")}</span></div>
                 <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><Users className="h-4 w-4" />{L("حتى", "Up to")} {formatNumber(p.maxClients, locale)}</p>
               </CardHeader>
               <CardContent className="space-y-3">

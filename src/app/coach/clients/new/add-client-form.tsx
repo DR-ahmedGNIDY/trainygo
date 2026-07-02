@@ -73,6 +73,7 @@ export function AddClientForm() {
   const [error, setError] = useState<string | null>(null);
   const [creds, setCreds] = useState<null | { username: string; password: string; code: string }>(null);
   const [copied, setCopied] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
 
   const set = (k: keyof Form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
   const dialCode = COUNTRIES.find((c) => c.value === form.country)?.dialCode ?? "+20";
@@ -81,6 +82,7 @@ export function AddClientForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setLimitReached(false);
     setSubmitting(true);
     const res = await createClientAction({
       name: form.name,
@@ -95,6 +97,10 @@ export function AddClientForm() {
     });
     setSubmitting(false);
     if (!res.ok) {
+      if (res.code === "CLIENT_LIMIT_REACHED") {
+        setLimitReached(true);
+        return;
+      }
       setError(
         res.code === "COACH_READ_ONLY"
           ? t.account.trialExpiredDesc
@@ -122,6 +128,26 @@ export function AddClientForm() {
     );
     const digits = fullPhone.replace(/[^\d]/g, "");
     return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+  }
+
+  if (limitReached) {
+    return (
+      <div className="mx-auto max-w-xl">
+        <Card>
+          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              {L(
+                "لقد وصلت إلى الحد الأقصى المسموح به في باقتك",
+                "You've reached the maximum number of clients allowed in your plan",
+              )}
+            </p>
+            <Button asChild>
+              <Link href="/coach/subscription">{L("ترقية الاشتراك", "Upgrade subscription")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (creds) {
