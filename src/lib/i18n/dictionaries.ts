@@ -191,7 +191,9 @@ const ar = {
       notifications: "الإشعارات",
       settings: "الإعدادات",
       systemLogs: "سجل الأخطاء",
+      system: "النظام",
       resetPlans: "إعادة إنشاء الباقات",
+      repairPlanDuration: "إصلاح مدد الباقات",
     },
     clientNav: {
       home: "الرئيسية",
@@ -462,7 +464,9 @@ const en: Dictionary = {
       notifications: "Notifications",
       settings: "Settings",
       systemLogs: "System Logs",
+      system: "System",
       resetPlans: "Reset Plans",
+      repairPlanDuration: "Repair Plan Duration",
     },
     clientNav: {
       home: "Home",

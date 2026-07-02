@@ -7,6 +7,7 @@ import * as admin from "@/lib/services/admin";
 import * as plans from "@/lib/services/plans";
 import { setCoachBrandingEnabled } from "@/lib/services/feature-access";
 import { resetPlans, type ResetPlansResult } from "@/lib/services/reset-plans";
+import { repairPlanDuration, type RepairPlanDurationResult } from "@/lib/services/repair-plan-duration";
 import type { AccountStatus, PaymentMethod } from "@/lib/constants";
 import type { PlanInput } from "@/lib/services/plans";
 import { logError } from "@/lib/logging/error-log";
@@ -190,6 +191,45 @@ export async function resetPlansAction(): Promise<ActionResult<ResetPlansResult>
     revalidatePath("/admin/plans");
     revalidatePath("/admin/system/plans-reset");
     revalidatePath("/admin");
+    return ok(result);
+  });
+}
+
+/* ---- Repair legacy plans missing durationMonths ---- */
+
+export async function repairPlanDurationAction(): Promise<ActionResult<RepairPlanDurationResult>> {
+  return runAction(async () => {
+    const { adminId } = await getAdminCtx();
+    let result: RepairPlanDurationResult;
+    try {
+      result = await repairPlanDuration();
+    } catch (error) {
+      await logError(
+        {
+          type: "ADMIN_REPAIR_PLAN_DURATION",
+          severity: "info",
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          userId: adminId,
+          route: "/admin/system/repair-plan-duration",
+          action: "repairPlanDuration",
+        },
+        error,
+      );
+      throw error;
+    }
+    await logError({
+      type: "ADMIN_REPAIR_PLAN_DURATION",
+      severity: "info",
+      message: "Super admin repaired legacy plans missing durationMonths",
+      userId: adminId,
+      route: "/admin/system/repair-plan-duration",
+      action: "repairPlanDuration",
+      context: { ...result },
+    });
+    revalidatePath("/admin/plans");
+    revalidatePath("/admin/system/repair-plan-duration");
+    revalidatePath("/admin/coaches");
     return ok(result);
   });
 }
