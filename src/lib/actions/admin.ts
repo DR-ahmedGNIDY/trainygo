@@ -79,8 +79,9 @@ export async function activateSubscriptionAction(
 ): Promise<ActionResult> {
   return runAction(async () => {
     const { adminId } = await getAdminCtx();
+    let result: Awaited<ReturnType<typeof admin.activateSubscription>>;
     try {
-      await admin.activateSubscription(adminId, coachId, input);
+      result = await admin.activateSubscription(adminId, coachId, input);
     } catch (error) {
       await logError(
         {
@@ -96,8 +97,22 @@ export async function activateSubscriptionAction(
       );
       throw error;
     }
+    // Diagnostic trail (not an error): confirms the write actually landed —
+    // visible in System Logs if a coach's plan ever again appears unchanged.
+    await logError({
+      type: "SUBSCRIPTION_ERROR",
+      severity: "info",
+      message: "Subscription activated",
+      userId: adminId,
+      coachId,
+      route: "/admin/coaches",
+      action: "activateSubscription",
+      context: { coachId, planId: input.planId, before: result.before, after: result.after },
+    });
     revalidatePath("/admin/coaches");
     revalidatePath("/admin");
+    revalidatePath("/coach/subscription");
+    revalidatePath("/coach");
     return ok();
   });
 }

@@ -155,6 +155,16 @@ export async function reactivateCoachSubscription(coachId: string) {
  * previous (possibly stale) end date. Selecting a plan replaces whatever
  * subscription state existed before; renewing means picking the plan again,
  * which restarts the clock from today.
+ *
+ * Writes to User.coachProfile via an atomic $set (dotted paths), not a
+ * fetch → mutate → save() round trip. The previous implementation replaced
+ * the whole coachProfile subdocument with a plain object built by spreading
+ * a Mongoose document (`{ ...coach.coachProfile }`) — spreading a hydrated
+ * subdocument does not reliably copy its schema-defined fields, so the
+ * "new" coachProfile silently lost data and, depending on document state,
+ * the reassignment could fail to register as a modified path at all,
+ * leaving `.save()` a no-op for coachProfile. $set with explicit dotted
+ * paths avoids that class of bug entirely and matches changePlan() below.
  */
 export async function activateSubscription(
   adminId: string,
@@ -162,8 +172,8 @@ export async function activateSubscription(
   input: { planId: string; amount?: number; paymentMethod?: PaymentMethod; paymentReference?: string; notes?: string },
 ) {
   await connectToDatabase();
-  const coach = await User.findOne({ _id: coachId, role: "coach" });
-  if (!coach) throw new PermissionError("Coach not found", "NOT_FOUND");
+  const before = await User.findOne({ _id: coachId, role: "coach" }).select("coachProfile status").lean();
+  if (!before) throw new PermissionError("Coach not found", "NOT_FOUND");
   const plan = await Plan.findById(input.planId);
   if (!plan) throw new PermissionError("Plan not found", "NOT_FOUND");
 
@@ -171,11 +181,17 @@ export async function activateSubscription(
   const startDate = now;
   const endDate = addMonths(startDate, plan.durationMonths);
 
+  // Any previously "active" subscription for this coach is now superseded.
+  await Subscription.updateMany(
+    { coach: new Types.ObjectId(coachId), status: "active" },
+    { $set: { status: "expired" } },
+  );
+
   await Subscription.create({
-    coach: coach._id,
+    coach: new Types.ObjectId(coachId),
     plan: plan._id,
     status: "active",
-    startDate: now,
+    startDate,
     endDate,
     amount: input.amount ?? plan.price,
     paymentMethod: input.paymentMethod,
@@ -185,15 +201,25 @@ export async function activateSubscription(
     activatedAt: now,
   });
 
-  coach.status = "active";
-  coach.coachProfile = {
-    ...(coach.coachProfile ?? { maxClients: 0 }),
-    currentPlan: plan._id,
-    subscriptionStatus: "active",
-    subscriptionEndDate: endDate,
-    maxClients: plan.maxClients,
-  };
-  await coach.save();
+  const res = await User.updateOne(
+    { _id: coachId, role: "coach" },
+    {
+      $set: {
+        status: "active",
+        "coachProfile.currentPlan": plan._id,
+        "coachProfile.subscriptionStatus": "active",
+        "coachProfile.subscriptionStartDate": startDate,
+        "coachProfile.subscriptionEndDate": endDate,
+        "coachProfile.subscriptionPlanName": { ar: plan.name.ar, en: plan.name.en },
+        "coachProfile.subscriptionTier": plan.tier,
+        "coachProfile.planFeatures": plan.planFeatures,
+        "coachProfile.maxClients": plan.maxClients,
+      },
+    },
+  );
+  if (res.matchedCount === 0) throw new PermissionError("Coach not found", "NOT_FOUND");
+
+  const after = await User.findOne({ _id: coachId, role: "coach" }).select("coachProfile status").lean();
 
   await createNotification({
     recipient: coachId,
@@ -202,7 +228,8 @@ export async function activateSubscription(
     titleEn: `Your subscription (${plan.name.en}) is active until ${endDate.toISOString().slice(0, 10)}`,
     link: "/coach/subscription",
   });
-  return true;
+
+  return { before: before.coachProfile, after: after?.coachProfile };
 }
 
 export async function changePlan(coachId: string, planId: string) {

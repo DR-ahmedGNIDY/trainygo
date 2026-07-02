@@ -4,15 +4,18 @@ import {
   CLIENT_GOALS,
   GENDERS,
   LOCALES,
+  PLAN_TIERS,
   THEMES,
   USER_ROLES,
   type AccountStatus,
   type ClientGoal,
   type Gender,
   type Locale,
+  type PlanTier,
   type Theme,
   type UserRole,
 } from "@/lib/constants";
+import type { IPlanFeatures } from "@/models/Plan";
 
 /** Embedded media reference (Cloudinary). */
 export interface IMedia {
@@ -29,7 +32,12 @@ export interface ICoachProfile {
   trialEndDate?: Date;
   currentPlan?: Types.ObjectId | null;
   subscriptionStatus?: AccountStatus;
+  subscriptionStartDate?: Date | null;
   subscriptionEndDate?: Date | null;
+  /** Denormalized snapshot of the plan at activation time, so it still reads correctly if the plan is later edited/deleted. */
+  subscriptionPlanName?: { ar: string; en: string };
+  subscriptionTier?: PlanTier;
+  planFeatures?: IPlanFeatures;
   maxClients: number;
   /** True while a super admin has manually suspended this coach's subscription (status forced to "expired"). */
   suspendedByAdmin?: boolean;
@@ -131,7 +139,25 @@ const CoachProfileSchema = new Schema<ICoachProfile>(
     trialEndDate: { type: Date },
     currentPlan: { type: Schema.Types.ObjectId, ref: "Plan", default: null },
     subscriptionStatus: { type: String, enum: ACCOUNT_STATUSES },
+    subscriptionStartDate: { type: Date, default: null },
     subscriptionEndDate: { type: Date, default: null },
+    subscriptionPlanName: {
+      type: new Schema({ ar: { type: String, default: "" }, en: { type: String, default: "" } }, { _id: false }),
+    },
+    subscriptionTier: { type: String, enum: PLAN_TIERS },
+    planFeatures: {
+      type: new Schema(
+        {
+          branding: { type: Boolean, default: false },
+          aiCoach: { type: Boolean, default: false },
+          customDomain: { type: Boolean, default: false },
+          apiAccess: { type: Boolean, default: false },
+          pdfBranding: { type: Boolean, default: false },
+          advancedAnalytics: { type: Boolean, default: false },
+        },
+        { _id: false },
+      ),
+    },
     maxClients: { type: Number, default: 0 },
     suspendedByAdmin: { type: Boolean, default: false },
     preSuspendStatus: { type: String, enum: ACCOUNT_STATUSES },
