@@ -9,6 +9,7 @@ export const ERROR_LOG_TYPES = [
   "DATABASE_ERROR",
   "SUBSCRIPTION_ERROR",
   "UPLOAD_ERROR",
+  "ADMIN_RESET_PLANS",
   "UNKNOWN",
 ] as const;
 export type ErrorLogType = (typeof ERROR_LOG_TYPES)[number];

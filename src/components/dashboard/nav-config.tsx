@@ -22,6 +22,7 @@ import {
   TrendingUp,
   User,
   AlertTriangle,
+  RotateCcw,
   type LucideIcon,
 } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
@@ -110,6 +111,7 @@ export function getAdminNav(t: Dictionary): NavSection[] {
       items: [
         { label: n.notifications, href: "/admin/notifications", icon: Bell },
         { label: n.systemLogs, href: "/admin/system-logs", icon: AlertTriangle },
+        { label: n.resetPlans, href: "/admin/system/plans-reset", icon: RotateCcw },
         { label: n.settings, href: "/admin/settings", icon: Settings },
       ],
     },

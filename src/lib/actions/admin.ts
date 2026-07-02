@@ -6,6 +6,7 @@ import { runAction, ok, type ActionResult } from "./result";
 import * as admin from "@/lib/services/admin";
 import * as plans from "@/lib/services/plans";
 import { setCoachBrandingEnabled } from "@/lib/services/feature-access";
+import { resetPlans, type ResetPlansResult } from "@/lib/services/reset-plans";
 import type { AccountStatus, PaymentMethod } from "@/lib/constants";
 import type { PlanInput } from "@/lib/services/plans";
 import { logError } from "@/lib/logging/error-log";
@@ -137,5 +138,44 @@ export async function deletePlanAction(id: string): Promise<ActionResult> {
     await plans.deletePlan(id);
     revalidatePath("/admin/plans");
     return ok();
+  });
+}
+
+/* ---- Danger zone: reset default plans ---- */
+
+export async function resetPlansAction(): Promise<ActionResult<ResetPlansResult>> {
+  return runAction(async () => {
+    const { adminId } = await getAdminCtx();
+    let result: ResetPlansResult;
+    try {
+      result = await resetPlans();
+    } catch (error) {
+      await logError(
+        {
+          type: "ADMIN_RESET_PLANS",
+          severity: "critical",
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          userId: adminId,
+          route: "/admin/system/plans-reset",
+          action: "resetPlans",
+        },
+        error,
+      );
+      throw error;
+    }
+    await logError({
+      type: "ADMIN_RESET_PLANS",
+      severity: "critical",
+      message: "Super admin reset the default subscription plans",
+      userId: adminId,
+      route: "/admin/system/plans-reset",
+      action: "resetPlans",
+      context: { ...result },
+    });
+    revalidatePath("/admin/plans");
+    revalidatePath("/admin/system/plans-reset");
+    revalidatePath("/admin");
+    return ok(result);
   });
 }
