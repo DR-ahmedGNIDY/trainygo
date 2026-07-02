@@ -12,20 +12,38 @@ import { getCoachSubscriptionLiveAction } from "@/lib/actions/subscription";
 import { coachIsFrozen } from "@/lib/permissions";
 import type { AccountStatus } from "@/lib/constants";
 
-const PLANS = [
-  { tier: "starter", name: { ar: "المبتدئ", en: "Starter" }, price: 299, clients: 15, popular: false, features: [{ ar: "حتى 15 عميل", en: "Up to 15 clients" }, { ar: "مكتبة التمارين والأطعمة", en: "Exercise & food libraries" }, { ar: "البرامج وخطط التغذية", en: "Programs & nutrition" }] },
-  { tier: "pro", name: { ar: "الاحترافي", en: "Pro" }, price: 599, clients: 50, popular: true, features: [{ ar: "حتى 50 عميل", en: "Up to 50 clients" }, { ar: "كل مميزات المبتدئ", en: "Everything in Starter" }, { ar: "المتابعات والمحادثات", en: "Check-ins & messaging" }] },
-  { tier: "enterprise", name: { ar: "المتقدم", en: "Enterprise" }, price: 1299, clients: 1000, popular: false, features: [{ ar: "عملاء غير محدودين", en: "Unlimited clients" }, { ar: "كل مميزات الاحترافي", en: "Everything in Pro" }, { ar: "أولوية الدعم", en: "Priority support" }] },
-];
+export interface PlanCard {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  price: number;
+  durationDays: number;
+  maxClients: number;
+}
+
+/** "شهر" for a 30-day plan, "٣ أشهر" for a 90-day quarterly plan, etc. — derived from durationDays. */
+function planDurationLabel(durationDays: number, locale: "ar" | "en"): string {
+  const months = Math.round(durationDays / 30);
+  if (locale === "en") return months === 1 ? "mo" : `${months} mo`;
+  if (months === 1) return "شهر";
+  if (months === 2) return "شهرين";
+  return `${months} أشهر`;
+}
 
 export function SubscriptionView({
   status,
   endDate,
+  planName,
+  planDurationDays,
   whatsapp,
+  plans,
 }: {
   status: AccountStatus;
   endDate: string | null;
+  planName: string | null;
+  planDurationDays: number | null;
   whatsapp: string;
+  plans: PlanCard[];
 }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
@@ -45,6 +63,14 @@ export function SubscriptionView({
             <div>
               <p className="text-sm text-muted-foreground">{L("حالة الاشتراك", "Subscription status")}</p>
               <p className="text-lg font-bold">{t.account[status]}</p>
+              {planName && (
+                <p className="text-sm text-muted-foreground">
+                  {planName}
+                  {planDurationDays != null && (
+                    <> · {L("مدة الاشتراك", "Duration")}: {planDurationLabel(planDurationDays, locale)}</>
+                  )}
+                </p>
+              )}
               {(status === "trial" || status === "active") && endDate && (
                 <div className="mt-1">
                   <SubscriptionCountdown
@@ -72,31 +98,32 @@ export function SubscriptionView({
 
       {/* Plans */}
       <div className="grid gap-4 lg:grid-cols-3">
-        {PLANS.map((p) => (
-          <Card key={p.tier} className={p.popular ? "relative border-primary shadow-md" : ""}>
-            {p.popular && (
-              <Badge className="absolute -top-2.5 start-1/2 -translate-x-1/2">{L("الأكثر شيوعاً", "Most popular")}</Badge>
-            )}
-            <CardHeader>
-              <CardTitle className="text-lg">{p.name[locale]}</CardTitle>
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold">{formatNumber(p.price, locale)}</span>
-                <span className="text-sm text-muted-foreground">{L("ج.م / شهر", "EGP / mo")}</span>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {p.features.map((f, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm">
-                  <Check className="h-4 w-4 shrink-0 text-primary" />
-                  {f[locale]}
+        {plans.map((p) => {
+          const isCurrent = planName === p.nameAr || planName === p.nameEn;
+          return (
+            <Card key={p.id} className={isCurrent ? "relative border-primary shadow-md" : ""}>
+              {isCurrent && (
+                <Badge className="absolute -top-2.5 start-1/2 -translate-x-1/2">{L("باقتك الحالية", "Your current plan")}</Badge>
+              )}
+              <CardHeader>
+                <CardTitle className="text-lg">{locale === "ar" ? p.nameAr : p.nameEn}</CardTitle>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold">{formatNumber(p.price, locale)}</span>
+                  <span className="text-sm text-muted-foreground">{L("ج.م", "EGP")} / {planDurationLabel(p.durationDays, locale)}</span>
                 </div>
-              ))}
-              <Button asChild variant={p.popular ? "default" : "outline"} className="mt-2 w-full">
-                <a href={waLink} target="_blank" rel="noopener noreferrer">{t.account.upgradeNow}</a>
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Check className="h-4 w-4 shrink-0 text-primary" />
+                  {L(`حتى ${p.maxClients} عميل`, `Up to ${p.maxClients} clients`)}
+                </div>
+                <Button asChild variant={isCurrent ? "default" : "outline"} className="mt-2 w-full">
+                  <a href={waLink} target="_blank" rel="noopener noreferrer">{t.account.upgradeNow}</a>
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Payment methods */}

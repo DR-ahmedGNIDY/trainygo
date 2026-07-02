@@ -71,7 +71,6 @@ export async function activateSubscriptionAction(
   coachId: string,
   input: {
     planId: string;
-    months?: number;
     amount?: number;
     paymentMethod?: PaymentMethod;
     paymentReference?: string;

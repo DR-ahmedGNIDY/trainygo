@@ -150,7 +150,7 @@ export async function reactivateCoachSubscription(coachId: string) {
 export async function activateSubscription(
   adminId: string,
   coachId: string,
-  input: { planId: string; months?: number; amount?: number; paymentMethod?: PaymentMethod; paymentReference?: string; notes?: string },
+  input: { planId: string; amount?: number; paymentMethod?: PaymentMethod; paymentReference?: string; notes?: string },
 ) {
   await connectToDatabase();
   const coach = await User.findOne({ _id: coachId, role: "coach" });
@@ -158,12 +158,11 @@ export async function activateSubscription(
   const plan = await Plan.findById(input.planId);
   if (!plan) throw new PermissionError("Plan not found", "NOT_FOUND");
 
-  const months = input.months ?? 1;
   const now = new Date();
   // Extend from the later of now or the current end date.
   const currentEnd = coach.coachProfile?.subscriptionEndDate ?? null;
   const base = currentEnd && currentEnd > now ? currentEnd : now;
-  const endDate = new Date(base.getTime() + months * plan.durationDays * 86_400_000);
+  const endDate = new Date(base.getTime() + plan.durationDays * 86_400_000);
 
   await Subscription.create({
     coach: coach._id,
@@ -171,7 +170,7 @@ export async function activateSubscription(
     status: "active",
     startDate: now,
     endDate,
-    amount: input.amount ?? plan.price * months,
+    amount: input.amount ?? plan.price,
     paymentMethod: input.paymentMethod,
     paymentReference: input.paymentReference,
     notes: input.notes,

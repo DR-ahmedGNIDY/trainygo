@@ -87,6 +87,16 @@ export interface PlanOption {
   id: string;
   name: string;
   price: number;
+  durationDays: number;
+}
+
+/** "شهر" for 30-day plans, "٣ أشهر" for a 90-day quarterly plan, etc. — derived from durationDays. */
+function planDurationLabel(durationDays: number, locale: "ar" | "en"): string {
+  const months = Math.round(durationDays / 30);
+  if (locale === "en") return months === 1 ? "1 month" : `${months} months`;
+  if (months === 1) return "شهر";
+  if (months === 2) return "شهرين";
+  return `${months} أشهر`;
 }
 
 export function CoachesView({
@@ -304,17 +314,17 @@ function ActivateDialog({
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const [planId, setPlanId] = useState("");
-  const [months, setMonths] = useState("1");
   const [method, setMethod] = useState("");
   const [ref, setRef] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const selectedPlan = plans.find((p) => p.id === planId);
 
   async function save() {
     if (!coach || !planId) return;
     setSaving(true);
     await activateSubscriptionAction(coach.id, {
       planId,
-      months: Number(months),
       paymentMethod: (method as "vodafone_cash" | "instapay") || undefined,
       paymentReference: ref || undefined,
     });
@@ -332,32 +342,29 @@ function ActivateDialog({
             <Label>{t.dashboard.ui.plan}</Label>
             <Select value={planId} onValueChange={setPlanId}>
               <SelectTrigger><SelectValue placeholder={L("اختر باقة", "Select a plan")} /></SelectTrigger>
-              <SelectContent>{plans.map((p) => <SelectItem key={p.id} value={p.id}>{p.name} — {formatNumber(p.price, locale)} {L("ج.م", "EGP")}</SelectItem>)}</SelectContent>
+              <SelectContent>
+                {plans.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name} — {formatNumber(p.price, locale)} {L("ج.م", "EGP")} / {planDurationLabel(p.durationDays, locale)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
+            {selectedPlan && (
+              <p className="text-xs text-muted-foreground">
+                {L("مدة الاشتراك", "Subscription duration")}: {planDurationLabel(selectedPlan.durationDays, locale)}
+              </p>
+            )}
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{L("المدة", "Duration")}</Label>
-              <Select value={months} onValueChange={setMonths}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">{L("شهر", "1 month")}</SelectItem>
-                  <SelectItem value="3">{L("٣ أشهر", "3 months")}</SelectItem>
-                  <SelectItem value="6">{L("٦ أشهر", "6 months")}</SelectItem>
-                  <SelectItem value="12">{L("١٢ شهر", "12 months")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{L("طريقة الدفع", "Payment method")}</Label>
-              <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger><SelectValue placeholder={L("اختر", "Select")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="vodafone_cash">{L("فودافون كاش", "Vodafone Cash")}</SelectItem>
-                  <SelectItem value="instapay">InstaPay</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label>{L("طريقة الدفع", "Payment method")}</Label>
+            <Select value={method} onValueChange={setMethod}>
+              <SelectTrigger><SelectValue placeholder={L("اختر", "Select")} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="vodafone_cash">{L("فودافون كاش", "Vodafone Cash")}</SelectItem>
+                <SelectItem value="instapay">InstaPay</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>{L("مرجع الدفع", "Payment reference")}</Label>

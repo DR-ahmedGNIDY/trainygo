@@ -80,6 +80,7 @@ export interface CoachSubscriptionSummary {
   daysRemaining: number | null;
   endDate: Date | null;
   planName: string | null;
+  planDurationDays: number | null;
   maxClients: number;
   clientCount: number;
 }
@@ -88,23 +89,24 @@ export interface CoachSubscriptionSummary {
 export async function getCoachSubscriptionSummary(coachId: string): Promise<CoachSubscriptionSummary> {
   await connectToDatabase();
   if (!Types.ObjectId.isValid(coachId)) {
-    return { daysRemaining: null, endDate: null, planName: null, maxClients: 0, clientCount: 0 };
+    return { daysRemaining: null, endDate: null, planName: null, planDurationDays: null, maxClients: 0, clientCount: 0 };
   }
   const coach = await User.findOne({ _id: coachId, role: "coach" })
     .select("coachProfile.subscriptionEndDate coachProfile.trialEndDate coachProfile.maxClients coachProfile.subscriptionStatus")
-    .populate("coachProfile.currentPlan", "name tier")
+    .populate("coachProfile.currentPlan", "name tier durationDays")
     .lean();
-  if (!coach) return { daysRemaining: null, endDate: null, planName: null, maxClients: 0, clientCount: 0 };
+  if (!coach) return { daysRemaining: null, endDate: null, planName: null, planDurationDays: null, maxClients: 0, clientCount: 0 };
 
   const endDate = coach.coachProfile?.subscriptionEndDate ?? coach.coachProfile?.trialEndDate ?? null;
   const daysRemaining = endDate ? Math.ceil((endDate.getTime() - Date.now()) / 86_400_000) : null;
-  const plan = coach.coachProfile?.currentPlan as unknown as { name?: { ar?: string; en?: string } } | null;
+  const plan = coach.coachProfile?.currentPlan as unknown as { name?: { ar?: string; en?: string }; durationDays?: number } | null;
   const clientCount = await User.countDocuments({ role: "client", "clientProfile.coach": new Types.ObjectId(coachId) });
 
   return {
     daysRemaining,
     endDate,
     planName: plan?.name?.ar ?? plan?.name?.en ?? (coach.coachProfile?.subscriptionStatus === "trial" ? "Trial" : null),
+    planDurationDays: plan?.durationDays ?? null,
     maxClients: coach.coachProfile?.maxClients ?? 0,
     clientCount,
   };

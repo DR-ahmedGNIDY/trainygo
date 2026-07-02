@@ -60,6 +60,7 @@ export default async function AdminCoachesPage() {
     id: String(p._id),
     name: p.name.ar,
     price: p.price,
+    durationDays: p.durationDays,
   }));
 
   return <CoachesView coaches={coaches} plans={plans} />;
