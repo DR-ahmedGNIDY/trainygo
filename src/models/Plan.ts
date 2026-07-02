@@ -16,7 +16,8 @@ export interface IPlan {
   name: { ar: string; en: string };
   description?: { ar?: string; en?: string };
   price: number; // in EGP
-  durationDays: number;
+  /** Billing period in whole calendar months (1 = monthly, 3 = quarterly). Subscription end dates are computed via addMonths(startDate, durationMonths) — never as a raw day count. */
+  durationMonths: number;
   maxClients: number;
   features: { ar: string; en: string }[];
   /** Feature flags that unlock gated capabilities for subscribers of this plan. */
@@ -50,7 +51,7 @@ const PlanSchema = new Schema<IPlan>(
     name: { type: LocalizedString, required: true },
     description: { type: LocalizedString },
     price: { type: Number, required: true, min: 0 },
-    durationDays: { type: Number, required: true, min: 1 },
+    durationMonths: { type: Number, required: true, min: 1 },
     maxClients: { type: Number, required: true, min: 0 },
     features: { type: [LocalizedString], default: [] },
     planFeatures: {

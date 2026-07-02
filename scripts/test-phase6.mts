@@ -54,8 +54,8 @@ async function main() {
   check("coach has 1 unread after client reply", (await messages.countUnreadMessages(A, "coach")) === 1);
 
   // ---- Admin subscription activation ----
-  const plan = await Plan.create({ tier: "pro", name: { ar: "احترافي", en: "Pro" }, price: 599, durationDays: 30, maxClients: 50 });
-  await admin.activateSubscription(B, A, { planId: plan._id.toString(), months: 1 });
+  const plan = await Plan.create({ tier: "professional_30", name: { ar: "احترافي", en: "Pro" }, price: 599, durationMonths: 1, maxClients: 50 });
+  await admin.activateSubscription(B, A, { planId: plan._id.toString() });
   const refreshedA = await User.findById(A).lean();
   check("subscription activation sets coach active", refreshedA?.status === "active");
   check("subscription sets end date + plan", !!refreshedA?.coachProfile?.subscriptionEndDate && String(refreshedA?.coachProfile?.currentPlan) === plan._id.toString());

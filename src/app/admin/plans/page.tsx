@@ -13,7 +13,7 @@ export default async function AdminPlansPage() {
     nameAr: p.name.ar,
     nameEn: p.name.en,
     price: p.price,
-    durationDays: p.durationDays,
+    durationMonths: p.durationMonths,
     maxClients: p.maxClients,
     featuresAr: (p.features ?? []).map((f) => f.ar).filter(Boolean),
     featuresEn: (p.features ?? []).map((f) => f.en).filter(Boolean),

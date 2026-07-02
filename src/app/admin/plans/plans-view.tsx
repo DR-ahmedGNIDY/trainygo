@@ -35,7 +35,7 @@ export interface PlanItem {
   nameAr: string;
   nameEn: string;
   price: number;
-  durationDays: number;
+  durationMonths: number;
   maxClients: number;
   featuresAr: string[];
   featuresEn: string[];
@@ -70,11 +70,11 @@ export function PlansView({ items }: { items: PlanItem[] }) {
               <CardHeader>
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-lg">{locale === "ar" ? p.nameAr : p.nameEn}</CardTitle>
-                  <Badge variant={p.durationDays >= 90 ? "secondary" : "outline"}>
-                    {p.durationDays >= 90 ? L("ربع سنوي", "Quarterly") : L("شهري", "Monthly")}
+                  <Badge variant={p.durationMonths >= 3 ? "secondary" : "outline"}>
+                    {p.durationMonths >= 3 ? L("ربع سنوي", "Quarterly") : L("شهري", "Monthly")}
                   </Badge>
                 </div>
-                <div className="flex items-baseline gap-1"><span className="text-3xl font-bold">{formatNumber(p.price, locale)}</span><span className="text-sm text-muted-foreground">{L("ج.م", "EGP")} / {formatNumber(p.durationDays, locale)} {L("يوم", "days")}</span></div>
+                <div className="flex items-baseline gap-1"><span className="text-3xl font-bold">{formatNumber(p.price, locale)}</span><span className="text-sm text-muted-foreground">{L("ج.م", "EGP")} / {p.durationMonths === 1 ? L("شهر", "mo") : L(`${p.durationMonths} أشهر`, `${p.durationMonths} mo`)}</span></div>
                 <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><Users className="h-4 w-4" />{L("حتى", "Up to")} {formatNumber(p.maxClients, locale)}</p>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -120,7 +120,7 @@ function PlanDialog({
       nameAr: p?.nameAr ?? "",
       nameEn: p?.nameEn ?? "",
       price: p?.price?.toString() ?? "",
-      durationDays: p?.durationDays?.toString() ?? "30",
+      durationMonths: p?.durationMonths?.toString() ?? "1",
       maxClients: p?.maxClients?.toString() ?? "",
       featuresAr: (p?.featuresAr ?? []).join("\n"),
       featuresEn: (p?.featuresEn ?? []).join("\n"),
@@ -136,7 +136,7 @@ function PlanDialog({
       nameAr: f.nameAr,
       nameEn: f.nameEn,
       price: Number(f.price) || 0,
-      durationDays: Number(f.durationDays) || 30,
+      durationMonths: Number(f.durationMonths) || 1,
       maxClients: Number(f.maxClients) || 0,
       featuresAr: f.featuresAr.split("\n").map((x) => x.trim()).filter(Boolean),
       featuresEn: f.featuresEn.split("\n").map((x) => x.trim()).filter(Boolean),
@@ -161,7 +161,7 @@ function PlanDialog({
           <div className="space-y-2"><Label>{L("السعر", "Price")}</Label><Input type="number" value={f.price} onChange={(e) => set("price")(e.target.value)} /></div>
           <div className="space-y-2"><Label>{L("الاسم بالعربية", "Arabic name")}</Label><Input value={f.nameAr} onChange={(e) => set("nameAr")(e.target.value)} /></div>
           <div className="space-y-2"><Label>{L("الاسم بالإنجليزية", "English name")}</Label><Input dir="ltr" value={f.nameEn} onChange={(e) => set("nameEn")(e.target.value)} /></div>
-          <div className="space-y-2"><Label>{L("المدة (أيام)", "Duration (days)")}</Label><Input type="number" value={f.durationDays} onChange={(e) => set("durationDays")(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{L("المدة (شهور)", "Duration (months)")}</Label><Input type="number" min={1} value={f.durationMonths} onChange={(e) => set("durationMonths")(e.target.value)} /></div>
           <div className="space-y-2"><Label>{L("أقصى عملاء", "Max clients")}</Label><Input type="number" value={f.maxClients} onChange={(e) => set("maxClients")(e.target.value)} /></div>
           <div className="space-y-2 sm:col-span-2"><Label>{L("المميزات (عربي — سطر لكل ميزة)", "Features AR (one per line)")}</Label><textarea className={ta} value={f.featuresAr} onChange={(e) => set("featuresAr")(e.target.value)} /></div>
           <div className="space-y-2 sm:col-span-2"><Label>{L("المميزات (إنجليزي)", "Features EN (one per line)")}</Label><textarea className={ta} value={f.featuresEn} onChange={(e) => set("featuresEn")(e.target.value)} /></div>

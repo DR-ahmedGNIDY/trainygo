@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { addMonths } from "date-fns";
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
 import { Plan } from "@/models/Plan";
@@ -146,7 +147,15 @@ export async function reactivateCoachSubscription(coachId: string) {
   return true;
 }
 
-/** Activate (or renew) a coach subscription. Offline payment, admin-driven. */
+/**
+ * Activate a coach subscription. Offline payment, admin-driven.
+ *
+ * The subscription period always starts now and runs for exactly
+ * plan.durationMonths calendar months — it is never extended from a
+ * previous (possibly stale) end date. Selecting a plan replaces whatever
+ * subscription state existed before; renewing means picking the plan again,
+ * which restarts the clock from today.
+ */
 export async function activateSubscription(
   adminId: string,
   coachId: string,
@@ -159,10 +168,8 @@ export async function activateSubscription(
   if (!plan) throw new PermissionError("Plan not found", "NOT_FOUND");
 
   const now = new Date();
-  // Extend from the later of now or the current end date.
-  const currentEnd = coach.coachProfile?.subscriptionEndDate ?? null;
-  const base = currentEnd && currentEnd > now ? currentEnd : now;
-  const endDate = new Date(base.getTime() + plan.durationDays * 86_400_000);
+  const startDate = now;
+  const endDate = addMonths(startDate, plan.durationMonths);
 
   await Subscription.create({
     coach: coach._id,

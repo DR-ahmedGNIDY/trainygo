@@ -17,31 +17,30 @@ export interface PlanCard {
   nameAr: string;
   nameEn: string;
   price: number;
-  durationDays: number;
+  durationMonths: number;
   maxClients: number;
 }
 
-/** "شهر" for a 30-day plan, "٣ أشهر" for a 90-day quarterly plan, etc. — derived from durationDays. */
-function planDurationLabel(durationDays: number, locale: "ar" | "en"): string {
-  const months = Math.round(durationDays / 30);
-  if (locale === "en") return months === 1 ? "mo" : `${months} mo`;
-  if (months === 1) return "شهر";
-  if (months === 2) return "شهرين";
-  return `${months} أشهر`;
+/** "شهر" for a 1-month plan, "٣ أشهر" for a 3-month quarterly plan, etc. — read directly from plan.durationMonths. */
+function planDurationLabel(durationMonths: number, locale: "ar" | "en"): string {
+  if (locale === "en") return durationMonths === 1 ? "mo" : `${durationMonths} mo`;
+  if (durationMonths === 1) return "شهر";
+  if (durationMonths === 2) return "شهرين";
+  return `${durationMonths} أشهر`;
 }
 
 export function SubscriptionView({
   status,
   endDate,
   planName,
-  planDurationDays,
+  planDurationMonths,
   whatsapp,
   plans,
 }: {
   status: AccountStatus;
   endDate: string | null;
   planName: string | null;
-  planDurationDays: number | null;
+  planDurationMonths: number | null;
   whatsapp: string;
   plans: PlanCard[];
 }) {
@@ -66,8 +65,8 @@ export function SubscriptionView({
               {planName && (
                 <p className="text-sm text-muted-foreground">
                   {planName}
-                  {planDurationDays != null && (
-                    <> · {L("مدة الاشتراك", "Duration")}: {planDurationLabel(planDurationDays, locale)}</>
+                  {planDurationMonths != null && (
+                    <> · {L("مدة الاشتراك", "Duration")}: {planDurationLabel(planDurationMonths, locale)}</>
                   )}
                 </p>
               )}
@@ -109,7 +108,7 @@ export function SubscriptionView({
                 <CardTitle className="text-lg">{locale === "ar" ? p.nameAr : p.nameEn}</CardTitle>
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-bold">{formatNumber(p.price, locale)}</span>
-                  <span className="text-sm text-muted-foreground">{L("ج.م", "EGP")} / {planDurationLabel(p.durationDays, locale)}</span>
+                  <span className="text-sm text-muted-foreground">{L("ج.م", "EGP")} / {planDurationLabel(p.durationMonths, locale)}</span>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">

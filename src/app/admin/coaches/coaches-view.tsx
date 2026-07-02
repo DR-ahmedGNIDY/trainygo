@@ -87,16 +87,15 @@ export interface PlanOption {
   id: string;
   name: string;
   price: number;
-  durationDays: number;
+  durationMonths: number;
 }
 
-/** "شهر" for 30-day plans, "٣ أشهر" for a 90-day quarterly plan, etc. — derived from durationDays. */
-function planDurationLabel(durationDays: number, locale: "ar" | "en"): string {
-  const months = Math.round(durationDays / 30);
-  if (locale === "en") return months === 1 ? "1 month" : `${months} months`;
-  if (months === 1) return "شهر";
-  if (months === 2) return "شهرين";
-  return `${months} أشهر`;
+/** "شهر" for a 1-month plan, "٣ أشهر" for a 3-month quarterly plan, etc. — read directly from plan.durationMonths. */
+function planDurationLabel(durationMonths: number, locale: "ar" | "en"): string {
+  if (locale === "en") return durationMonths === 1 ? "1 month" : `${durationMonths} months`;
+  if (durationMonths === 1) return "شهر";
+  if (durationMonths === 2) return "شهرين";
+  return `${durationMonths} أشهر`;
 }
 
 export function CoachesView({
@@ -345,14 +344,14 @@ function ActivateDialog({
               <SelectContent>
                 {plans.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.name} — {formatNumber(p.price, locale)} {L("ج.م", "EGP")} / {planDurationLabel(p.durationDays, locale)}
+                    {p.name} — {formatNumber(p.price, locale)} {L("ج.م", "EGP")} / {planDurationLabel(p.durationMonths, locale)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {selectedPlan && (
               <p className="text-xs text-muted-foreground">
-                {L("مدة الاشتراك", "Subscription duration")}: {planDurationLabel(selectedPlan.durationDays, locale)}
+                {L("مدة الاشتراك", "Subscription duration")}: {planDurationLabel(selectedPlan.durationMonths, locale)}
               </p>
             )}
           </div>

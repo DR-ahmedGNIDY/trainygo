@@ -16,7 +16,7 @@ export default async function CoachSubscriptionPage() {
     nameAr: p.name.ar,
     nameEn: p.name.en,
     price: p.price,
-    durationDays: p.durationDays,
+    durationMonths: p.durationMonths,
     maxClients: p.maxClients,
   }));
   return (
@@ -24,7 +24,7 @@ export default async function CoachSubscriptionPage() {
       status={status}
       endDate={summary.endDate ? summary.endDate.toISOString() : null}
       planName={summary.planName}
-      planDurationDays={summary.planDurationDays}
+      planDurationMonths={summary.planDurationMonths}
       whatsapp={whatsapp}
       plans={plans}
     />

@@ -8,7 +8,7 @@ export interface PlanInput {
   nameAr: string;
   nameEn: string;
   price: number;
-  durationDays: number;
+  durationMonths: number;
   maxClients: number;
   featuresAr?: string[];
   featuresEn?: string[];
@@ -35,7 +35,7 @@ export async function createPlan(input: PlanInput) {
     tier: input.tier,
     name: { ar: input.nameAr, en: input.nameEn },
     price: input.price,
-    durationDays: input.durationDays,
+    durationMonths: input.durationMonths,
     maxClients: input.maxClients,
     features: toFeatures(input.featuresAr, input.featuresEn),
     planFeatures: { branding: input.branding ?? false },
@@ -54,7 +54,7 @@ export async function updatePlan(id: string, input: PlanInput) {
         tier: input.tier,
         name: { ar: input.nameAr, en: input.nameEn },
         price: input.price,
-        durationDays: input.durationDays,
+        durationMonths: input.durationMonths,
         maxClients: input.maxClients,
         features: toFeatures(input.featuresAr, input.featuresEn),
         planFeatures: { branding: input.branding ?? false },
