@@ -186,11 +186,9 @@ export async function activateSubscription(
   // happens, so the coach's plan/limits/dates are left completely
   // untouched. That thrown error was previously invisible because the
   // admin UI didn't check the action's result (see coaches-view.tsx fix).
-  if (typeof plan.durationMonths !== "number" || !Number.isFinite(plan.durationMonths) || plan.durationMonths < 1) {
-    throw new PermissionError(
-      `Plan "${plan.name.ar || plan.name.en}" has no valid durationMonths (got: ${String(plan.durationMonths)}). Re-save this plan from the Plans page or run the plans reset tool before activating it.`,
-      "INVALID_PLAN_DURATION",
-    );
+  // Run scripts/migrate-plan-duration.ts to repair affected plans.
+  if (!plan.durationMonths || plan.durationMonths <= 0) {
+    throw new PermissionError(`Plan ${plan._id} has invalid durationMonths`, "INVALID_PLAN_DURATION");
   }
 
   const now = new Date();
