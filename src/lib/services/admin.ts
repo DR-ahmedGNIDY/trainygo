@@ -241,7 +241,14 @@ export async function activateSubscription(
   if (res.matchedCount === 0) throw new PermissionError("Coach not found", "NOT_FOUND");
 
   const updatedCoach = await User.findById(coachId).lean();
-  console.log("AFTER coachProfile", updatedCoach?.coachProfile);
+  console.log("AFTER coachProfile (unpopulated)", updatedCoach?.coachProfile);
+
+  // Reload once more with currentPlan populated, to verify the ref: "Plan"
+  // relationship actually resolves against the plan we just wrote.
+  const populatedCoach = await User.findById(coachId).populate("coachProfile.currentPlan").lean();
+  console.log("AFTER coachProfile (populated)", populatedCoach?.coachProfile);
+  console.log("AFTER coachProfile.currentPlan (populated)", populatedCoach?.coachProfile?.currentPlan);
+
   const after = updatedCoach;
 
   await createNotification({
