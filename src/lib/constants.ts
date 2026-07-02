@@ -3,8 +3,39 @@
  * Kept framework-agnostic so they can be imported on client and server.
  */
 
-export const USER_ROLES = ["super_admin", "coach", "client"] as const;
+export const USER_ROLES = ["super_admin", "coach", "client", "team_member"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
+
+/** Preset specializations a coach can assign to a team member. Each preset seeds a default permission bag (see src/lib/permissions/team.ts), but the coach can customize permissions per member afterward — the specialization is a label, not the source of authority. */
+export const TEAM_SPECIALIZATIONS = [
+  "nutrition_specialist",
+  "assistant_coach",
+  "fitness_coach",
+  "academy_manager",
+  "physiotherapist",
+] as const;
+export type TeamSpecialization = (typeof TEAM_SPECIALIZATIONS)[number];
+
+/** Every permission a team member can be granted. New roles/specializations should only ever combine these — never require new architecture. */
+export const TEAM_PERMISSION_KEYS = [
+  "canAccessNutrition",
+  "canAccessWorkout",
+  "canAccessReports",
+  "canManageClients",
+  "canManageTeam",
+  "canManageSubscriptions",
+  "canAccessBranding",
+  "canAccessBilling",
+  "canAccessAnalytics",
+  "canAccessRecovery",
+  "canAccessTemplates",
+  "canAccessFoods",
+  "canAccessExercises",
+  "canAccessMeasurements",
+  "canAccessSystem",
+  "canAccessSuperAdmin",
+] as const;
+export type TeamPermissionKey = (typeof TEAM_PERMISSION_KEYS)[number];
 
 export const ACCOUNT_STATUSES = [
   "trial",

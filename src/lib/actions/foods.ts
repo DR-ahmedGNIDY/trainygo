@@ -1,21 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
-import { assertCoachCanWrite, PermissionError } from "@/lib/permissions";
+import { resolveCoachAreaScope } from "./guards";
+import { canAccessFoods } from "@/lib/permissions/team";
 import { runAction, ok, fail, type ActionResult } from "./result";
 import { foodSchema, type FoodInput } from "@/lib/validations/food";
 import * as foods from "@/lib/services/foods";
 import type { FoodScope } from "@/lib/services/foods";
 
 async function resolveScope(): Promise<FoodScope> {
-  const session = await auth();
-  if (session?.user?.role === "super_admin") return { role: "super_admin" };
-  if (session?.user?.role === "coach") {
-    assertCoachCanWrite(session.user.status);
-    return { role: "coach", coachId: session.user.id };
-  }
-  throw new PermissionError("Forbidden", "FORBIDDEN");
+  return resolveCoachAreaScope(canAccessFoods);
 }
 
 function revalidate() {

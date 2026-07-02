@@ -1,4 +1,5 @@
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
+import { canAccessExercises } from "@/lib/permissions/team";
 import { coachCanWrite } from "@/lib/permissions";
 import { listExercises } from "@/lib/services/exercises";
 import { ExerciseLibrary, type ExerciseItem } from "@/components/library/exercise-library";
@@ -10,11 +11,11 @@ export default async function CoachExercisesPage({
 }: {
   searchParams: Promise<{ q?: string; category?: string; page?: string; tab?: string }>;
 }) {
-  const session = await requireRole("coach");
+  const ctx = await requireCoachArea(canAccessExercises);
   const sp = await searchParams;
   const tab = sp.tab === "mine" ? "mine" : "system";
   const res = await listExercises(
-    { role: "coach", coachId: session.user.id },
+    { role: "coach", coachId: ctx.coachId },
     { query: sp.q, category: sp.category, visibility: tab, page: Number(sp.page) || 1 },
   );
   return (
@@ -27,7 +28,7 @@ export default async function CoachExercisesPage({
       query={sp.q ?? ""}
       category={sp.category ?? "all"}
       tab={tab}
-      canWrite={coachCanWrite(session.user.status)}
+      canWrite={coachCanWrite(ctx.status)}
     />
   );
 }

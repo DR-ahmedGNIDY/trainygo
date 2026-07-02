@@ -1,4 +1,5 @@
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
+import { canAccessRecovery } from "@/lib/permissions/team";
 import { coachCanWrite } from "@/lib/permissions";
 import { listResponses, countPendingCheckins } from "@/lib/services/checkins";
 import { CheckinsView, type CheckinRow } from "./checkins-view";
@@ -6,8 +7,8 @@ import { CheckinsView, type CheckinRow } from "./checkins-view";
 export const dynamic = "force-dynamic";
 
 export default async function CheckinsPage() {
-  const session = await requireRole("coach");
-  const coachId = session.user.id;
+  const ctx = await requireCoachArea(canAccessRecovery);
+  const coachId = ctx.coachId;
   const [raw, pending] = await Promise.all([
     listResponses(coachId),
     countPendingCheckins(coachId),
@@ -28,5 +29,5 @@ export default async function CheckinsPage() {
     };
   });
 
-  return <CheckinsView rows={rows} pending={pending} canWrite={coachCanWrite(session.user.status)} />;
+  return <CheckinsView rows={rows} pending={pending} canWrite={coachCanWrite(ctx.status)} />;
 }

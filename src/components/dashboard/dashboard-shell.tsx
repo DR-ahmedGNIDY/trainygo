@@ -23,6 +23,7 @@ import { useI18n } from "@/components/providers/i18n-provider";
 import { useBrand } from "@/components/providers/brand-provider";
 import { coachIsReadOnly } from "@/lib/permissions";
 import type { AccountStatus, UserRole } from "@/lib/constants";
+import type { TeamPermissionContext } from "@/lib/permissions/team";
 
 /** Brand-aware sidebar/sheet logo: shows the coach's custom logo + academy name when configured, else the default FITXNET wordmark. */
 function BrandLogo() {
@@ -61,7 +62,7 @@ export function DashboardShell({
   avatarUrl?: string;
   notifications?: NotificationItem[];
   unread?: number;
-  featureFlags?: { branding?: boolean };
+  featureFlags?: { branding?: boolean; teamCtx?: TeamPermissionContext };
   children: React.ReactNode;
 }) {
   const { t, dir, locale } = useI18n();
@@ -69,7 +70,7 @@ export function DashboardShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const sections = getNavForRole(role, t, featureFlags);
   const mobileSide = dir === "rtl" ? "right" : "left";
-  const showReadOnly = role === "coach" && coachIsReadOnly(status);
+  const showReadOnly = (role === "coach" || role === "team_member") && coachIsReadOnly(status);
 
   return (
     <div className="flex min-h-screen bg-muted/20">

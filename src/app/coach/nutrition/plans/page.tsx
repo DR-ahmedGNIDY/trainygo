@@ -1,4 +1,5 @@
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
+import { canAccessNutrition } from "@/lib/permissions/team";
 import { coachCanWrite } from "@/lib/permissions";
 import { listNutritionPlans } from "@/lib/services/nutrition-plans";
 import { listNutritionTemplates } from "@/lib/services/nutrition-templates";
@@ -8,8 +9,8 @@ import { NutritionPlansView, type PlanRow, type PickItem, type PickClient } from
 export const dynamic = "force-dynamic";
 
 export default async function ClientNutritionPlansPage() {
-  const session = await requireRole("coach");
-  const coachId = session.user.id;
+  const ctx = await requireCoachArea(canAccessNutrition);
+  const coachId = ctx.coachId;
   const [rawPlans, rawTemplates, rawClients] = await Promise.all([
     listNutritionPlans(coachId),
     listNutritionTemplates({ role: "coach", coachId }),
@@ -30,5 +31,5 @@ export default async function ClientNutritionPlansPage() {
     return { id: String(c._id), name: c.name, code: (cp.clientCode as string) ?? "" };
   });
 
-  return <NutritionPlansView plans={plans} templates={templates} clients={clients} canWrite={coachCanWrite(session.user.status)} />;
+  return <NutritionPlansView plans={plans} templates={templates} clients={clients} canWrite={coachCanWrite(ctx.status)} />;
 }

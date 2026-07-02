@@ -1,4 +1,5 @@
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
+import { canAccessWorkout } from "@/lib/permissions/team";
 import { coachCanWrite } from "@/lib/permissions";
 import { listPrograms } from "@/lib/services/programs";
 import { listWorkoutTemplates } from "@/lib/services/workout-templates";
@@ -9,8 +10,8 @@ import { ProgramsView, type ProgramRow, type PickItem, type PickClient } from ".
 export const dynamic = "force-dynamic";
 
 export default async function ClientProgramsPage() {
-  const session = await requireRole("coach");
-  const coachId = session.user.id;
+  const ctx = await requireCoachArea(canAccessWorkout);
+  const coachId = ctx.coachId;
   const [rawPrograms, rawTemplates, rawNutrition, rawClients] = await Promise.all([
     listPrograms(coachId),
     listWorkoutTemplates({ role: "coach", coachId }),
@@ -38,7 +39,7 @@ export default async function ClientProgramsPage() {
       templates={templates}
       nutritionTemplates={nutritionTemplates}
       clients={clients}
-      canWrite={coachCanWrite(session.user.status)}
+      canWrite={coachCanWrite(ctx.status)}
     />
   );
 }

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
+import { canManageClients } from "@/lib/permissions/team";
 import { coachCanWrite } from "@/lib/permissions";
 import { getClient } from "@/lib/services/clients";
 import { getProgressHistory, toWeightSeries } from "@/lib/services/progress";
@@ -18,8 +19,8 @@ export default async function ClientProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await requireRole("coach");
-  const doc = await getClient(session.user.id, id);
+  const ctx = await requireCoachArea(canManageClients);
+  const doc = await getClient(ctx.coachId, id);
   if (!doc) notFound();
 
   const cp = (doc.clientProfile ?? {}) as Record<string, unknown>;
@@ -50,8 +51,8 @@ export default async function ClientProfilePage({
   }[];
 
   const [program, plan, performanceAnalysis] = await Promise.all([
-    getActiveProgram(session.user.id, id),
-    getActivePlan(session.user.id, id),
+    getActiveProgram(ctx.coachId, id),
+    getActivePlan(ctx.coachId, id),
     getClientPerformanceAnalysis(id),
   ]);
 
@@ -60,7 +61,7 @@ export default async function ClientProfilePage({
       client={client}
       weightSeries={toWeightSeries(history)}
       history={history}
-      canWrite={coachCanWrite(session.user.status)}
+      canWrite={coachCanWrite(ctx.status)}
       performanceAnalysis={performanceAnalysis}
       program={
         program

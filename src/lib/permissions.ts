@@ -92,6 +92,10 @@ export function homePathForRole(role: UserRole): string {
     case "super_admin":
       return "/admin";
     case "coach":
+      // Team members share the coach's route tree — reused pages, gated
+      // internally by permission (see src/lib/permissions/team.ts), never
+      // duplicated. There is no separate /team area.
+    case "team_member":
       return "/coach";
     case "client":
       return "/client";

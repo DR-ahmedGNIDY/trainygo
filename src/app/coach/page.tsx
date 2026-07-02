@@ -1,8 +1,8 @@
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
 import { coachCanWrite } from "@/lib/permissions";
 import { listClients } from "@/lib/services/clients";
 import { listResponses, countPendingCheckins } from "@/lib/services/checkins";
-import { getCoachSubscriptionSummary, syncCoachStatus } from "@/lib/services/subscription";
+import { getCoachSubscriptionSummary } from "@/lib/services/subscription";
 import { getTopImprovingClients } from "@/lib/services/workout-analytics";
 import { CoachDashboard, type RecentClient } from "./coach-dashboard";
 import type { AccountStatus, ClientGoal } from "@/lib/constants";
@@ -10,16 +10,16 @@ import type { AccountStatus, ClientGoal } from "@/lib/constants";
 export const dynamic = "force-dynamic";
 
 export default async function CoachHome() {
-  const session = await requireRole("coach");
-  const coachId = session.user.id;
+  const ctx = await requireCoachArea();
+  const coachId = ctx.coachId;
+  const status = ctx.status;
 
-  const [allClients, pending, responses, subscription, topImproving, status] = await Promise.all([
+  const [allClients, pending, responses, subscription, topImproving] = await Promise.all([
     listClients(coachId, { includeArchived: true }),
     countPendingCheckins(coachId),
     listResponses(coachId),
     getCoachSubscriptionSummary(coachId),
     getTopImprovingClients(coachId),
-    syncCoachStatus(coachId),
   ]);
 
   const activeClients = allClients.filter(
@@ -78,7 +78,7 @@ export default async function CoachHome() {
       growthSeries={growthSeries}
       adherenceSeries={adherenceSeries}
       topImproving={topImproving}
-      canWrite={coachCanWrite(session.user.status)}
+      canWrite={coachCanWrite(ctx.status)}
     />
   );
 }

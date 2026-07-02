@@ -1,12 +1,13 @@
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
+import { canAccessMeasurements } from "@/lib/permissions/team";
 import { getCoachLatestMeasurements } from "@/lib/services/progress";
 import { MeasurementsView, type MRow } from "./measurements-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function MeasurementsPage() {
-  const session = await requireRole("coach");
-  const raw = (await getCoachLatestMeasurements(session.user.id)) as {
+  const ctx = await requireCoachArea(canAccessMeasurements);
+  const raw = (await getCoachLatestMeasurements(ctx.coachId)) as {
     clientName?: string;
     weight?: number;
     first?: number;

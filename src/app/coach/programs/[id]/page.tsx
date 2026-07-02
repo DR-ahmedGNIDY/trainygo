@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
+import { canAccessWorkout } from "@/lib/permissions/team";
 import { coachCanWrite } from "@/lib/permissions";
 import { getProgram } from "@/lib/services/programs";
 import { saveProgramBuilderAction } from "@/lib/actions/programs";
@@ -14,10 +15,10 @@ export default async function ProgramBuilderPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await requireRole("coach");
-  if (!coachCanWrite(session.user.status)) redirect("/coach/subscription");
+  const ctx = await requireCoachArea(canAccessWorkout);
+  if (!coachCanWrite(ctx.status)) redirect("/coach/subscription");
 
-  const program = await getProgram(session.user.id, id);
+  const program = await getProgram(ctx.coachId, id);
   if (!program) notFound();
   const clientName = (program.client as unknown as { name?: string })?.name ?? "";
 

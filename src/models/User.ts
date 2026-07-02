@@ -5,6 +5,8 @@ import {
   GENDERS,
   LOCALES,
   PLAN_TIERS,
+  TEAM_PERMISSION_KEYS,
+  TEAM_SPECIALIZATIONS,
   THEMES,
   USER_ROLES,
   type AccountStatus,
@@ -12,6 +14,8 @@ import {
   type Gender,
   type Locale,
   type PlanTier,
+  type TeamPermissionKey,
+  type TeamSpecialization,
   type Theme,
   type UserRole,
 } from "@/lib/constants";
@@ -69,6 +73,28 @@ export interface ICoachProfile {
   };
 }
 
+/** Full grant of every team permission — a coach acting in their own area, or a super admin, is never limited by the team permission bag. */
+export type ITeamPermissions = Record<TeamPermissionKey, boolean>;
+
+/**
+ * Team-member-specific profile, populated only when role === "team_member".
+ * A team member is staff hired by a coach (nutrition specialist, assistant
+ * coach, etc.) who acts on the owner coach's data — never their own. Every
+ * data query for a team member must use `ownerCoachId`, never the team
+ * member's own `_id`.
+ */
+export interface ITeamProfile {
+  /** The coach account this staff member works for. All data scoping keys off this, never the team member's own _id. */
+  ownerCoachId: Types.ObjectId;
+  /** Preset label used only to seed default permissions on creation — the coach can freely customize permissions afterward. Never read for authorization decisions. */
+  specialization: TeamSpecialization;
+  /** The actual authority granted to this team member. Every canAccessX()/canManageX() check reads from here, never from `specialization`. */
+  permissions: ITeamPermissions;
+  /** True while the owner coach has manually suspended this team member's access (independent of the owner's own subscription status). */
+  suspendedByOwner?: boolean;
+  invitedAt: Date;
+}
+
 /** Client-specific profile, populated only when role === "client". */
 export interface IClientProfile {
   coach: Types.ObjectId;
@@ -101,6 +127,7 @@ export interface IUser {
   lastLoginAt?: Date;
   coachProfile?: ICoachProfile;
   clientProfile?: IClientProfile;
+  teamProfile?: ITeamProfile;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -169,6 +196,25 @@ const CoachProfileSchema = new Schema<ICoachProfile>(
   { _id: false },
 );
 
+const TeamPermissionsSchema = new Schema<ITeamPermissions>(
+  Object.fromEntries(TEAM_PERMISSION_KEYS.map((key) => [key, { type: Boolean, default: false }])) as Record<
+    TeamPermissionKey,
+    { type: BooleanConstructor; default: boolean }
+  >,
+  { _id: false },
+);
+
+const TeamProfileSchema = new Schema<ITeamProfile>(
+  {
+    ownerCoachId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    specialization: { type: String, enum: TEAM_SPECIALIZATIONS, required: true },
+    permissions: { type: TeamPermissionsSchema, default: () => ({}) },
+    suspendedByOwner: { type: Boolean, default: false },
+    invitedAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
 const ClientProfileSchema = new Schema<IClientProfile>(
   {
     coach: { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -220,12 +266,14 @@ const UserSchema = new Schema<IUser>(
     lastLoginAt: { type: Date },
     coachProfile: { type: CoachProfileSchema },
     clientProfile: { type: ClientProfileSchema },
+    teamProfile: { type: TeamProfileSchema },
   },
   { timestamps: true },
 );
 
 // Common lookups
 UserSchema.index({ "clientProfile.coach": 1, role: 1 });
+UserSchema.index({ "teamProfile.ownerCoachId": 1, role: 1 });
 UserSchema.index({ role: 1, status: 1 });
 // Unique client code (only clients have one — sparse avoids null collisions)
 UserSchema.index(

@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
+import { canAccessTemplates } from "@/lib/permissions/team";
 import { coachCanWrite } from "@/lib/permissions";
 import { getNutritionTemplate } from "@/lib/services/nutrition-templates";
 import { saveNutritionTemplateBuilderAction } from "@/lib/actions/templates";
@@ -15,10 +16,10 @@ export default async function NutritionTemplateBuilderPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await requireRole("coach");
-  if (!coachCanWrite(session.user.status)) redirect("/coach/subscription");
+  const ctx = await requireCoachArea(canAccessTemplates);
+  if (!coachCanWrite(ctx.status)) redirect("/coach/subscription");
 
-  const tpl = await getNutritionTemplate(id, { role: "coach", coachId: session.user.id });
+  const tpl = await getNutritionTemplate(id, { role: "coach", coachId: ctx.coachId });
   if (!tpl || tpl.isSystemTemplate) notFound();
 
   async function save(data: { nameAr: string; nameEn: string; meals: unknown[] }) {

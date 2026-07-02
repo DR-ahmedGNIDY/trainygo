@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { getCoachWriteCtx } from "./guards";
+import { getCoachAreaWriteCtxFor } from "./guards";
+import { canManageClients } from "@/lib/permissions/team";
 import { runAction, ok, fail, type ActionResult } from "./result";
 import {
   clientCreateSchema,
@@ -19,7 +20,7 @@ export async function createClientAction(
   return runAction(async () => {
     const parsed = clientCreateSchema.safeParse(input);
     if (!parsed.success) return fail("بيانات غير صالحة", "VALIDATION");
-    const { coachId } = await getCoachWriteCtx();
+    const { coachId } = await getCoachAreaWriteCtxFor(canManageClients);
     const res = await clients.createClient(coachId, parsed.data);
     revalidatePath("/coach/clients");
     revalidatePath("/coach");
@@ -34,7 +35,7 @@ export async function updateClientAction(
   return runAction(async () => {
     const parsed = clientUpdateSchema.safeParse(input);
     if (!parsed.success) return fail("بيانات غير صالحة", "VALIDATION");
-    const { coachId } = await getCoachWriteCtx();
+    const { coachId } = await getCoachAreaWriteCtxFor(canManageClients);
     const okUpdate = await clients.updateClient(coachId, clientId, parsed.data);
     if (!okUpdate) return fail("غير موجود", "NOT_FOUND");
     revalidatePath("/coach/clients");
@@ -45,7 +46,7 @@ export async function updateClientAction(
 
 export async function archiveClientAction(clientId: string): Promise<ActionResult> {
   return runAction(async () => {
-    const { coachId } = await getCoachWriteCtx();
+    const { coachId } = await getCoachAreaWriteCtxFor(canManageClients);
     await clients.archiveClient(coachId, clientId);
     revalidatePath("/coach/clients");
     return ok();
@@ -56,7 +57,7 @@ export async function resetClientPasswordAction(
   clientId: string,
 ): Promise<ActionResult<{ password: string }>> {
   return runAction(async () => {
-    const { coachId } = await getCoachWriteCtx();
+    const { coachId } = await getCoachAreaWriteCtxFor(canManageClients);
     const session = await auth();
     const coachName = session?.user?.name ?? session?.user?.username ?? "Coach";
     const res = await clients.resetClientPassword(coachId, coachName, clientId);
@@ -67,7 +68,7 @@ export async function resetClientPasswordAction(
 
 export async function deleteClientAction(clientId: string): Promise<ActionResult> {
   return runAction(async () => {
-    const { coachId } = await getCoachWriteCtx();
+    const { coachId } = await getCoachAreaWriteCtxFor(canManageClients);
     const deleted = await clients.deleteClient(coachId, clientId);
     if (!deleted) return fail("غير موجود", "NOT_FOUND");
     revalidatePath("/coach/clients");

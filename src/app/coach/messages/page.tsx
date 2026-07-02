@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
 import {
   listCoachConversations,
   getMessages,
@@ -16,8 +16,8 @@ export default async function CoachMessagesPage({
 }: {
   searchParams: Promise<{ c?: string }>;
 }) {
-  const session = await requireRole("coach");
-  const coachId = session.user.id;
+  const ctx = await requireCoachArea();
+  const coachId = ctx.coachId;
   const convos = await listCoachConversations(coachId);
 
   const threads: ChatThread[] = convos.map((c) => ({

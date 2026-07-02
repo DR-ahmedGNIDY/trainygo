@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
+import { canAccessReports } from "@/lib/permissions/team";
 import { getReportForCoach } from "@/lib/services/workout-reports";
 import { WorkoutReportDetail, type ReportDetailData } from "./workout-report-detail";
 
@@ -11,8 +12,8 @@ export default async function WorkoutReportDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await requireRole("coach");
-  const report = await getReportForCoach(session.user.id, id);
+  const ctx = await requireCoachArea(canAccessReports);
+  const report = await getReportForCoach(ctx.coachId, id);
   if (!report) notFound();
 
   const data = report as unknown as ReportDetailData;

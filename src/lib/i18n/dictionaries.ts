@@ -135,6 +135,7 @@ const ar = {
     super_admin: "المدير العام",
     coach: "مدرب",
     client: "عميل",
+    team_member: "عضو فريق",
   },
   account: {
     trial: "تجريبي",
@@ -179,6 +180,7 @@ const ar = {
       measurements: "القياسات",
       messages: "المحادثات",
       subscription: "الاشتراك",
+      team: "الفريق",
       branding: "هوية العلامة التجارية",
       settings: "الإعدادات",
     },
@@ -408,6 +410,7 @@ const en: Dictionary = {
     super_admin: "Super Admin",
     coach: "Coach",
     client: "Client",
+    team_member: "Team Member",
   },
   account: {
     trial: "Trial",
@@ -452,6 +455,7 @@ const en: Dictionary = {
       measurements: "Measurements",
       messages: "Messages",
       subscription: "Subscription",
+      team: "Team",
       branding: "Branding",
       settings: "Settings",
     },

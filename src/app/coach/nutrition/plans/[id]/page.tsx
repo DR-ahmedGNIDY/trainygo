@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
+import { canAccessNutrition } from "@/lib/permissions/team";
 import { coachCanWrite } from "@/lib/permissions";
 import { getNutritionPlan } from "@/lib/services/nutrition-plans";
 import { savePlanBuilderAction } from "@/lib/actions/programs";
@@ -15,10 +16,10 @@ export default async function NutritionPlanBuilderPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await requireRole("coach");
-  if (!coachCanWrite(session.user.status)) redirect("/coach/subscription");
+  const ctx = await requireCoachArea(canAccessNutrition);
+  if (!coachCanWrite(ctx.status)) redirect("/coach/subscription");
 
-  const plan = await getNutritionPlan(session.user.id, id);
+  const plan = await getNutritionPlan(ctx.coachId, id);
   if (!plan) notFound();
   const clientName = (plan.client as unknown as { name?: string })?.name ?? "";
 

@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getCoachCtx } from "./guards";
+import { getCoachAreaCtxFor } from "./guards";
+import { canAccessBranding } from "@/lib/permissions/team";
 import { runAction, ok, fail, type ActionResult } from "./result";
 import * as brandSettings from "@/lib/services/brand-settings";
 import type { BrandSettings } from "@/lib/services/brand-settings";
@@ -21,7 +22,8 @@ const optionalUrl = z
 
 // Branding edits are not gated by subscription status — a coach whose subscription
 // has lapsed should still be able to manage their academy identity, so we use
-// getCoachCtx() (auth only) rather than getCoachWriteCtx() (auth + subscription gate).
+// getCoachAreaCtxFor() (auth + permission only) rather than the write-gated variant
+// (auth + permission + subscription gate).
 const brandingUpdateSchema = z.object({
   academyName: z.string().trim().min(1).max(80).optional(),
   logo: optionalUrl,
@@ -45,7 +47,7 @@ export async function updateBrandingAction(
   return runAction(async () => {
     const parsed = brandingUpdateSchema.safeParse(input);
     if (!parsed.success) return fail("بيانات غير صالحة", "VALIDATION");
-    const { coachId } = await getCoachCtx();
+    const { coachId } = await getCoachAreaCtxFor(canAccessBranding);
     const res = await brandSettings.updateBrandSettings(coachId, parsed.data);
     revalidatePath("/coach/branding");
     revalidatePath("/coach");
@@ -55,7 +57,7 @@ export async function updateBrandingAction(
 
 export async function resetBrandingAction(): Promise<ActionResult> {
   return runAction(async () => {
-    const { coachId } = await getCoachCtx();
+    const { coachId } = await getCoachAreaCtxFor(canAccessBranding);
     await brandSettings.resetBrandSettings(coachId);
     revalidatePath("/coach/branding");
     revalidatePath("/coach");

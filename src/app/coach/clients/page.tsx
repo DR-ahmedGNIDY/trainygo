@@ -1,4 +1,5 @@
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
+import { canManageClients } from "@/lib/permissions/team";
 import { coachCanWrite } from "@/lib/permissions";
 import { listClients } from "@/lib/services/clients";
 import { getCoachSubscriptionSummary } from "@/lib/services/subscription";
@@ -7,10 +8,10 @@ import { ClientsView, type ClientListItem } from "./clients-view";
 export const dynamic = "force-dynamic";
 
 export default async function CoachClientsPage() {
-  const session = await requireRole("coach");
+  const ctx = await requireCoachArea(canManageClients);
   const [raw, summary] = await Promise.all([
-    listClients(session.user.id),
-    getCoachSubscriptionSummary(session.user.id),
+    listClients(ctx.coachId),
+    getCoachSubscriptionSummary(ctx.coachId),
   ]);
   const limitReached = summary.maxClients > 0 && summary.clientCount >= summary.maxClients;
 
@@ -30,7 +31,7 @@ export default async function CoachClientsPage() {
   return (
     <ClientsView
       clients={clients}
-      canWrite={coachCanWrite(session.user.status)}
+      canWrite={coachCanWrite(ctx.status)}
       limitReached={limitReached}
     />
   );

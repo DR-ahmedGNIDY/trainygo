@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Lock, Palette, LayoutDashboard, FileText, Users } from "lucide-react";
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
+import { canAccessBranding } from "@/lib/permissions/team";
 import { getBrandSettings } from "@/lib/services/brand-settings";
 import { hasBrandingAccess } from "@/lib/services/feature-access";
 import { BrandingForm } from "./branding-form";
@@ -10,8 +11,8 @@ import { Card, CardContent } from "@/components/ui/card";
 export const dynamic = "force-dynamic";
 
 export default async function CoachBrandingPage() {
-  const session = await requireRole("coach");
-  const hasAccess = await hasBrandingAccess(session.user.id);
+  const ctx = await requireCoachArea(canAccessBranding);
+  const hasAccess = await hasBrandingAccess(ctx.coachId);
 
   if (!hasAccess) {
     return (
@@ -52,6 +53,6 @@ export default async function CoachBrandingPage() {
     );
   }
 
-  const brand = await getBrandSettings(session.user.id);
+  const brand = await getBrandSettings(ctx.coachId);
   return <BrandingForm initialBrand={brand} />;
 }

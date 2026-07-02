@@ -2,20 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { assertCoachCanWrite, PermissionError } from "@/lib/permissions";
+import { PermissionError } from "@/lib/permissions";
+import { resolveCoachAreaScope } from "./guards";
+import { canAccessExercises } from "@/lib/permissions/team";
 import { runAction, ok, fail, type ActionResult } from "./result";
 import { exerciseSchema, type ExerciseInput } from "@/lib/validations/exercise";
 import * as exercises from "@/lib/services/exercises";
 import type { ExerciseScope } from "@/lib/services/exercises";
 
 async function resolveScope(): Promise<ExerciseScope> {
-  const session = await auth();
-  if (session?.user?.role === "super_admin") return { role: "super_admin" };
-  if (session?.user?.role === "coach") {
-    assertCoachCanWrite(session.user.status);
-    return { role: "coach", coachId: session.user.id };
-  }
-  throw new PermissionError("Forbidden", "FORBIDDEN");
+  return resolveCoachAreaScope(canAccessExercises);
 }
 
 function revalidate() {

@@ -1,12 +1,13 @@
-import { requireRole } from "@/lib/auth/session";
+import { requireCoachArea } from "@/lib/auth/session";
+import { canAccessReports } from "@/lib/permissions/team";
 import { listReportsForCoach } from "@/lib/services/workout-reports";
 import { WorkoutReportsView, type ReportRow } from "./workout-reports-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function WorkoutReportsPage() {
-  const session = await requireRole("coach");
-  const raw = await listReportsForCoach(session.user.id);
+  const ctx = await requireCoachArea(canAccessReports);
+  const raw = await listReportsForCoach(ctx.coachId);
 
   const rows: ReportRow[] = (
     raw as unknown as {

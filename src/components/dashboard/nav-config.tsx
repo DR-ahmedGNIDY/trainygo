@@ -24,10 +24,12 @@ import {
   AlertTriangle,
   RotateCcw,
   Wrench,
+  UserCog,
   type LucideIcon,
 } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
-import type { UserRole } from "@/lib/constants";
+import type { TeamPermissionKey, UserRole } from "@/lib/constants";
+import type { TeamPermissionContext } from "@/lib/permissions/team";
 
 export interface NavItem {
   label: string;
@@ -36,6 +38,8 @@ export interface NavItem {
   badge?: number;
   /** match exactly (for index routes) instead of prefix */
   exact?: boolean;
+  /** Permission required to see this item — only enforced for team members; coaches/admins always see everything. Sidebar isolation must always be driven by this, never by hardcoding role checks. */
+  permission?: TeamPermissionKey;
 }
 
 export interface NavSection {
@@ -43,53 +47,66 @@ export interface NavSection {
   items: NavItem[];
 }
 
-export function getCoachNav(t: Dictionary, opts?: { branding?: boolean }): NavSection[] {
+/** Drops nav items (and now-empty sections) a team member's permission bag doesn't grant. Coaches/admins are never filtered — `ctx` is only passed for role === "team_member". */
+function filterNavByPermissions(sections: NavSection[], ctx?: TeamPermissionContext): NavSection[] {
+  if (!ctx || ctx.role !== "team_member") return sections;
+  return sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !item.permission || ctx.permissions[item.permission]),
+    }))
+    .filter((section) => section.items.length > 0);
+}
+
+export function getCoachNav(t: Dictionary, opts?: { branding?: boolean; teamCtx?: TeamPermissionContext }): NavSection[] {
   const n = t.dashboard.coachNav;
   const g = t.dashboard.groups;
-  return [
+  const sections: NavSection[] = [
     { items: [{ label: n.dashboard, href: "/coach", icon: LayoutDashboard, exact: true }] },
     {
       label: g.clients,
       items: [
-        { label: n.allClients, href: "/coach/clients", icon: Users, exact: true },
-        { label: n.addClient, href: "/coach/clients/new", icon: UserPlus },
+        { label: n.allClients, href: "/coach/clients", icon: Users, exact: true, permission: "canManageClients" },
+        { label: n.addClient, href: "/coach/clients/new", icon: UserPlus, permission: "canManageClients" },
       ],
     },
     {
       label: g.workout,
       items: [
-        { label: n.exerciseLibrary, href: "/coach/exercises", icon: Dumbbell },
-        { label: n.workoutTemplates, href: "/coach/templates", icon: Layers },
-        { label: n.clientPrograms, href: "/coach/programs", icon: ClipboardList },
-        { label: n.workoutReports, href: "/coach/workout-reports", icon: FileText },
+        { label: n.exerciseLibrary, href: "/coach/exercises", icon: Dumbbell, permission: "canAccessExercises" },
+        { label: n.workoutTemplates, href: "/coach/templates", icon: Layers, permission: "canAccessTemplates" },
+        { label: n.clientPrograms, href: "/coach/programs", icon: ClipboardList, permission: "canAccessWorkout" },
+        { label: n.workoutReports, href: "/coach/workout-reports", icon: FileText, permission: "canAccessReports" },
       ],
     },
     {
       label: g.nutrition,
       items: [
-        { label: n.foodLibrary, href: "/coach/nutrition/foods", icon: Apple },
-        { label: n.nutritionTemplates, href: "/coach/nutrition/templates", icon: Salad },
-        { label: n.clientNutritionPlans, href: "/coach/nutrition/plans", icon: NotebookPen },
-        { label: n.nutritionProgress, href: "/coach/nutrition/progress", icon: TrendingUp },
+        { label: n.foodLibrary, href: "/coach/nutrition/foods", icon: Apple, permission: "canAccessFoods" },
+        { label: n.nutritionTemplates, href: "/coach/nutrition/templates", icon: Salad, permission: "canAccessTemplates" },
+        { label: n.clientNutritionPlans, href: "/coach/nutrition/plans", icon: NotebookPen, permission: "canAccessNutrition" },
+        { label: n.nutritionProgress, href: "/coach/nutrition/progress", icon: TrendingUp, permission: "canAccessNutrition" },
       ],
     },
     {
       label: g.progress,
       items: [
-        { label: n.checkins, href: "/coach/progress/checkins", icon: ClipboardCheck },
-        { label: n.progressPhotos, href: "/coach/progress/photos", icon: Camera },
-        { label: n.measurements, href: "/coach/progress/measurements", icon: Ruler },
+        { label: n.checkins, href: "/coach/progress/checkins", icon: ClipboardCheck, permission: "canAccessRecovery" },
+        { label: n.progressPhotos, href: "/coach/progress/photos", icon: Camera, permission: "canAccessRecovery" },
+        { label: n.measurements, href: "/coach/progress/measurements", icon: Ruler, permission: "canAccessMeasurements" },
       ],
     },
     {
       items: [
         { label: n.messages, href: "/coach/messages", icon: MessageSquare },
-        { label: n.subscription, href: "/coach/subscription", icon: CreditCard },
-        ...(opts?.branding ? [{ label: n.branding, href: "/coach/branding", icon: Palette }] : []),
+        { label: n.subscription, href: "/coach/subscription", icon: CreditCard, permission: "canManageSubscriptions" },
+        { label: n.team, href: "/coach/team", icon: UserCog, permission: "canManageTeam" },
+        ...(opts?.branding ? [{ label: n.branding, href: "/coach/branding", icon: Palette, permission: "canAccessBranding" as const }] : []),
         { label: n.settings, href: "/coach/settings", icon: Settings },
       ],
     },
   ];
+  return filterNavByPermissions(sections, opts?.teamCtx);
 }
 
 export function getAdminNav(t: Dictionary): NavSection[] {
@@ -146,11 +163,19 @@ export function getClientNav(t: Dictionary): NavSection[] {
   ];
 }
 
-export function getNavForRole(role: UserRole, t: Dictionary, opts?: { branding?: boolean }): NavSection[] {
+export function getNavForRole(
+  role: UserRole,
+  t: Dictionary,
+  opts?: { branding?: boolean; teamCtx?: TeamPermissionContext },
+): NavSection[] {
   switch (role) {
     case "super_admin":
       return getAdminNav(t);
     case "coach":
+    case "team_member":
+      // Team members share the coach's nav config, filtered down to only
+      // the sections their permission bag grants (see filterNavByPermissions
+      // above) — never a separate hardcoded nav tree per role.
       return getCoachNav(t, opts);
     case "client":
       return getClientNav(t);
