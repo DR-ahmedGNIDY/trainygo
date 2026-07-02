@@ -176,10 +176,28 @@ export async function activateSubscription(
   if (!before) throw new PermissionError("Coach not found", "NOT_FOUND");
   const plan = await Plan.findById(input.planId);
   if (!plan) throw new PermissionError("Plan not found", "NOT_FOUND");
+  console.log("PLAN", plan.toObject());
+
+  // Guard against legacy/un-migrated Plan documents that predate the
+  // durationMonths field (they still had the old `durationDays` field, or
+  // none at all). Without this check, addMonths(startDate, undefined)
+  // silently produces an Invalid Date, which then fails Mongoose's Date
+  // cast inside Subscription.create() below — throwing BEFORE any write
+  // happens, so the coach's plan/limits/dates are left completely
+  // untouched. That thrown error was previously invisible because the
+  // admin UI didn't check the action's result (see coaches-view.tsx fix).
+  if (typeof plan.durationMonths !== "number" || !Number.isFinite(plan.durationMonths) || plan.durationMonths < 1) {
+    throw new PermissionError(
+      `Plan "${plan.name.ar || plan.name.en}" has no valid durationMonths (got: ${String(plan.durationMonths)}). Re-save this plan from the Plans page or run the plans reset tool before activating it.`,
+      "INVALID_PLAN_DURATION",
+    );
+  }
 
   const now = new Date();
   const startDate = now;
   const endDate = addMonths(startDate, plan.durationMonths);
+  console.log("START", startDate);
+  console.log("END", endDate);
 
   // Any previously "active" subscription for this coach is now superseded.
   await Subscription.updateMany(
@@ -201,25 +219,30 @@ export async function activateSubscription(
     activatedAt: now,
   });
 
+  const updatePayload = {
+    status: "active" as const,
+    "coachProfile.currentPlan": plan._id,
+    "coachProfile.subscriptionStatus": "active" as const,
+    "coachProfile.subscriptionStartDate": startDate,
+    "coachProfile.subscriptionEndDate": endDate,
+    "coachProfile.subscriptionPlanName": { ar: plan.name.ar, en: plan.name.en },
+    "coachProfile.subscriptionTier": plan.tier,
+    "coachProfile.planFeatures": plan.planFeatures,
+    "coachProfile.maxClients": plan.maxClients,
+  };
+  console.log("UPDATE", updatePayload);
+
   const res = await User.updateOne(
     { _id: coachId, role: "coach" },
-    {
-      $set: {
-        status: "active",
-        "coachProfile.currentPlan": plan._id,
-        "coachProfile.subscriptionStatus": "active",
-        "coachProfile.subscriptionStartDate": startDate,
-        "coachProfile.subscriptionEndDate": endDate,
-        "coachProfile.subscriptionPlanName": { ar: plan.name.ar, en: plan.name.en },
-        "coachProfile.subscriptionTier": plan.tier,
-        "coachProfile.planFeatures": plan.planFeatures,
-        "coachProfile.maxClients": plan.maxClients,
-      },
-    },
+    { $set: updatePayload },
   );
+  console.log("MATCHED", res.matchedCount);
+  console.log("MODIFIED", res.modifiedCount);
   if (res.matchedCount === 0) throw new PermissionError("Coach not found", "NOT_FOUND");
 
-  const after = await User.findOne({ _id: coachId, role: "coach" }).select("coachProfile status").lean();
+  const updatedCoach = await User.findById(coachId).lean();
+  console.log("AFTER coachProfile", updatedCoach?.coachProfile);
+  const after = updatedCoach;
 
   await createNotification({
     recipient: coachId,

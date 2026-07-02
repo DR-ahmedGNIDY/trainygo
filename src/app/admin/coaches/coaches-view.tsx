@@ -316,18 +316,31 @@ function ActivateDialog({
   const [method, setMethod] = useState("");
   const [ref, setRef] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPlanId(""); setMethod(""); setRef(""); setError(null);
+  }, [coach]);
 
   const selectedPlan = plans.find((p) => p.id === planId);
 
   async function save() {
     if (!coach || !planId) return;
+    setError(null);
     setSaving(true);
-    await activateSubscriptionAction(coach.id, {
+    const res = await activateSubscriptionAction(coach.id, {
       planId,
       paymentMethod: (method as "vodafone_cash" | "instapay") || undefined,
       paymentReference: ref || undefined,
     });
     setSaving(false);
+    // Previously this ran unconditionally regardless of res.ok, so a thrown
+    // error (e.g. an invalid plan) silently closed the dialog as if the
+    // activation had succeeded, while nothing in the database changed.
+    if (!res.ok) {
+      setError(res.error || L("تعذر تفعيل الاشتراك", "Could not activate the subscription"));
+      return;
+    }
     setPlanId(""); setMethod(""); setRef("");
     onDone();
   }
@@ -369,6 +382,9 @@ function ActivateDialog({
             <Label>{L("مرجع الدفع", "Payment reference")}</Label>
             <Input dir="ltr" value={ref} onChange={(e) => setRef(e.target.value)} placeholder={L("رقم العملية / الهاتف", "Transaction id / phone")} />
           </div>
+          {error && (
+            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t.common.cancel}</Button>
