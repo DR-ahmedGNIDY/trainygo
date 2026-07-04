@@ -175,7 +175,19 @@ export function NutritionBuilder({
         {meals.map((meal, mi) => (
           <Card key={mi}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="flex items-center gap-2 text-base"><UtensilsCrossed className="h-4 w-4 text-primary" />{label(MEAL_LABELS, meal.type, locale)}</CardTitle>
+              <CardTitle className="flex flex-1 items-center gap-2 text-base">
+                <UtensilsCrossed className="h-4 w-4 shrink-0 text-primary" />
+                <Input
+                  value={(locale === "ar" ? meal.name?.ar : meal.name?.en) ?? ""}
+                  placeholder={label(MEAL_LABELS, meal.type, locale)}
+                  onChange={(e) =>
+                    mut((d) => {
+                      d[mi].name = { ...d[mi].name, [locale]: e.target.value };
+                    })
+                  }
+                  className="h-8 max-w-56 border-transparent bg-transparent px-1.5 font-semibold shadow-none focus-visible:border-input focus-visible:bg-background"
+                />
+              </CardTitle>
               <div className="flex gap-1.5">
                 <Button variant="outline" size="sm" onClick={() => setPicker({ m: mi })}><Plus className="h-4 w-4" />{L("طعام", "Food")}</Button>
                 {meals.length > 1 && (

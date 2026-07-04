@@ -18,7 +18,7 @@ interface Item {
   calories: number;
   substitutes: { nameAr: string; nameEn: string }[];
 }
-interface Meal { type: string; items: Item[] }
+interface Meal { type: string; name?: { ar?: string; en?: string }; items: Item[] }
 interface Totals { calories: number; protein: number; carbs: number; fat: number }
 
 export function NutritionView({
@@ -88,7 +88,7 @@ export function NutritionView({
           return (
             <Card key={mi} className={isDone ? "border-success/40" : ""}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="flex items-center gap-2 text-base"><UtensilsCrossed className="h-4 w-4 text-primary" />{label(MEAL_LABELS, meal.type, locale)}</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-base"><UtensilsCrossed className="h-4 w-4 text-primary" />{(locale === "ar" ? meal.name?.ar : meal.name?.en) || label(MEAL_LABELS, meal.type, locale)}</CardTitle>
                 <Button variant={isDone ? "default" : "outline"} size="sm" onClick={() => toggle(mi)} disabled={isPending} className="gap-1.5">
                   {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : isDone ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
                   <span className="hidden sm:inline">{t.client.markMealDone}</span>

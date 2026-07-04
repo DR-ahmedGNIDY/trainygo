@@ -55,7 +55,7 @@ export default async function ClientHomePage() {
     ? (plan.meals ?? [])
         .filter((m) => (m.items ?? []).length > 0)
         .map((m) => ({
-          name: MEAL_LABELS[m.type]?.[locale] ?? m.type,
+          name: m.name?.[locale] || MEAL_LABELS[m.type]?.[locale] || m.type,
           kcal: Math.round((m.items ?? []).reduce((s, it) => s + (it.calories ?? 0), 0)),
         }))
     : null;

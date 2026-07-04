@@ -573,14 +573,6 @@ export function WorkoutSession({
   const suggestedWeight =
     lastForCurrent?.sets[setIndex]?.weight ?? lastForCurrent?.sets[lastForCurrent.sets.length - 1]?.weight ?? null;
 
-  // Temporary debug logs — confirm the input's bound value ("controller
-  // text") stays empty until the client types, independent of the
-  // suggested/target values shown as placeholders.
-  console.log("saved reps (loggedSets[setIndex].reps) =", set.reps);
-  console.log("saved weight (loggedSets[setIndex].weight) =", set.weight);
-  console.log("target reps (current.reps, placeholder only) =", current.reps);
-  console.log("suggested weight (placeholder only) =", suggestedWeight);
-
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">

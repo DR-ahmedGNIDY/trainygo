@@ -116,6 +116,8 @@ export function ClientProfileView({
   weightSeries,
   history,
   canWrite,
+  canAccessWorkout,
+  canAccessNutrition,
   program,
   nutritionPlan,
   performanceAnalysis,
@@ -124,6 +126,8 @@ export function ClientProfileView({
   weightSeries: { label: string; value: number }[];
   history: Measurement[];
   canWrite: boolean;
+  canAccessWorkout: boolean;
+  canAccessNutrition: boolean;
   program: ClientProgramSummary | null;
   nutritionPlan: ClientNutritionSummary | null;
   performanceAnalysis: ClientPerformanceAnalysis;
@@ -281,8 +285,12 @@ export function ClientProfileView({
       <Tabs defaultValue="overview">
         <TabsList className="flex w-full justify-start gap-1 overflow-x-auto scrollbar-thin sm:w-auto sm:flex-wrap sm:overflow-visible">
           <TabsTrigger value="overview" className="shrink-0">{t.dashboard.overview}</TabsTrigger>
-          <TabsTrigger value="program" className="shrink-0">{L("برنامج التمرين", "Workout program")}</TabsTrigger>
-          <TabsTrigger value="nutrition" className="shrink-0">{t.dashboard.coachNav.nutrition}</TabsTrigger>
+          {canAccessWorkout && (
+            <TabsTrigger value="program" className="shrink-0">{L("برنامج التمرين", "Workout program")}</TabsTrigger>
+          )}
+          {canAccessNutrition && (
+            <TabsTrigger value="nutrition" className="shrink-0">{t.dashboard.coachNav.nutrition}</TabsTrigger>
+          )}
           <TabsTrigger value="progress" className="shrink-0">{t.dashboard.coachNav.progress}</TabsTrigger>
         </TabsList>
 
@@ -304,6 +312,7 @@ export function ClientProfileView({
             </CardContent>
           </Card>
 
+          {canAccessWorkout && (
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-base">{L(`تحليل الأداء — آخر ${performanceAnalysis.periodDays} يوماً`, `Performance analysis — last ${performanceAnalysis.periodDays} days`)}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -340,8 +349,10 @@ export function ClientProfileView({
               </div>
             </CardContent>
           </Card>
+          )}
         </TabsContent>
 
+        {canAccessWorkout && (
         <TabsContent value="program">
           {programState ? (
             <div>
@@ -369,7 +380,9 @@ export function ClientProfileView({
             </EmptyState>
           )}
         </TabsContent>
+        )}
 
+        {canAccessNutrition && (
         <TabsContent value="nutrition">
           {nutritionState ? (
             <div>
@@ -396,6 +409,7 @@ export function ClientProfileView({
             </EmptyState>
           )}
         </TabsContent>
+        )}
 
         <TabsContent value="progress">
           {history.length === 0 ? (

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireCoachArea } from "@/lib/auth/session";
-import { canManageClients } from "@/lib/permissions/team";
+import { canManageClients, canAccessWorkout, canAccessNutrition } from "@/lib/permissions/team";
 import { coachCanWrite } from "@/lib/permissions";
 import { getClient } from "@/lib/services/clients";
 import { getProgressHistory, toWeightSeries } from "@/lib/services/progress";
@@ -50,10 +50,22 @@ export default async function ClientProfilePage({
     thighs?: number;
   }[];
 
+  const userCanAccessWorkout = canAccessWorkout(ctx);
+  const userCanAccessNutrition = canAccessNutrition(ctx);
+
   const [program, plan, performanceAnalysis] = await Promise.all([
-    getActiveProgram(ctx.coachId, id),
-    getActivePlan(ctx.coachId, id),
-    getClientPerformanceAnalysis(id),
+    userCanAccessWorkout ? getActiveProgram(ctx.coachId, id) : Promise.resolve(null),
+    userCanAccessNutrition ? getActivePlan(ctx.coachId, id) : Promise.resolve(null),
+    userCanAccessWorkout
+      ? getClientPerformanceAnalysis(id)
+      : Promise.resolve({
+          periodDays: 30,
+          strengthChangePercent: null,
+          topGain: null,
+          topLoss: null,
+          prCount: 0,
+          avgSessionDurationSeconds: null,
+        }),
   ]);
 
   return (
@@ -62,6 +74,8 @@ export default async function ClientProfilePage({
       weightSeries={toWeightSeries(history)}
       history={history}
       canWrite={coachCanWrite(ctx.status)}
+      canAccessWorkout={userCanAccessWorkout}
+      canAccessNutrition={userCanAccessNutrition}
       performanceAnalysis={performanceAnalysis}
       program={
         program
