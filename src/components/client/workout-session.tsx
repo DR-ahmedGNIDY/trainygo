@@ -74,17 +74,17 @@ type RestTarget = "set" | "exercise" | null;
  * client can resume after closing the app, refreshing, losing connectivity,
  * or restarting the phone.
  *
- * v bumped 1 -> 2: drafts saved by the old buggy build could have
- * loggedSets pre-filled with the previous session's weight (the exact bug
- * this file now fixes at the source). Without this bump, resuming one of
- * those old drafts would restore those stale non-empty values into the
+ * v bumped 1 -> 2 -> 3: drafts saved by any pre-fix build could have
+ * loggedSets pre-filled with the previous session's weight/reps (the exact
+ * bug this file now fixes at the source). Without this bump, resuming one
+ * of those old drafts would restore those stale non-empty values into the
  * input fields even though the current code never writes them anymore —
  * making the fix look like it "didn't work". Bumping the version makes
- * every pre-fix draft fail the `draft.v === 2` check below and fall
- * through to a fresh (empty) session instead of being resumed.
+ * every draft saved before this fix fail the `draft.v === 3` check below
+ * and fall through to a fresh (empty) session instead of being resumed.
  */
 interface SessionDraft {
-  v: 2;
+  v: 3;
   queue: SessionExercise[];
   done: SessionExercise[];
   setIndex: number;
@@ -172,7 +172,7 @@ export function WorkoutSession({
     try {
       const raw = localStorage.getItem(storageKey);
       const draft = raw ? (JSON.parse(raw) as SessionDraft) : null;
-      if (draft && draft.v === 2 && (draft.queue.length > 0 || draft.done.length > 0)) {
+      if (draft && draft.v === 3 && (draft.queue.length > 0 || draft.done.length > 0)) {
         setFoundDraft(draft);
         setResumeStatus("prompt");
       } else {
@@ -217,7 +217,7 @@ export function WorkoutSession({
     const s = draftRef.current;
     if (s.phase === "summary") return;
     try {
-      const draft: SessionDraft = { v: 2, ...s, startedAt: startedAt.toISOString(), savedAt: new Date().toISOString() };
+      const draft: SessionDraft = { v: 3, ...s, startedAt: startedAt.toISOString(), savedAt: new Date().toISOString() };
       localStorage.setItem(storageKey, JSON.stringify(draft));
     } catch {
       // storage full/unavailable — non-fatal, session just won't resume
@@ -572,6 +572,16 @@ export function WorkoutSession({
   const lastForCurrent = current.exercise ? lastPerformance?.[current.exercise] : undefined;
   const suggestedWeight =
     lastForCurrent?.sets[setIndex]?.weight ?? lastForCurrent?.sets[lastForCurrent.sets.length - 1]?.weight ?? null;
+
+  // Temporary debug logs — verify the input's bound value stays empty (or holds only
+  // what the client already typed this session) and is never seeded from the
+  // target/suggested values, which are display-only hints.
+  console.log("targetReps =", current.reps);
+  console.log("suggestedWeight =", suggestedWeight);
+  console.log("savedReps (loggedSets[setIndex].reps) =", set.reps || null);
+  console.log("savedWeight (loggedSets[setIndex].weight) =", set.weight || null);
+  console.log("controller reps =", JSON.stringify(set.reps));
+  console.log("controller weight =", JSON.stringify(set.weight));
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
