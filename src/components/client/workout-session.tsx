@@ -666,11 +666,17 @@ export function WorkoutSession({
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">{L("الوزن المنفذ (كجم)", "Weight done (kg)")}</label>
-              <Input type="number" inputMode="decimal" placeholder={suggestedWeight != null ? String(suggestedWeight) : "0"} className="h-11 text-center text-lg" value={set.weight} onChange={(e) => updateSet(setIndex, "weight", e.target.value)} />
+              {/* Suggestion is shown as its own text line, never as the input's placeholder/value — a
+                  gray placeholder was visually indistinguishable from a real value in some environments. */}
+              <p className="mb-1 text-xs text-muted-foreground">
+                {suggestedWeight != null ? L(`الوزن المقترح: ${suggestedWeight}كجم`, `Suggested weight: ${suggestedWeight}kg`) : L("لا يوجد اقتراح", "No suggestion")}
+              </p>
+              <Input type="number" inputMode="decimal" placeholder="0" className="h-11 text-center text-lg" value={set.weight} onChange={(e) => updateSet(setIndex, "weight", e.target.value)} />
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">{L("التكرارات المنفذة", "Reps done")}</label>
-              <Input type="number" inputMode="numeric" placeholder={current.reps} className="h-11 text-center text-lg" value={set.reps} onChange={(e) => updateSet(setIndex, "reps", e.target.value)} />
+              <p className="mb-1 text-xs text-muted-foreground">{L(`التكرارات المقترحة: ${current.reps}`, `Suggested reps: ${current.reps}`)}</p>
+              <Input type="number" inputMode="numeric" placeholder="0" className="h-11 text-center text-lg" value={set.reps} onChange={(e) => updateSet(setIndex, "reps", e.target.value)} />
             </div>
           </div>
         </div>
