@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -20,6 +21,7 @@ import { useI18n } from "@/components/providers/i18n-provider";
 export function Landing() {
   const { t, dir } = useI18n();
   const Arrow = dir === "rtl" ? ArrowLeft : ArrowRight;
+  const [videoFailed, setVideoFailed] = useState(false);
 
   const features = [
     { icon: Users, title: t.landing.features.clientsTitle, desc: t.landing.features.clientsDesc },
@@ -33,12 +35,27 @@ export function Landing() {
   return (
     <main>
       {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div
-          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_50%_0%,hsl(var(--primary)/0.12),transparent)]"
-          aria-hidden
-        />
-        <div className="container flex flex-col items-center gap-6 py-20 text-center md:py-28">
+      <section className="relative min-h-[520px] overflow-hidden">
+        {!videoFailed ? (
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            onError={() => setVideoFailed(true)}
+            className="absolute inset-0 z-0 h-full w-full object-cover"
+          >
+            <source src="/banar.mp4" type="video/mp4" />
+          </video>
+        ) : (
+          <div
+            className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(60%_50%_at_50%_0%,hsl(var(--primary)/0.12),transparent)]"
+            aria-hidden
+          />
+        )}
+        <div className="absolute inset-0 z-0" style={{ background: "rgba(0,0,0,0.45)" }} aria-hidden />
+        <div className="container relative z-10 flex flex-col items-center gap-6 py-20 text-center md:py-28">
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
