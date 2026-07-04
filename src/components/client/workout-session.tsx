@@ -608,6 +608,9 @@ export function WorkoutSession({
           />
         </div>
 
+        {/* Temporary debug marker — remove once the "still prefilled" report is confirmed
+            to be running this build. Confirms which component/commit is actually live. */}
+        <p className="mb-1 font-mono text-[10px] text-destructive">COMPONENT: WorkoutSession · BUILD: 2cbb8ed</p>
         <h2 className="text-xl font-bold">{locale === "ar" ? current.nameAr : current.nameEn}</h2>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <Badge variant="outline">{current.sets} {t.client.sets}</Badge>
