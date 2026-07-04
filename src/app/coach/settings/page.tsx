@@ -35,7 +35,7 @@ export default function CoachSettingsPage() {
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2"><Label>{t.auth.brandName}</Label><Input defaultValue={L("أحمد فيتنس", "Ahmed Fitness")} /></div>
-            <div className="space-y-2"><Label>{L("رقم واتساب", "WhatsApp number")}</Label><Input dir="ltr" placeholder="2010xxxxxxxx" /></div>
+            <div className="space-y-2"><Label>{L("رقم واتساب", "WhatsApp number")}</Label><Input dir="ltr" placeholder="201028676395" /></div>
           </CardContent>
         </Card>
 

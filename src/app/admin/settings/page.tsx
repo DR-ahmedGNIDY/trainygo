@@ -36,7 +36,7 @@ export default function AdminSettingsPage() {
           <CardContent>
             <div className="space-y-2">
               <Label>{L("رقم واتساب الإدارة", "Admin WhatsApp number")}</Label>
-              <Input dir="ltr" defaultValue="201000000000" />
+              <Input dir="ltr" defaultValue="201028676395" />
               <p className="text-xs text-muted-foreground">{L("يُستخدم في زر «تواصل مع الإدارة» لدى المدربين.", "Used by the coaches' “Contact Administration” button.")}</p>
             </div>
           </CardContent>
@@ -47,7 +47,7 @@ export default function AdminSettingsPage() {
             <CardTitle className="flex items-center gap-2 text-base"><Wallet className="h-4 w-4 text-primary" />{L("الدفع اليدوي", "Offline payment")}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2"><Label>{L("رقم فودافون كاش", "Vodafone Cash number")}</Label><Input dir="ltr" placeholder="010xxxxxxxx" /></div>
+            <div className="space-y-2"><Label>{L("رقم فودافون كاش", "Vodafone Cash number")}</Label><Input dir="ltr" placeholder="01028676395" /></div>
             <div className="space-y-2"><Label>{L("حساب InstaPay", "InstaPay handle")}</Label><Input dir="ltr" placeholder="@handle" /></div>
           </CardContent>
         </Card>

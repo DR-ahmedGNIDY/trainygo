@@ -31,7 +31,7 @@ async function main() {
     name: "Ahmed Hassan",
     username: "coach",
     email: "coach@trainygo.com",
-    phone: "201000000000",
+    phone: "21028676395",
     passwordHash: await hashPassword("Coach123!"),
     role: "coach",
     status: "trial",
