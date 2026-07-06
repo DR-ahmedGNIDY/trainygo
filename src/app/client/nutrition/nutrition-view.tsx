@@ -99,17 +99,15 @@ export function NutritionView({
               </CardHeader>
               <CardContent className="space-y-1">
                 {meal.items.map((item, ii) => (
-                  <div key={ii} className="flex items-center justify-between rounded-lg border px-3 py-2.5">
-                    <div>
-                      <p className="text-sm font-medium">{locale === "ar" ? item.nameAr : item.nameEn}</p>
+                  <div key={ii} className="flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{locale === "ar" ? item.nameAr : item.nameEn}</p>
+                      <p className="truncate text-xs text-zinc-400">{item.calories} {t.client.calories} · {t.client.protein} {item.protein}g · {t.client.carbs} {item.carbs}g · {t.client.fat} {item.fat}g</p>
                       {item.substitutes.map((s, si) => (
                         <p key={si} className="flex items-center gap-1 text-xs text-primary"><Repeat className="h-3 w-3" />{L("بديل:", "Sub:")} {locale === "ar" ? s.nameAr : s.nameEn}</p>
                       ))}
                     </div>
-                    <div className="text-end">
-                      <p className="text-sm text-muted-foreground">{item.quantity}g</p>
-                      <p className="text-xs text-muted-foreground">{item.calories} {t.client.calories} · {t.client.protein} {item.protein}g · {t.client.carbs} {item.carbs}g · {t.client.fat} {item.fat}g</p>
-                    </div>
+                    <p className="text-sm text-muted-foreground">{item.quantity}g</p>
                   </div>
                 ))}
               </CardContent>

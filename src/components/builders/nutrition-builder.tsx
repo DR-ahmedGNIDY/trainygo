@@ -201,8 +201,11 @@ export function NutritionBuilder({
                 const s = scaled(it);
                 return (
                   <div key={ii} className="rounded-md border bg-muted/30 p-2">
-                    <div className="flex items-center gap-2">
-                      <span className="flex-1 truncate text-sm font-medium">{locale === "ar" ? it.nameAr : it.nameEn}</span>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{locale === "ar" ? it.nameAr : it.nameEn}</p>
+                        <p className="truncate text-xs text-zinc-400">{s.calories} {t.client.calories} · {t.client.protein} {r1(s.protein)}g · {t.client.carbs} {r1(s.carbs)}g · {t.client.fat} {r1(s.fat)}g</p>
+                      </div>
                       <div className="flex items-center gap-1">
                         <Input className="h-8 w-20" type="number" value={it.quantity} onChange={(e) => mut((d) => { d[mi].items[ii].quantity = Number(e.target.value) || 0; })} />
                         <span className="text-xs text-muted-foreground">g</span>
@@ -210,7 +213,6 @@ export function NutritionBuilder({
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPicker({ m: mi, sub: ii })} title={L("بديل", "Substitute")}><Repeat className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => mut((d) => d[mi].items.splice(ii, 1))}><Trash2 className="h-4 w-4" /></Button>
                     </div>
-                    <p className="mt-1 text-end text-xs text-muted-foreground">{s.calories} {t.client.calories} · {t.client.protein} {r1(s.protein)}g · {t.client.carbs} {r1(s.carbs)}g · {t.client.fat} {r1(s.fat)}g</p>
                     {it.substitutes.length > 0 && (
                       <div className="mt-1 space-y-0.5 ps-2">
                         {it.substitutes.map((sub, si) => (
