@@ -60,7 +60,7 @@ export function Landing() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-4 py-1.5 text-sm text-muted-foreground"
+            className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-4 py-1.5 text-sm text-zinc-900 dark:text-muted-foreground"
           >
             <CheckCircle2 className="h-4 w-4 text-primary" />
             {t.landing.trialNote}
@@ -70,7 +70,7 @@ export function Landing() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="max-w-4xl text-balance text-4xl font-extrabold leading-tight tracking-tight md:text-6xl"
+            className="max-w-4xl text-balance text-4xl font-extrabold leading-tight tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] dark:text-foreground dark:drop-shadow-none md:text-6xl"
           >
             {t.landing.heroTitle}
           </motion.h1>
@@ -79,7 +79,7 @@ export function Landing() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="max-w-2xl text-pretty text-lg text-muted-foreground"
+            className="max-w-2xl text-pretty text-lg text-zinc-200 drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)] dark:text-muted-foreground dark:drop-shadow-none"
           >
             {t.landing.heroSubtitle}
           </motion.p>
