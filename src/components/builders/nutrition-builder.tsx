@@ -207,10 +207,10 @@ export function NutritionBuilder({
                         <Input className="h-8 w-20" type="number" value={it.quantity} onChange={(e) => mut((d) => { d[mi].items[ii].quantity = Number(e.target.value) || 0; })} />
                         <span className="text-xs text-muted-foreground">g</span>
                       </div>
-                      <span className="w-20 text-end text-xs text-muted-foreground">{s.calories} {t.client.calories}</span>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPicker({ m: mi, sub: ii })} title={L("بديل", "Substitute")}><Repeat className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => mut((d) => d[mi].items.splice(ii, 1))}><Trash2 className="h-4 w-4" /></Button>
                     </div>
+                    <p className="mt-1 text-end text-xs text-muted-foreground">{s.calories} {t.client.calories} · {t.client.protein} {r1(s.protein)}g · {t.client.carbs} {r1(s.carbs)}g · {t.client.fat} {r1(s.fat)}g</p>
                     {it.substitutes.length > 0 && (
                       <div className="mt-1 space-y-0.5 ps-2">
                         {it.substitutes.map((sub, si) => (

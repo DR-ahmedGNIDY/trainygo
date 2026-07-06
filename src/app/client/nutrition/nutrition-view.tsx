@@ -16,6 +16,9 @@ interface Item {
   nameEn: string;
   quantity: number;
   calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
   substitutes: { nameAr: string; nameEn: string }[];
 }
 interface Meal { type: string; name?: { ar?: string; en?: string }; items: Item[] }
@@ -105,7 +108,7 @@ export function NutritionView({
                     </div>
                     <div className="text-end">
                       <p className="text-sm text-muted-foreground">{item.quantity}g</p>
-                      <p className="text-xs text-muted-foreground">{item.calories} {t.client.calories}</p>
+                      <p className="text-xs text-muted-foreground">{item.calories} {t.client.calories} · {t.client.protein} {item.protein}g · {t.client.carbs} {item.carbs}g · {t.client.fat} {item.fat}g</p>
                     </div>
                   </div>
                 ))}
