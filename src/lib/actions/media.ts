@@ -5,6 +5,12 @@ import { auth } from "@/lib/auth";
 import { PermissionError } from "@/lib/permissions";
 import { runAction, ok, fail, type ActionResult } from "./result";
 import { logError } from "@/lib/logging/error-log";
+import {
+  MAX_UPLOAD_BYTES,
+  FILE_TOO_LARGE_MESSAGE,
+  INVALID_FILE_TYPE_MESSAGE,
+  isAcceptedExtension,
+} from "@/lib/media/upload-limits";
 
 export interface CloudinarySignature {
   cloudName: string;
@@ -21,10 +27,20 @@ export interface CloudinarySignature {
  */
 export async function getCloudinarySignatureAction(
   folder?: string,
+  file?: { name: string; size: number; resourceType: "image" | "video" },
 ): Promise<ActionResult<CloudinarySignature>> {
   return runAction(async () => {
     const session = await auth();
     if (!session?.user) throw new PermissionError("Forbidden", "FORBIDDEN");
+
+    if (file) {
+      if (file.size > MAX_UPLOAD_BYTES) {
+        return fail(FILE_TOO_LARGE_MESSAGE, "FILE_TOO_LARGE");
+      }
+      if (!isAcceptedExtension(file.name, file.resourceType)) {
+        return fail(INVALID_FILE_TYPE_MESSAGE, "INVALID_FILE_TYPE");
+      }
+    }
 
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;

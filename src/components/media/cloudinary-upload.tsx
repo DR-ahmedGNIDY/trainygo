@@ -5,6 +5,8 @@ import { ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { getCloudinarySignatureAction } from "@/lib/actions/media";
+import { toast } from "@/components/ui/toast";
+import { MAX_UPLOAD_BYTES, isAcceptedExtension } from "@/lib/media/upload-limits";
 
 /**
  * Opens the device's native image/video picker (gallery or file explorer — no
@@ -32,11 +34,35 @@ export function CloudinaryUpload({
   const text = label ?? (resourceType === "video" ? L("رفع فيديو", "Upload video") : L("رفع صورة", "Upload image"));
 
   async function handleFile(file: File) {
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast.error(L("الملف أكبر من 2 ميجابايت", "الملف أكبر من 2 ميجابايت"));
+      return;
+    }
+    if (!isAcceptedExtension(file.name, resourceType)) {
+      toast.error(
+        L(
+          resourceType === "video" ? "امتداد الفيديو غير مدعوم (mp4, webm)" : "امتداد الصورة غير مدعوم (jpg, jpeg, png, webp)",
+          resourceType === "video" ? "Unsupported video format (mp4, webm)" : "Unsupported image format (jpg, jpeg, png, webp)",
+        ),
+      );
+      return;
+    }
+
     setBusy(true);
-    const sig = await getCloudinarySignatureAction(folder);
+    const sig = await getCloudinarySignatureAction(folder, {
+      name: file.name,
+      size: file.size,
+      resourceType,
+    });
     if (!sig.ok) {
       setBusy(false);
-      setUnconfigured(true);
+      if (sig.code === "FILE_TOO_LARGE") {
+        toast.error(L("الملف أكبر من 2 ميجابايت", "الملف أكبر من 2 ميجابايت"));
+      } else if (sig.code === "INVALID_FILE_TYPE") {
+        toast.error(sig.error);
+      } else {
+        setUnconfigured(true);
+      }
       return;
     }
     const { cloudName, apiKey, timestamp, signature } = sig.data!;

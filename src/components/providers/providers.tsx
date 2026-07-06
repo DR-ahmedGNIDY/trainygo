@@ -2,6 +2,7 @@
 
 import { ThemeProvider } from "./theme-provider";
 import { I18nProvider } from "./i18n-provider";
+import { Toaster } from "@/components/ui/toast";
 import type { Locale } from "@/lib/i18n/config";
 
 export function Providers({
@@ -13,7 +14,10 @@ export function Providers({
 }) {
   return (
     <ThemeProvider>
-      <I18nProvider initialLocale={locale}>{children}</I18nProvider>
+      <I18nProvider initialLocale={locale}>
+        {children}
+        <Toaster />
+      </I18nProvider>
     </ThemeProvider>
   );
 }
