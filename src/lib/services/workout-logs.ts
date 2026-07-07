@@ -1,7 +1,45 @@
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/lib/db";
 import { WorkoutLog, type ComparisonStatus, type DifficultyRating } from "@/models/WorkoutLog";
+import { ClientProgram } from "@/models/ClientProgram";
+import { Exercise } from "@/models/Exercise";
 import { serialize } from "@/lib/serialize";
+
+/**
+ * Returns the programId only if it is a valid ObjectId referencing a program
+ * that belongs to this exact (client, coach) tenant — otherwise null. Prevents
+ * a client from attaching a foreign/forged program reference to their log.
+ */
+async function validOwnedProgramId(
+  programId: string | undefined,
+  clientId: string,
+  coachId: string,
+): Promise<Types.ObjectId | null> {
+  if (!programId || !Types.ObjectId.isValid(programId)) return null;
+  const owns = await ClientProgram.exists({
+    _id: programId,
+    client: new Types.ObjectId(clientId),
+    coach: new Types.ObjectId(coachId),
+  });
+  return owns ? new Types.ObjectId(programId) : null;
+}
+
+/**
+ * Returns the exerciseId only if it is a valid ObjectId referencing a system
+ * exercise or one owned by this coach — otherwise null. Prevents forged/foreign
+ * exercise references leaking into a tenant's history.
+ */
+async function validExerciseId(
+  exerciseId: string | undefined,
+  coachId: string,
+): Promise<Types.ObjectId | null> {
+  if (!exerciseId || !Types.ObjectId.isValid(exerciseId)) return null;
+  const ok = await Exercise.exists({
+    _id: exerciseId,
+    $or: [{ isSystemExercise: true }, { createdByCoach: new Types.ObjectId(coachId) }],
+  });
+  return ok ? new Types.ObjectId(exerciseId) : null;
+}
 
 export interface LoggedSetInput {
   setNumber: number;
@@ -139,12 +177,20 @@ export async function logExercise(
   const date = input.date ?? new Date();
   const newOneRm = bestOneRm(input.sets);
 
+  // Validate client-supplied refs against this tenant before persisting them,
+  // so a forged programId/exerciseId can never enter the log.
+  const [ownedProgram, ownedExercise] = await Promise.all([
+    validOwnedProgramId(input.programId, clientId, coachId),
+    validExerciseId(input.exerciseId, coachId),
+  ]);
+  const validExerciseIdStr = ownedExercise ? ownedExercise.toString() : undefined;
+
   let previous: PreviousPerformance | null = null;
   let allTimeBest = 0;
-  if (input.exerciseId) {
+  if (validExerciseIdStr) {
     [previous, allTimeBest] = await Promise.all([
-      getPreviousLog(clientId, input.exerciseId, date),
-      getAllTimeBestOneRm(clientId, input.exerciseId, date),
+      getPreviousLog(clientId, validExerciseIdStr, date),
+      getAllTimeBestOneRm(clientId, validExerciseIdStr, date),
     ]);
   }
   const comparisonStatus = comparePerformance(newOneRm, previous, allTimeBest);
@@ -153,8 +199,8 @@ export async function logExercise(
   const doc = await WorkoutLog.create({
     client: new Types.ObjectId(clientId),
     coach: new Types.ObjectId(coachId),
-    program: input.programId ? new Types.ObjectId(input.programId) : null,
-    exercise: input.exerciseId ? new Types.ObjectId(input.exerciseId) : null,
+    program: ownedProgram,
+    exercise: ownedExercise,
     exerciseNameAr: input.exerciseNameAr,
     exerciseNameEn: input.exerciseNameEn,
     weekNumber: input.weekNumber,
@@ -170,7 +216,9 @@ export async function logExercise(
   });
 
   const declineStreak =
-    comparisonStatus === "decline" && input.exerciseId ? await hasDeclineStreak(clientId, input.exerciseId) : false;
+    comparisonStatus === "decline" && validExerciseIdStr
+      ? await hasDeclineStreak(clientId, validExerciseIdStr)
+      : false;
 
   return { id: doc._id.toString(), comparisonStatus, isPr, previous, declineStreak };
 }

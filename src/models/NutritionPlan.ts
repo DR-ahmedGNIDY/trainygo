@@ -73,6 +73,8 @@ const NutritionPlanSchema = new Schema<INutritionPlan>(
 );
 
 NutritionPlanSchema.index({ client: 1, status: 1 });
+// Coach-scoped reporting (e.g. nutrition adherence report) filters by coach+status.
+NutritionPlanSchema.index({ coach: 1, status: 1 });
 
 export const NutritionPlan: Model<INutritionPlan> =
   (models.NutritionPlan as Model<INutritionPlan>) ||

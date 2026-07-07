@@ -74,6 +74,12 @@ export function RegisterForm() {
         setError("username", { message: t.auth.usernameTaken });
       } else if (res.error === "EMAIL_TAKEN") {
         setError("email", { message: t.auth.emailTaken });
+      } else if (res.error === "RATE_LIMITED") {
+        setServerError(
+          locale === "ar"
+            ? "لقد أنشأت عدداً كبيراً من الحسابات. يرجى المحاولة بعد ساعة."
+            : "Too many accounts created. Please try again in an hour.",
+        );
       } else {
         setServerError(t.common.errorDescription);
       }

@@ -83,6 +83,9 @@ const ErrorLogSchema = new Schema<IErrorLog>(
 );
 
 ErrorLogSchema.index({ createdAt: -1 });
+// Retention: auto-delete error logs 90 days after their most recent
+// occurrence (TTL index on lastOccurredAt). Keeps the collection bounded.
+ErrorLogSchema.index({ lastOccurredAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
 
 export const ErrorLog: Model<IErrorLog> =
   (models.ErrorLog as Model<IErrorLog>) || model<IErrorLog>("ErrorLog", ErrorLogSchema);

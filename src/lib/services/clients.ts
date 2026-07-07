@@ -10,7 +10,8 @@ import { Conversation, Message } from "@/models/Message";
 import { PasswordResetLog } from "@/models/PasswordResetLog";
 import { hashPassword } from "@/lib/auth/password";
 import { nextClientCode } from "@/lib/codes";
-import { randomString } from "@/lib/utils";
+import { secureRandomString } from "@/lib/security/secure-random";
+import { safeSearchRegex } from "@/lib/security/escape-regex";
 import { serialize } from "@/lib/serialize";
 import { createNotification } from "./notifications";
 import { normalizeGoal } from "@/lib/utils/goals";
@@ -66,7 +67,7 @@ export async function listClients(
   if (!opts.includeArchived) filter["clientProfile.active"] = true;
   if (opts.status && opts.status !== "all") filter.status = opts.status;
   if (opts.query) {
-    const rx = new RegExp(opts.query.trim(), "i");
+    const rx = safeSearchRegex(opts.query);
     filter.$or = [{ name: rx }, { "clientProfile.clientCode": rx }, { username: rx }];
   }
   const docs = await User.find(filter)
@@ -94,7 +95,7 @@ export async function getClient(coachId: string, clientId: string) {
  */
 async function generateUsername(): Promise<string> {
   for (let i = 0; i < 5; i++) {
-    const candidate = `m${randomString(7).toLowerCase()}`;
+    const candidate = `m${secureRandomString(7).toLowerCase()}`;
     if (!(await User.exists({ username: candidate }))) return candidate;
   }
   throw new Error("Could not generate a unique username");
@@ -114,7 +115,7 @@ export async function createClient(
 
   const code = await nextClientCode(); // TRG00001 — internal reference only
   const username = await generateUsername();
-  const password = randomString(8);
+  const password = secureRandomString(12);
   const now = new Date();
   const subEnd = input.subscriptionMonths
     ? new Date(now.getTime() + monthsToMs(input.subscriptionMonths))
@@ -241,9 +242,11 @@ export async function resetClientPassword(
   });
   if (!client) return null;
 
-  const password = randomString(10);
+  const password = secureRandomString(12);
   client.passwordHash = await hashPassword(password);
   client.mustChangePassword = true;
+  // Invalidate any existing sessions for this client (the old password is dead).
+  client.sessionVersion = (client.sessionVersion ?? 0) + 1;
   await client.save();
 
   await PasswordResetLog.create({

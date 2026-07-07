@@ -130,25 +130,21 @@ export function BrandingForm({ initialBrand }: { initialBrand: FormState | null 
             <BrandImageField
               label={L("الشعار", "Logo")}
               value={form.logo}
-              folder="branding/logo"
               onUploaded={(url) => set("logo")(url)}
             />
             <BrandImageField
               label={L("صورة شاشة الدخول", "Login image")}
               value={form.loginImage}
-              folder="branding/login"
               onUploaded={(url) => set("loginImage")(url)}
             />
             <BrandImageField
               label={L("بانر لوحة التحكم", "Dashboard banner")}
               value={form.dashboardImage}
-              folder="branding/dashboard"
               onUploaded={(url) => set("dashboardImage")(url)}
             />
             <BrandImageField
               label={L("أيقونة الموقع (Favicon)", "Favicon")}
               value={form.favicon}
-              folder="branding/favicon"
               onUploaded={(url) => set("favicon")(url)}
             />
           </CardContent>
@@ -229,12 +225,10 @@ export function BrandingForm({ initialBrand }: { initialBrand: FormState | null 
 function BrandImageField({
   label,
   value,
-  folder,
   onUploaded,
 }: {
   label: string;
   value?: string;
-  folder: string;
   onUploaded: (url: string) => void;
 }) {
   return (
@@ -249,7 +243,7 @@ function BrandImageField({
             className="h-12 w-12 shrink-0 rounded-md border border-input object-cover"
           />
         ) : null}
-        <CloudinaryUpload folder={folder} onUploaded={(url) => onUploaded(url)} />
+        <CloudinaryUpload kind="branding" onUploaded={(url) => onUploaded(url)} />
       </div>
     </div>
   );

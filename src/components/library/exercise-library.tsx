@@ -399,8 +399,8 @@ function ExerciseFormDialog({
                 />
               </div>
               <div className="flex flex-1 flex-wrap items-center gap-2">
-                <CloudinaryUpload folder="trainygo/exercises" label={L("رفع صورة", "Upload image")} onUploaded={(url) => set("imageUrlStart")(url)} />
-                <CloudinaryUpload folder="trainygo/exercises/videos" resourceType="video" label={L("رفع فيديو", "Upload video")} onUploaded={(url) => set("videoUrl")(url)} />
+                <CloudinaryUpload kind="exercises" label={L("رفع صورة", "Upload image")} onUploaded={(url) => set("imageUrlStart")(url)} />
+                <CloudinaryUpload kind="exercises" resourceType="video" label={L("رفع فيديو", "Upload video")} onUploaded={(url) => set("videoUrl")(url)} />
                 <Button
                   type="button"
                   variant="outline"
@@ -417,7 +417,7 @@ function ExerciseFormDialog({
             <Label>{L("رابط GIF", "GIF URL")}</Label>
             <div className="flex gap-2">
               <Input dir="ltr" value={f.gifUrl} onChange={(e) => set("gifUrl")(e.target.value)} />
-              <CloudinaryUpload folder="trainygo/exercises" iconOnly onUploaded={(url) => set("gifUrl")(url)} />
+              <CloudinaryUpload kind="exercises" iconOnly onUploaded={(url) => set("gifUrl")(url)} />
             </div>
           </div>
           <div className="space-y-2"><Label>{L("رابط يوتيوب", "YouTube URL")}</Label><Input dir="ltr" value={f.youtubeUrl} onChange={(e) => set("youtubeUrl")(e.target.value)} /></div>
@@ -426,21 +426,21 @@ function ExerciseFormDialog({
             <Label>{L("فيديو مرفوع (أعلى أولوية للعرض)", "Uploaded video (highest display priority)")}</Label>
             <div className="flex gap-2">
               <Input dir="ltr" value={f.videoUrl} onChange={(e) => set("videoUrl")(e.target.value)} placeholder={L("رابط الفيديو", "Video URL")} />
-              <CloudinaryUpload folder="trainygo/exercises/videos" resourceType="video" iconOnly onUploaded={(url) => set("videoUrl")(url)} />
+              <CloudinaryUpload kind="exercises" resourceType="video" iconOnly onUploaded={(url) => set("videoUrl")(url)} />
             </div>
           </div>
           <div className="space-y-2">
             <Label>{L("صورة بداية الحركة", "Movement start photo")}</Label>
             <div className="flex gap-2">
               <Input dir="ltr" value={f.imageUrlStart} onChange={(e) => set("imageUrlStart")(e.target.value)} placeholder={L("رابط الصورة", "Image URL")} />
-              <CloudinaryUpload folder="trainygo/exercises" iconOnly onUploaded={(url) => set("imageUrlStart")(url)} />
+              <CloudinaryUpload kind="exercises" iconOnly onUploaded={(url) => set("imageUrlStart")(url)} />
             </div>
           </div>
           <div className="space-y-2">
             <Label>{L("صورة نهاية الحركة", "Movement end photo")}</Label>
             <div className="flex gap-2">
               <Input dir="ltr" value={f.imageUrlEnd} onChange={(e) => set("imageUrlEnd")(e.target.value)} placeholder={L("رابط الصورة", "Image URL")} />
-              <CloudinaryUpload folder="trainygo/exercises" iconOnly onUploaded={(url) => set("imageUrlEnd")(url)} />
+              <CloudinaryUpload kind="exercises" iconOnly onUploaded={(url) => set("imageUrlEnd")(url)} />
             </div>
           </div>
         </div>

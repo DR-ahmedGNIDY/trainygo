@@ -131,6 +131,12 @@ export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export const TRIAL_DURATION_DAYS = 7;
 
+/** Trial coaches may onboard at most this many clients (the free trial is not unlimited capacity). */
+export const TRIAL_MAX_CLIENTS = 1;
+
+/** Trial coaches may not create team members. */
+export const TRIAL_MAX_TEAM_MEMBERS = 0;
+
 /** Arabic-speaking countries offered in coach registration, with phone dial codes. */
 export const ARAB_COUNTRIES = [
   { value: "EG", flag: "🇪🇬", ar: "مصر", en: "Egypt", dialCode: "+20" },

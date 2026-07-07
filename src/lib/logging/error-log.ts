@@ -30,6 +30,25 @@ function computeFingerprint(input: { message: string; stack?: string; action?: s
   return createHash("sha1").update(basis).digest("hex");
 }
 
+/** Keys whose values must never be persisted to the log store, even inside `context`. */
+const SENSITIVE_KEY_RE =
+  /pass(word)?|secret|token|api[-_]?key|authorization|cookie|creditcard|cvv|ssn|paymentreference|otp/i;
+
+/**
+ * Recursively redacts values under sensitive-looking keys so credentials /
+ * tokens / payment references never land in the ErrorLog collection. Depth- and
+ * breadth-bounded to stay cheap.
+ */
+function redactSensitive(value: unknown, depth = 0): unknown {
+  if (depth > 4 || value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.slice(0, 50).map((v) => redactSensitive(v, depth + 1));
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    out[k] = SENSITIVE_KEY_RE.test(k) ? "[redacted]" : redactSensitive(v, depth + 1);
+  }
+  return out;
+}
+
 const LOGGED = Symbol("errorLogged");
 
 /** Marks an error as already recorded via logError(), so runAction's generic safety net doesn't log it a second time under type UNKNOWN. */
@@ -85,7 +104,7 @@ export async function logError(input: LogErrorInput, sourceError?: unknown): Pro
           email: input.email,
           route: input.route,
           action: input.action,
-          context: input.context,
+          context: input.context ? (redactSensitive(input.context) as Record<string, unknown>) : undefined,
           environment: (process.env.NODE_ENV as "production" | "development") ?? "development",
           version: pkg.version ?? process.env.NEXT_PUBLIC_APP_VERSION,
           browser,

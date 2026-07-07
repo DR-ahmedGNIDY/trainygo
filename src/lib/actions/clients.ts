@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { getCoachAreaWriteCtxFor } from "./guards";
 import { canManageClients } from "@/lib/permissions/team";
+import { rateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { runAction, ok, fail, type ActionResult } from "./result";
 import {
   clientCreateSchema,
@@ -58,6 +59,9 @@ export async function resetClientPasswordAction(
 ): Promise<ActionResult<{ password: string }>> {
   return runAction(async () => {
     const { coachId } = await getCoachAreaWriteCtxFor(canManageClients);
+    if (!rateLimit(RATE_LIMITS.passwordReset, `coach:${coachId}`).ok) {
+      return fail("لقد تجاوزت الحد المسموح من عمليات إعادة التعيين. حاول لاحقاً.", "RATE_LIMITED");
+    }
     const session = await auth();
     const coachName = session?.user?.name ?? session?.user?.username ?? "Coach";
     const res = await clients.resetClientPassword(coachId, coachName, clientId);

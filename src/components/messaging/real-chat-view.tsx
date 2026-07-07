@@ -145,7 +145,7 @@ export function RealChatView({
         ) : (
           <div className="flex items-center gap-2 border-t p-3">
             <CloudinaryUpload
-              folder="trainygo/messages"
+              kind="messages"
               onUploaded={(url, publicId) => send({ attachments: [{ url, publicId, type: "image" }] })}
               iconOnly
             />

@@ -8,6 +8,8 @@ import { accountCanLogin } from "@/lib/permissions";
 import { loginSchema } from "@/lib/validations/auth";
 import { syncCoachStatus } from "@/lib/services/subscription";
 import { logError } from "@/lib/logging/error-log";
+import { rateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
+import { getClientIp } from "@/lib/security/request-context";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -21,6 +23,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const parsed = loginSchema.safeParse(raw);
         if (!parsed.success) return null;
         const { identifier, password } = parsed.data;
+
+        // Brute-force guard: 5 attempts / 15 min, keyed by IP + identifier so
+        // one attacker can't burn through many accounts, nor one account be
+        // hammered from many IPs. Fail closed (reject) when over the limit.
+        const ip = await getClientIp();
+        const id0 = identifier.toLowerCase().trim();
+        const byIp = rateLimit(RATE_LIMITS.login, `ip:${ip}`);
+        const byId = rateLimit(RATE_LIMITS.login, `id:${id0}`);
+        if (!byIp.ok || !byId.ok) {
+          return null;
+        }
 
         try {
           await connectToDatabase();
@@ -55,6 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             status: effectiveStatus,
             locale: user.locale,
             mustChangePassword: user.mustChangePassword,
+            sessionVersion: user.sessionVersion ?? 0,
           };
         } catch (error) {
           // Unexpected failure (DB down, etc.) — NOT a normal wrong-password

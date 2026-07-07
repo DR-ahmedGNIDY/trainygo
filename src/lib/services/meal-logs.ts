@@ -72,41 +72,61 @@ export interface ClientAdherence {
   adherencePct: number;
 }
 
-/** Coach-wide adherence report: one row per active client with a nutrition plan. */
+/**
+ * Coach-wide adherence report: one row per active client with a nutrition plan.
+ *
+ * Runs in a fixed THREE queries regardless of client count (no N+1):
+ *   1. the coach's active plans (with client name),
+ *   2. one aggregation for today's per-plan log count + calories,
+ *   3. one aggregation for the window's per-plan log count.
+ */
 export async function getCoachNutritionReport(coachId: string, windowDays = 7): Promise<ClientAdherence[]> {
   await connectToDatabase();
   const plans = await NutritionPlan.find({ coach: new Types.ObjectId(coachId), status: "active" })
+    .select("client meals totals")
     .populate("client", "name")
     .lean();
+  if (plans.length === 0) return [];
 
-  const since = new Date(startOfDay().getTime() - (windowDays - 1) * 86_400_000);
+  const day = startOfDay();
+  const since = new Date(day.getTime() - (windowDays - 1) * 86_400_000);
+  const planIds = plans.map((p) => p._id);
 
-  const rows = await Promise.all(
-    plans.map(async (plan) => {
-      const totalMealsPerDay = (plan.meals as IMeal[]).filter((m) => m.items.length > 0).length;
-      const day = startOfDay();
-      const [todayLogs, windowCount] = await Promise.all([
-        MealLog.find({ plan: plan._id, day }).lean(),
-        MealLog.countDocuments({ plan: plan._id, day: { $gte: since } }),
-      ]);
-      const expectedInWindow = totalMealsPerDay * windowDays;
-      const adherencePct = expectedInWindow > 0 ? Math.min(100, Math.round((windowCount / expectedInWindow) * 100)) : 0;
-      const actualCaloriesToday = todayLogs.reduce((s, l) => s + (l.calories || 0), 0);
+  const [todayAgg, windowAgg] = await Promise.all([
+    MealLog.aggregate<{ _id: Types.ObjectId; count: number; calories: number }>([
+      { $match: { plan: { $in: planIds }, day } },
+      { $group: { _id: "$plan", count: { $sum: 1 }, calories: { $sum: "$calories" } } },
+    ]),
+    MealLog.aggregate<{ _id: Types.ObjectId; count: number }>([
+      { $match: { plan: { $in: planIds }, day: { $gte: since } } },
+      { $group: { _id: "$plan", count: { $sum: 1 } } },
+    ]),
+  ]);
 
-      return {
-        clientId: String(plan.client._id ?? plan.client),
-        clientName: (plan.client as unknown as { name?: string })?.name ?? "—",
-        targetCalories: plan.totals?.calories ?? 0,
-        actualCaloriesToday: Math.round(actualCaloriesToday),
-        completedMealsToday: todayLogs.length,
-        incompleteMealsToday: Math.max(0, totalMealsPerDay - todayLogs.length),
-        totalMealsPerDay,
-        adherencePct,
-      };
-    }),
-  );
+  const todayByPlan = new Map(todayAgg.map((r) => [String(r._id), r]));
+  const windowByPlan = new Map(windowAgg.map((r) => [String(r._id), r.count]));
 
-  return rows;
+  return plans.map((plan) => {
+    const key = String(plan._id);
+    const totalMealsPerDay = (plan.meals as IMeal[]).filter((m) => m.items.length > 0).length;
+    const today = todayByPlan.get(key);
+    const completedMealsToday = today?.count ?? 0;
+    const actualCaloriesToday = today?.calories ?? 0;
+    const windowCount = windowByPlan.get(key) ?? 0;
+    const expectedInWindow = totalMealsPerDay * windowDays;
+    const adherencePct = expectedInWindow > 0 ? Math.min(100, Math.round((windowCount / expectedInWindow) * 100)) : 0;
+
+    return {
+      clientId: String((plan.client as { _id?: Types.ObjectId })?._id ?? plan.client),
+      clientName: (plan.client as unknown as { name?: string })?.name ?? "—",
+      targetCalories: plan.totals?.calories ?? 0,
+      actualCaloriesToday: Math.round(actualCaloriesToday),
+      completedMealsToday,
+      incompleteMealsToday: Math.max(0, totalMealsPerDay - completedMealsToday),
+      totalMealsPerDay,
+      adherencePct,
+    };
+  });
 }
 
 /** Single client's adherence (used on the client-profile overview, optional reuse). */

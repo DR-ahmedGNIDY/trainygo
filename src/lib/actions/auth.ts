@@ -7,13 +7,15 @@ import {
   coachRegisterSchema,
   type CoachRegisterInput,
 } from "@/lib/validations/auth";
-import { TRIAL_DURATION_DAYS } from "@/lib/constants";
+import { TRIAL_DURATION_DAYS, TRIAL_MAX_CLIENTS } from "@/lib/constants";
 import { getLocale } from "@/lib/i18n/server";
 import { logError } from "@/lib/logging/error-log";
+import { rateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
+import { getClientIp } from "@/lib/security/request-context";
 
 export type RegisterResult =
   | { ok: true }
-  | { ok: false; error: "USERNAME_TAKEN" | "EMAIL_TAKEN" | "VALIDATION" | "SERVER"; field?: string };
+  | { ok: false; error: "USERNAME_TAKEN" | "EMAIL_TAKEN" | "VALIDATION" | "SERVER" | "RATE_LIMITED"; field?: string };
 
 /**
  * Register a new coach. Starts a 7-day free trial. Username & email must be
@@ -22,6 +24,12 @@ export type RegisterResult =
 export async function registerCoach(
   input: CoachRegisterInput,
 ): Promise<RegisterResult> {
+  // Rate limit account creation per IP (3 / hour) to curb trial-farming abuse.
+  const ip = await getClientIp();
+  if (!rateLimit(RATE_LIMITS.register, ip).ok) {
+    return { ok: false, error: "RATE_LIMITED" };
+  }
+
   const parsed = coachRegisterSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "VALIDATION" };
 
@@ -59,7 +67,10 @@ export async function registerCoach(
         trialEndDate: trialEnd,
         subscriptionStatus: "trial",
         subscriptionEndDate: trialEnd,
-        maxClients: 0,
+        // Trial accounts are capped (1 client, no team members) so the free
+        // trial can't be used as unlimited production capacity.
+        maxClients: TRIAL_MAX_CLIENTS,
+        maxTeamMembers: 0,
       },
     });
   } catch (e: unknown) {

@@ -1,6 +1,7 @@
 import type { Session } from "next-auth";
 import { PermissionError } from "@/lib/permissions";
 import { ClientLimitError } from "@/lib/services/clients";
+import { TeamMemberLimitError } from "@/lib/services/team";
 import { auth } from "@/lib/auth";
 import { logError, wasLogged } from "@/lib/logging/error-log";
 
@@ -34,6 +35,9 @@ export async function runAction<T>(
       return fail(e.message, e.code);
     }
     if (e instanceof ClientLimitError) {
+      return fail(e.message, e.code);
+    }
+    if (e instanceof TeamMemberLimitError) {
       return fail(e.message, e.code);
     }
     const err = e as { code?: number; keyPattern?: Record<string, unknown> };

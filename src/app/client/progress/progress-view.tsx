@@ -158,7 +158,7 @@ function LogMeasurementDialog({ open, onOpenChange }: { open: boolean; onOpenCha
           <div className="flex flex-wrap gap-2">
             {(["front", "side", "back"] as const).map((pos) => (
               <div key={pos} className="flex flex-col items-center gap-1">
-                <CloudinaryUpload folder="trainygo/progress" iconOnly onUploaded={(url, publicId) => setPhotos((p) => ({ ...p, [pos]: { url, publicId } }))} />
+                <CloudinaryUpload kind="progress" iconOnly onUploaded={(url, publicId) => setPhotos((p) => ({ ...p, [pos]: { url, publicId } }))} />
                 <span className="text-xs text-muted-foreground">{L({ front: "أمامي", side: "جانبي", back: "خلفي" }[pos], pos)}{photos[pos] ? " ✓" : ""}</span>
               </div>
             ))}

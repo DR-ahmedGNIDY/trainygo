@@ -345,7 +345,7 @@ function FoodFormDialog({
             <Label>{L("صورة الغذاء (اختياري)", "Food image (optional)")}</Label>
             <div className="flex gap-2">
               <Input dir="ltr" value={f.imageUrl} onChange={(e) => set("imageUrl")(e.target.value)} placeholder={L("رابط الصورة", "Image URL")} />
-              <CloudinaryUpload folder="trainygo/foods" iconOnly onUploaded={(url) => set("imageUrl")(url)} />
+              <CloudinaryUpload kind="foods" iconOnly onUploaded={(url) => set("imageUrl")(url)} />
             </div>
           </div>
         </div>

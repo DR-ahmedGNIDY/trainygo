@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCoachAreaWriteCtx, getCoachAreaCtx, assertPermission } from "./guards";
 import { runAction, ok, fail, type ActionResult } from "./result";
 import { canManageTeam } from "@/lib/permissions/team";
+import { rateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import {
   teamMemberCreateSchema,
   teamMemberUpdateSchema,
@@ -22,6 +23,10 @@ export async function createTeamMemberAction(
     if (!parsed.success) return fail("بيانات غير صالحة", "VALIDATION");
     const ctx = await getCoachAreaWriteCtx();
     assertPermission(ctx, canManageTeam);
+    // Rate limit invitations per owner coach (20 / day).
+    if (!rateLimit(RATE_LIMITS.teamInvite, `coach:${ctx.coachId}`).ok) {
+      return fail("لقد تجاوزت الحد اليومي لإضافة أعضاء الفريق.", "RATE_LIMITED");
+    }
     const res = await team.createTeamMember(ctx.coachId, parsed.data);
     revalidatePath("/coach/team");
     return ok(res);
@@ -84,6 +89,9 @@ export async function resetTeamMemberPasswordAction(
   return runAction(async () => {
     const ctx = await getCoachAreaWriteCtx();
     assertPermission(ctx, canManageTeam);
+    if (!rateLimit(RATE_LIMITS.passwordReset, `coach:${ctx.coachId}`).ok) {
+      return fail("لقد تجاوزت الحد المسموح من عمليات إعادة التعيين. حاول لاحقاً.", "RATE_LIMITED");
+    }
     const res = await team.resetTeamMemberPassword(ctx.coachId, teamMemberId);
     if (!res) return fail("غير موجود", "NOT_FOUND");
     return ok(res);

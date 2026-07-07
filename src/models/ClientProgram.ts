@@ -68,6 +68,8 @@ const ClientProgramSchema = new Schema<IClientProgram>(
 );
 
 ClientProgramSchema.index({ client: 1, status: 1 });
+// Coach-scoped program listing filters by coach (+ optional client/status).
+ClientProgramSchema.index({ coach: 1, status: 1 });
 
 export const ClientProgram: Model<IClientProgram> =
   (models.ClientProgram as Model<IClientProgram>) ||

@@ -43,6 +43,8 @@ export interface ICoachProfile {
   subscriptionTier?: PlanTier;
   planFeatures?: IPlanFeatures;
   maxClients: number;
+  /** Max team members this coach may create. 0 = none (trial default); undefined = unlimited (legacy/paid). */
+  maxTeamMembers?: number;
   /** True while a super admin has manually suspended this coach's subscription (status forced to "expired"). */
   suspendedByAdmin?: boolean;
   /** Status to restore when the admin lifts the manual suspension. */
@@ -120,6 +122,8 @@ export interface IUser {
   passwordHash: string;
   role: UserRole;
   status: AccountStatus;
+  /** Bumped to invalidate all existing JWTs for this user (suspend, password reset, forced logout). */
+  sessionVersion: number;
   locale: Locale;
   theme: Theme;
   avatar?: IMedia;
@@ -186,6 +190,7 @@ const CoachProfileSchema = new Schema<ICoachProfile>(
       ),
     },
     maxClients: { type: Number, default: 0 },
+    maxTeamMembers: { type: Number, default: undefined },
     suspendedByAdmin: { type: Boolean, default: false },
     preSuspendStatus: { type: String, enum: ACCOUNT_STATUSES },
     featureOverrides: {
@@ -259,6 +264,7 @@ const UserSchema = new Schema<IUser>(
       default: "active",
       index: true,
     },
+    sessionVersion: { type: Number, default: 0 },
     locale: { type: String, enum: LOCALES, default: "ar" },
     theme: { type: String, enum: THEMES, default: "system" },
     avatar: { type: MediaSchema },

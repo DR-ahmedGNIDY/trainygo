@@ -9,6 +9,7 @@ type AppToken = {
   status?: AccountStatus;
   locale?: Locale;
   mustChangePassword?: boolean;
+  sessionVersion?: number;
 };
 
 const PROTECTED_PREFIXES = ["/admin", "/coach", "/client"];
@@ -20,7 +21,10 @@ const PROTECTED_PREFIXES = ["/admin", "/coach", "/client"];
  */
 export const authConfig = {
   pages: { signIn: "/login" },
-  session: { strategy: "jwt" },
+  // Shorter-lived sessions (8h idle-refreshed, 7d absolute) reduce the window
+  // in which a stale JWT keeps read access after a role/status change. Immediate
+  // revocation is enforced server-side via sessionVersion (see requireSession).
+  session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60, updateAge: 8 * 60 * 60 },
   trustHost: true,
   secret: process.env.AUTH_SECRET,
   providers: [],
@@ -54,6 +58,7 @@ export const authConfig = {
         token.status = user.status;
         token.locale = user.locale;
         token.mustChangePassword = user.mustChangePassword;
+        token.sessionVersion = user.sessionVersion ?? 0;
       }
       // Allow client-initiated session.update() to refresh volatile fields.
       if (trigger === "update" && session) {
@@ -71,6 +76,7 @@ export const authConfig = {
         if (t.status) session.user.status = t.status;
         if (t.locale) session.user.locale = t.locale;
         session.user.mustChangePassword = t.mustChangePassword;
+        session.user.sessionVersion = t.sessionVersion ?? 0;
       }
       return session;
     },

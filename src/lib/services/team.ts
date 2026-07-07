@@ -2,7 +2,7 @@ import { Types } from "mongoose";
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
 import { hashPassword } from "@/lib/auth/password";
-import { randomString } from "@/lib/utils";
+import { secureRandomString } from "@/lib/security/secure-random";
 import { serialize } from "@/lib/serialize";
 import { buildDefaultPermissions, isValidSpecialization } from "@/lib/permissions/team";
 import type { TeamSpecialization, TeamPermissionKey } from "@/lib/constants";
@@ -11,6 +11,33 @@ import type { ITeamPermissions } from "@/models/User";
 export interface GeneratedTeamCredentials {
   username: string;
   password: string;
+}
+
+/** Thrown when a coach tries to exceed their plan's team-member limit (e.g. trial = 0). */
+export class TeamMemberLimitError extends Error {
+  code = "TEAM_LIMIT_REACHED";
+  constructor() {
+    super("باقتك الحالية لا تسمح بإضافة أعضاء فريق. يرجى الترقية.");
+    this.name = "TeamMemberLimitError";
+  }
+}
+
+/**
+ * Enforces a coach's `maxTeamMembers` cap before adding one more.
+ * `undefined` = unlimited (legacy/paid). `0` = none (trial). A positive
+ * number caps the count.
+ */
+export async function assertTeamMemberLimit(ownerCoachId: string) {
+  await connectToDatabase();
+  const owner = new Types.ObjectId(ownerCoachId);
+  const [coach, currentCount] = await Promise.all([
+    User.findOne({ _id: owner, role: "coach" }).select("coachProfile.maxTeamMembers").lean(),
+    User.countDocuments({ role: "team_member", "teamProfile.ownerCoachId": owner }),
+  ]);
+  const max = coach?.coachProfile?.maxTeamMembers;
+  if (max !== undefined && max !== null && currentCount + 1 > max) {
+    throw new TeamMemberLimitError();
+  }
 }
 
 export interface TeamMemberCreateInput {
@@ -55,7 +82,7 @@ export async function getTeamMember(ownerCoachId: string, teamMemberId: string) 
 /** Generates a random, unique username for a new team member (not derived from their name). */
 async function generateUsername(): Promise<string> {
   for (let i = 0; i < 5; i++) {
-    const candidate = `t${randomString(7).toLowerCase()}`;
+    const candidate = `t${secureRandomString(7).toLowerCase()}`;
     if (!(await User.exists({ username: candidate }))) return candidate;
   }
   throw new Error("Could not generate a unique username");
@@ -75,9 +102,10 @@ export async function createTeamMember(
   if (!isValidSpecialization(input.specialization)) {
     throw new Error(`Unknown specialization: ${input.specialization}`);
   }
+  await assertTeamMemberLimit(ownerCoachId);
 
   const username = await generateUsername();
-  const password = randomString(8);
+  const password = secureRandomString(12);
   const permissions: ITeamPermissions = {
     ...buildDefaultPermissions(input.specialization),
     ...input.permissionOverrides,
@@ -182,9 +210,11 @@ export async function resetTeamMemberPassword(
   });
   if (!member) return null;
 
-  const password = randomString(8);
+  const password = secureRandomString(12);
   member.passwordHash = await hashPassword(password);
   member.mustChangePassword = true;
+  // Invalidate any existing sessions for this team member.
+  member.sessionVersion = (member.sessionVersion ?? 0) + 1;
   await member.save();
 
   return { password };

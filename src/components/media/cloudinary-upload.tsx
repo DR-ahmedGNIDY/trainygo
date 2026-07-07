@@ -7,20 +7,25 @@ import { useI18n } from "@/components/providers/i18n-provider";
 import { getCloudinarySignatureAction } from "@/lib/actions/media";
 import { toast } from "@/components/ui/toast";
 import { MAX_UPLOAD_BYTES, isAcceptedExtension } from "@/lib/media/upload-limits";
+import type { UploadKind } from "@/lib/media/cloudinary-folder";
 
 /**
  * Opens the device's native image/video picker (gallery or file explorer — no
  * URL field, no third-party widget UI) and uploads the chosen file straight to
  * Cloudinary using a server-signed request, then returns the stored URL.
+ *
+ * `kind` is a coarse category (exercises/foods/messages/…); the server derives
+ * the real tenant-scoped folder from the session — the client never controls
+ * the destination path.
  */
 export function CloudinaryUpload({
-  folder,
+  kind,
   onUploaded,
   iconOnly,
   label,
   resourceType = "image",
 }: {
-  folder?: string;
+  kind: UploadKind;
   onUploaded: (url: string, publicId?: string) => void;
   iconOnly?: boolean;
   label?: string;
@@ -49,7 +54,7 @@ export function CloudinaryUpload({
     }
 
     setBusy(true);
-    const sig = await getCloudinarySignatureAction(folder, {
+    const sig = await getCloudinarySignatureAction(kind, {
       name: file.name,
       size: file.size,
       resourceType,
@@ -58,20 +63,24 @@ export function CloudinaryUpload({
       setBusy(false);
       if (sig.code === "FILE_TOO_LARGE") {
         toast.error(L("الملف أكبر من 2 ميجابايت", "الملف أكبر من 2 ميجابايت"));
-      } else if (sig.code === "INVALID_FILE_TYPE") {
+      } else if (sig.code === "INVALID_FILE_TYPE" || sig.code === "INVALID_KIND") {
+        toast.error(sig.error);
+      } else if (sig.code === "RATE_LIMITED") {
         toast.error(sig.error);
       } else {
         setUnconfigured(true);
       }
       return;
     }
-    const { cloudName, apiKey, timestamp, signature } = sig.data!;
+    const { cloudName, apiKey, timestamp, signature, folder, allowedFormats } = sig.data!;
     const form = new FormData();
     form.append("file", file);
     form.append("api_key", apiKey);
     form.append("timestamp", String(timestamp));
     form.append("signature", signature);
-    if (folder) form.append("folder", folder);
+    // These must exactly match the signed params, or Cloudinary rejects it.
+    form.append("folder", folder);
+    form.append("allowed_formats", allowedFormats);
 
     try {
       const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {

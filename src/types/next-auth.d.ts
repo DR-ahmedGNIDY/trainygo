@@ -8,6 +8,7 @@ declare module "next-auth" {
     status: AccountStatus;
     locale: Locale;
     mustChangePassword?: boolean;
+    sessionVersion?: number;
   }
 
   interface Session {
@@ -18,6 +19,7 @@ declare module "next-auth" {
       status: AccountStatus;
       locale: Locale;
       mustChangePassword?: boolean;
+      sessionVersion?: number;
     } & DefaultSession["user"];
   }
 }
@@ -30,5 +32,6 @@ declare module "next-auth/jwt" {
     status: AccountStatus;
     locale: Locale;
     mustChangePassword?: boolean;
+    sessionVersion?: number;
   }
 }
