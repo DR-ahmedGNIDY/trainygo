@@ -1,11 +1,13 @@
 import type {
   ClientGoal,
   ExerciseCategory,
+  ExerciseChangeQuickReason,
   FoodCategory,
   FoodUnit,
   Gender,
   Locale,
   MealType,
+  RequestStatus,
 } from "@/lib/constants";
 
 type L = { ar: string; en: string };
@@ -62,6 +64,21 @@ export const MEAL_LABELS: Record<MealType, L> = {
   lunch: { ar: "الغداء", en: "Lunch" },
   dinner: { ar: "العشاء", en: "Dinner" },
   snack: { ar: "وجبة خفيفة", en: "Snack" },
+};
+
+export const EXERCISE_CHANGE_QUICK_REASON_LABELS: Record<ExerciseChangeQuickReason, L> = {
+  pain: { ar: "يوجد ألم أثناء أداء التمرين", en: "There's pain while doing the exercise" },
+  equipment_unavailable: { ar: "لا يوجد الجهاز في الجيم", en: "The machine isn't available at the gym" },
+  too_hard: { ar: "التمرين صعب جداً", en: "The exercise is too hard" },
+  prefer_other: { ar: "أفضل تمرين آخر", en: "I prefer another exercise" },
+  injury: { ar: "لدي إصابة", en: "I have an injury" },
+  other: { ar: "سبب آخر", en: "Other reason" },
+};
+
+export const REQUEST_STATUS_LABELS: Record<RequestStatus, L> = {
+  pending: { ar: "قيد المراجعة", en: "Pending" },
+  approved: { ar: "تمت الموافقة", en: "Approved" },
+  rejected: { ar: "مرفوض", en: "Rejected" },
 };
 
 export function label(map: Record<string, L>, key: string | undefined, locale: Locale): string {

@@ -25,6 +25,7 @@ import {
   RotateCcw,
   Wrench,
   UserCog,
+  RefreshCw,
   type LucideIcon,
 } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
@@ -77,6 +78,7 @@ export function getCoachNav(t: Dictionary, opts?: { branding?: boolean; teamCtx?
         { label: n.workoutTemplates, href: "/coach/templates", icon: Layers, permission: "canAccessTemplates" },
         { label: n.clientPrograms, href: "/coach/programs", icon: ClipboardList, permission: "canAccessWorkout" },
         { label: n.workoutReports, href: "/coach/workout-reports", icon: FileText, permission: "canAccessReports" },
+        { label: n.changeRequests, href: "/coach/exercise-change-requests", icon: RefreshCw, permission: "canAccessWorkout" },
       ],
     },
     {

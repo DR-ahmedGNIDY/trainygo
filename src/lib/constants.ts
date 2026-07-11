@@ -125,9 +125,51 @@ export const NOTIFICATION_TYPES = [
   "workout_report",
   "personal_record",
   "performance_decline",
+  "exercise_change_request",
+  "exercise_change_resolved",
   "system",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+/**
+ * Client→coach request/workflow types. This is a GENERIC request system:
+ * "exercise_change" is the only type exposed in the UI today, but the model,
+ * services and coach dashboard are all keyed on `type` so future request
+ * kinds (nutrition change, meal replacement, workout difficulty, equipment
+ * issue, pain report, schedule change...) plug in without new architecture —
+ * just a new entry here plus a type-specific payload shape.
+ */
+export const REQUEST_TYPES = [
+  "exercise_change",
+  // Future-ready (not yet exposed in the UI):
+  "nutrition_change",
+  "meal_replacement",
+  "workout_difficulty",
+  "equipment_issue",
+  "pain_report",
+  "schedule_change",
+] as const;
+export type RequestType = (typeof REQUEST_TYPES)[number];
+
+/** Lifecycle status shared by every request type. */
+export const REQUEST_STATUSES = ["pending", "approved", "rejected"] as const;
+export type RequestStatus = (typeof REQUEST_STATUSES)[number];
+
+/**
+ * Preset quick-reason keys a client can pick when requesting an exercise
+ * change. Stored as a stable key; the localized label lives in
+ * src/lib/i18n/labels.ts so it renders in the client's and coach's locale.
+ */
+export const EXERCISE_CHANGE_QUICK_REASONS = [
+  "pain",
+  "equipment_unavailable",
+  "too_hard",
+  "prefer_other",
+  "injury",
+  "other",
+] as const;
+export type ExerciseChangeQuickReason =
+  (typeof EXERCISE_CHANGE_QUICK_REASONS)[number];
 
 export const TRIAL_DURATION_DAYS = 7;
 

@@ -16,6 +16,7 @@ export { ProgressEntry } from "./ProgressEntry";
 export { CheckinForm, CheckinResponse } from "./Checkin";
 export { Conversation, Message } from "./Message";
 export { Notification } from "./Notification";
+export { ClientRequest } from "./ClientRequest";
 export { Settings } from "./Settings";
 export { Counter } from "./Counter";
 
@@ -42,5 +43,6 @@ export type { IProgressEntry } from "./ProgressEntry";
 export type { ICheckinForm, ICheckinResponse, ICheckinField } from "./Checkin";
 export type { IConversation, IMessage } from "./Message";
 export type { INotification } from "./Notification";
+export type { IClientRequest, IExerciseChangePayload } from "./ClientRequest";
 export type { ISettings } from "./Settings";
 export type { ICounter } from "./Counter";

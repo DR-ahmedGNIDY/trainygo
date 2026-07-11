@@ -22,6 +22,7 @@ import {
   TrendingDown,
   Trophy,
   Timer,
+  RefreshCw,
 } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -54,7 +55,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useI18n } from "@/components/providers/i18n-provider";
-import { GOAL_LABELS, label } from "@/lib/i18n/labels";
+import { GOAL_LABELS, label, EXERCISE_CHANGE_QUICK_REASON_LABELS, REQUEST_STATUS_LABELS } from "@/lib/i18n/labels";
 import { updateClientAction, deleteClientAction, resetClientPasswordAction } from "@/lib/actions/clients";
 import { startConversationAction } from "@/lib/actions/messages";
 import {
@@ -101,6 +102,18 @@ export interface ClientNutritionSummary {
   meals: ReturnType<typeof mealsToBuilder>;
 }
 
+export interface ExerciseChangeHistoryRow {
+  id: string;
+  status: "pending" | "approved" | "rejected";
+  quickReason?: string;
+  coachNote: string;
+  createdAt: string;
+  exerciseNameAr: string;
+  exerciseNameEn: string;
+  replacementNameAr: string;
+  replacementNameEn: string;
+}
+
 type Measurement = {
   date: string;
   weight?: number;
@@ -121,6 +134,7 @@ export function ClientProfileView({
   program,
   nutritionPlan,
   performanceAnalysis,
+  exerciseChangeHistory,
 }: {
   client: ProfileClient;
   weightSeries: { label: string; value: number }[];
@@ -131,6 +145,7 @@ export function ClientProfileView({
   program: ClientProgramSummary | null;
   nutritionPlan: ClientNutritionSummary | null;
   performanceAnalysis: ClientPerformanceAnalysis;
+  exerciseChangeHistory: ExerciseChangeHistoryRow[];
 }) {
   const { t, locale, dir } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
@@ -347,6 +362,53 @@ export function ClientProfileView({
                 <p className="text-lg font-bold">{performanceAnalysis.avgSessionDurationSeconds != null ? `${Math.round(performanceAnalysis.avgSessionDurationSeconds / 60)} ${L("دقيقة", "min")}` : "—"}</p>
                 <p className="text-xs text-muted-foreground">{L("متوسط مدة الجلسة", "Avg. session duration")}</p>
               </div>
+            </CardContent>
+          </Card>
+          )}
+
+          {canAccessWorkout && (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <RefreshCw className="h-4 w-4" />
+                {L("سجل تغييرات التمارين", "Exercise change history")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {exerciseChangeHistory.length === 0 ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  {L("لا توجد طلبات تغيير تمارين بعد.", "No exercise change requests yet.")}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {exerciseChangeHistory.map((h) => {
+                    const variant = h.status === "approved" ? "success" : h.status === "rejected" ? "destructive" : "warning";
+                    return (
+                      <div key={h.id} className="rounded-lg border p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium">
+                            {locale === "ar" ? h.exerciseNameAr : h.exerciseNameEn}
+                            {h.status === "approved" && (h.replacementNameAr || h.replacementNameEn) && (
+                              <span className="text-muted-foreground"> → {locale === "ar" ? h.replacementNameAr : h.replacementNameEn}</span>
+                            )}
+                          </p>
+                          <Badge variant={variant}>{label(REQUEST_STATUS_LABELS, h.status, locale)}</Badge>
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          <span dir="ltr">{new Date(h.createdAt).toLocaleDateString("en-GB")}</span>
+                          {h.quickReason && <span>· {label(EXERCISE_CHANGE_QUICK_REASON_LABELS, h.quickReason, locale)}</span>}
+                        </div>
+                        {h.coachNote && (
+                          <p className="mt-1.5 text-xs text-foreground">
+                            <span className="text-muted-foreground">{L("ملاحظة المدرب: ", "Coach's note: ")}</span>
+                            {h.coachNote}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
           )}

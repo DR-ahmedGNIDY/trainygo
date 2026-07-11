@@ -7,6 +7,7 @@ import { getProgressHistory, toWeightSeries } from "@/lib/services/progress";
 import { getActiveProgram } from "@/lib/services/programs";
 import { getActivePlan } from "@/lib/services/nutrition-plans";
 import { getClientPerformanceAnalysis } from "@/lib/services/workout-analytics";
+import { listExerciseChangeHistoryForClient } from "@/lib/services/client-requests";
 import { mealsToBuilder } from "@/lib/builder-mappers";
 import type { IMeal } from "@/models/NutritionTemplate";
 import { ClientProfileView, type ProfileClient } from "./client-profile-view";
@@ -53,7 +54,7 @@ export default async function ClientProfilePage({
   const userCanAccessWorkout = canAccessWorkout(ctx);
   const userCanAccessNutrition = canAccessNutrition(ctx);
 
-  const [program, plan, performanceAnalysis] = await Promise.all([
+  const [program, plan, performanceAnalysis, changeHistoryRaw] = await Promise.all([
     userCanAccessWorkout ? getActiveProgram(ctx.coachId, id) : Promise.resolve(null),
     userCanAccessNutrition ? getActivePlan(ctx.coachId, id) : Promise.resolve(null),
     userCanAccessWorkout
@@ -66,7 +67,34 @@ export default async function ClientProfilePage({
           prCount: 0,
           avgSessionDurationSeconds: null,
         }),
+    userCanAccessWorkout ? listExerciseChangeHistoryForClient(ctx.coachId, id) : Promise.resolve([]),
   ]);
+
+  const exerciseChangeHistory = (
+    changeHistoryRaw as unknown as {
+      _id: string;
+      status: "pending" | "approved" | "rejected";
+      quickReason?: string;
+      coachNote?: string;
+      createdAt: string;
+      payload: {
+        exerciseNameAr: string;
+        exerciseNameEn: string;
+        replacementExerciseNameAr?: string;
+        replacementExerciseNameEn?: string;
+      };
+    }[]
+  ).map((r) => ({
+    id: r._id,
+    status: r.status,
+    quickReason: r.quickReason,
+    coachNote: r.coachNote ?? "",
+    createdAt: r.createdAt,
+    exerciseNameAr: r.payload.exerciseNameAr,
+    exerciseNameEn: r.payload.exerciseNameEn,
+    replacementNameAr: r.payload.replacementExerciseNameAr ?? "",
+    replacementNameEn: r.payload.replacementExerciseNameEn ?? "",
+  }));
 
   return (
     <ClientProfileView
@@ -77,6 +105,7 @@ export default async function ClientProfilePage({
       canAccessWorkout={userCanAccessWorkout}
       canAccessNutrition={userCanAccessNutrition}
       performanceAnalysis={performanceAnalysis}
+      exerciseChangeHistory={exerciseChangeHistory}
       program={
         program
           ? {

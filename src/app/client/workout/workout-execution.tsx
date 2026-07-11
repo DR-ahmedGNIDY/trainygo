@@ -57,10 +57,12 @@ export function WorkoutExecution({
   program,
   access,
   lastPerformance,
+  pendingChangeKeys,
 }: {
   program: { id: string; name: string; weeks: Week[] } | null;
   access: ClientAccessState;
   lastPerformance?: Record<string, PreviousPerformance>;
+  pendingChangeKeys?: string[];
 }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
@@ -111,6 +113,7 @@ export function WorkoutExecution({
         onExit={() => setSessionActive(false)}
         onSubmitted={() => router.refresh()}
         lastPerformance={lastPerformance}
+        pendingChangeKeys={pendingChangeKeys}
       />
     );
   }

@@ -12,6 +12,7 @@ import {
   Undo2,
   Youtube,
   History,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { ExerciseMedia } from "@/components/library/exercise-media";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { submitWorkoutReportAction } from "@/lib/actions/client";
+import { ExerciseChangeRequestDialog } from "@/components/client/exercise-change-request-dialog";
 import type { PreviousPerformance } from "@/lib/services/workout-logs";
 import type { DifficultyRating } from "@/models/WorkoutLog";
 
@@ -106,6 +108,11 @@ function formatDuration(totalSeconds: number) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+/** Mirrors the server's exerciseSlotKey — identifies an exercise slot for pending-request dedup. */
+function slotKey(weekNumber: number, dayNumber: number, exerciseId: string | null | undefined, nameEn: string) {
+  return `${weekNumber}:${dayNumber}:${exerciseId || nameEn}`;
+}
+
 export function WorkoutSession({
   exercises,
   programId,
@@ -117,6 +124,7 @@ export function WorkoutSession({
   onExit,
   onSubmitted,
   lastPerformance,
+  pendingChangeKeys,
 }: {
   exercises: SessionExerciseSource[];
   programId: string;
@@ -128,9 +136,19 @@ export function WorkoutSession({
   onExit: () => void;
   onSubmitted: () => void;
   lastPerformance?: Record<string, PreviousPerformance>;
+  /** Slot keys of exercises with an exercise-change request already under review. */
+  pendingChangeKeys?: string[];
 }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
+
+  // Exercise-change request dialog + locally-tracked pending slots (so a just-sent
+  // request immediately disables the button without a page refresh).
+  const [changeOpen, setChangeOpen] = useState(false);
+  const [pendingKeys, setPendingKeys] = useState<Set<string>>(() => new Set(pendingChangeKeys ?? []));
+  useEffect(() => {
+    setPendingKeys(new Set(pendingChangeKeys ?? []));
+  }, [pendingChangeKeys]);
 
   const initial = useMemo<SessionExercise[]>(
     () =>
@@ -618,6 +636,42 @@ export function WorkoutSession({
           {current.restSeconds ? <Badge variant="outline">{current.restSeconds}{L("ث راحة", "s rest")}</Badge> : null}
           {current.youtubeUrl && !current.videoUrl && <Youtube className="h-4 w-4 text-destructive" />}
         </div>
+
+        {/* Request-exercise-change — client asks the coach to swap this exercise. */}
+        {(() => {
+          const key = slotKey(weekNumber, dayNumber, current.exercise, current.nameEn);
+          const isPending = pendingKeys.has(key);
+          return (
+            <div className="mt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setChangeOpen(true)}
+                disabled={isPending}
+                className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                {L("طلب تغيير التمرين", "Request exercise change")}
+              </Button>
+              {isPending && (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  {L("لديك طلب قيد المراجعة لهذا التمرين.", "You have a request under review for this exercise.")}
+                </p>
+              )}
+              <ExerciseChangeRequestDialog
+                open={changeOpen}
+                onOpenChange={setChangeOpen}
+                programId={programId}
+                weekNumber={weekNumber}
+                dayNumber={dayNumber}
+                exerciseId={current.exercise}
+                exerciseNameAr={current.nameAr}
+                exerciseNameEn={current.nameEn}
+                onSubmitted={() => setPendingKeys((s) => new Set(s).add(key))}
+              />
+            </div>
+          );
+        })()}
 
         {current.notes && (
           <div className="mt-4 rounded-xl border bg-amber-50 p-3 dark:bg-amber-950/20">

@@ -3,6 +3,7 @@ import { getOwnActiveProgram } from "@/lib/services/client-self";
 import { getExerciseMediaByIds } from "@/lib/services/exercises";
 import { getClientAccessState } from "@/lib/services/subscription";
 import { getLastPerformanceMap } from "@/lib/services/workout-logs";
+import { listPendingExerciseChangeKeys } from "@/lib/services/client-requests";
 import { WorkoutExecution } from "./workout-execution";
 
 export const dynamic = "force-dynamic";
@@ -32,9 +33,10 @@ export default async function ClientWorkoutPage() {
 
   const weeks = program.weeks as unknown as RawWeek[];
   const exerciseIds = weeks.flatMap((w) => w.days.flatMap((d) => d.exercises.map((e) => e.exercise).filter(Boolean) as string[]));
-  const [mediaMap, lastPerformance] = await Promise.all([
+  const [mediaMap, lastPerformance, pendingChangeKeys] = await Promise.all([
     getExerciseMediaByIds(exerciseIds),
     getLastPerformanceMap(session.user.id, exerciseIds),
+    listPendingExerciseChangeKeys(session.user.id, String(program._id)),
   ]);
 
   const enrichedWeeks = weeks.map((w) => ({
@@ -53,6 +55,7 @@ export default async function ClientWorkoutPage() {
       program={{ id: String(program._id), name: program.nameAr, weeks: enrichedWeeks as never }}
       access={access}
       lastPerformance={lastPerformance as never}
+      pendingChangeKeys={pendingChangeKeys}
     />
   );
 }
