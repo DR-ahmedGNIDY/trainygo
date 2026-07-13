@@ -23,6 +23,9 @@ import {
   Trophy,
   Timer,
   RefreshCw,
+  PauseCircle,
+  PlayCircle,
+  Snowflake,
 } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -57,6 +60,7 @@ import {
 import { useI18n } from "@/components/providers/i18n-provider";
 import { GOAL_LABELS, label, EXERCISE_CHANGE_QUICK_REASON_LABELS, REQUEST_STATUS_LABELS } from "@/lib/i18n/labels";
 import { updateClientAction, deleteClientAction, resetClientPasswordAction } from "@/lib/actions/clients";
+import { freezeClientAction, resumeClientAction } from "@/lib/actions/subscription-freeze";
 import { startConversationAction } from "@/lib/actions/messages";
 import {
   createBlankProgramAction,
@@ -86,6 +90,24 @@ export interface ProfileClient {
   height?: number | null;
   currentWeight?: number | null;
   startWeight?: number | null;
+  freeze: {
+    status: "active" | "frozen";
+    remainingDays: number | null;
+    totalFrozenDays: number;
+    freezeStartDate: string | null;
+    freezeReason: string | null;
+    subscriptionStartDate: string | null;
+    subscriptionEndDate: string | null;
+  };
+}
+
+export interface FreezeHistoryRow {
+  id: string;
+  freezeDate: string;
+  resumeDate: string | null;
+  remainingDays: number;
+  reason: string;
+  notes: string;
 }
 
 export interface ClientProgramSummary {
@@ -135,6 +157,7 @@ export function ClientProfileView({
   nutritionPlan,
   performanceAnalysis,
   exerciseChangeHistory,
+  freezeHistory,
 }: {
   client: ProfileClient;
   weightSeries: { label: string; value: number }[];
@@ -146,6 +169,7 @@ export function ClientProfileView({
   nutritionPlan: ClientNutritionSummary | null;
   performanceAnalysis: ClientPerformanceAnalysis;
   exerciseChangeHistory: ExerciseChangeHistoryRow[];
+  freezeHistory: FreezeHistoryRow[];
 }) {
   const { t, locale, dir } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
@@ -153,6 +177,8 @@ export function ClientProfileView({
   const BackArrow = dir === "rtl" ? ArrowRight : ArrowLeft;
   const [editOpen, setEditOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [freezeOpen, setFreezeOpen] = useState(false);
+  const isFrozen = client.freeze.status === "frozen";
   const [creatingProgram, startCreatingProgram] = useTransition();
   const [creatingPlan, startCreatingPlan] = useTransition();
   const [isPending, startTransition] = useTransition();
@@ -180,6 +206,15 @@ export function ClientProfileView({
     startTransition(async () => {
       await deleteClientAction(client.id);
       router.push("/coach/clients");
+    });
+  }
+
+  function onResume() {
+    if (!window.confirm(L("استئناف اشتراك هذا العميل؟", "Resume this client's subscription?"))) return;
+    startTransition(async () => {
+      const res = await resumeClientAction(client.id);
+      if (res.ok) router.refresh();
+      else window.alert(res.error);
     });
   }
 
@@ -253,6 +288,12 @@ export function ClientProfileView({
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 {client.goal && <Badge variant="secondary">{label(GOAL_LABELS, client.goal, locale)}</Badge>}
                 <StatusBadge status={client.status} />
+                {isFrozen && (
+                  <Badge variant="warning" className="gap-1">
+                    <Snowflake className="h-3 w-3" />
+                    {L("مجمّد", "Frozen")}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
@@ -310,6 +351,81 @@ export function ClientProfileView({
         </TabsList>
 
         <TabsContent value="overview">
+          <Card className="mb-4">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Snowflake className="h-4 w-4 text-primary" />
+                {L("الاشتراك", "Subscription")}
+              </CardTitle>
+              {canWrite && (
+                isFrozen ? (
+                  <Button variant="default" size="sm" className="bg-success text-success-foreground hover:bg-success/90" disabled={isPending} onClick={onResume}>
+                    <PlayCircle className="h-4 w-4" />
+                    {L("استئناف الاشتراك", "Resume subscription")}
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive/10" disabled={isPending} onClick={() => setFreezeOpen(true)}>
+                    <PauseCircle className="h-4 w-4" />
+                    {L("تجميد الاشتراك", "Freeze subscription")}
+                  </Button>
+                )
+              )}
+            </CardHeader>
+            <CardContent>
+              {isFrozen ? (
+                <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+                  <p className="font-medium">{L("الاشتراك مجمّد مؤقتاً", "Subscription is temporarily frozen")}</p>
+                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span>{L("الأيام المتبقية المحفوظة:", "Preserved remaining days:")} <b className="text-foreground">{client.freeze.remainingDays ?? "—"}</b></span>
+                    {client.freeze.freezeStartDate && (
+                      <span dir="ltr">{L("مُجمّد منذ", "Frozen since")} {new Date(client.freeze.freezeStartDate).toLocaleDateString("en-GB")}</span>
+                    )}
+                    {client.freeze.freezeReason && <span>· {client.freeze.freezeReason}</span>}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{L("ينتهي في", "Ends on")}</p>
+                    <p className="font-medium" dir="ltr">{client.freeze.subscriptionEndDate ? new Date(client.freeze.subscriptionEndDate).toLocaleDateString("en-GB") : "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{L("إجمالي أيام التجميد", "Total frozen days")}</p>
+                    <p className="font-medium">{client.freeze.totalFrozenDays}</p>
+                  </div>
+                </div>
+              )}
+
+              {freezeHistory.length > 0 && (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">{L("سجل التجميد", "Freeze timeline")}</p>
+                  <div className="space-y-2">
+                    {freezeHistory.map((h) => (
+                      <div key={h.id} className="flex items-start gap-2 rounded-lg border p-2.5 text-xs">
+                        <Snowflake className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                        <div className="flex-1">
+                          <p dir="ltr" className="text-foreground">
+                            {new Date(h.freezeDate).toLocaleDateString("en-GB")}
+                            {" → "}
+                            {h.resumeDate ? new Date(h.resumeDate).toLocaleDateString("en-GB") : L("مستمر", "ongoing")}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {L("الأيام المتبقية:", "Remaining days:")} {h.remainingDays}
+                            {h.reason && ` · ${h.reason}`}
+                          </p>
+                          {h.notes && <p className="mt-0.5 text-muted-foreground">{h.notes}</p>}
+                        </div>
+                        <Badge variant={h.resumeDate ? "success" : "warning"} className="shrink-0">
+                          {h.resumeDate ? L("استؤنف", "Resumed") : L("مجمّد", "Frozen")}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">{t.client.currentWeight}</p><p className="text-2xl font-bold">{client.currentWeight ?? "—"}{client.currentWeight ? " kg" : ""}</p></CardContent></Card>
             <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">{L("نقطة البداية", "Starting")}</p><p className="text-2xl font-bold">{client.startWeight ?? "—"}{client.startWeight ? " kg" : ""}</p></CardContent></Card>
@@ -515,9 +631,95 @@ export function ClientProfileView({
             onOpenChange={setResetOpen}
             clientId={client.id}
           />
+          <FreezeDialog
+            open={freezeOpen}
+            onOpenChange={setFreezeOpen}
+            clientId={client.id}
+            onFrozen={() => { setFreezeOpen(false); router.refresh(); }}
+          />
         </>
       )}
     </div>
+  );
+}
+
+function FreezeDialog({
+  open,
+  onOpenChange,
+  clientId,
+  onFrozen,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  clientId: string;
+  onFrozen: () => void;
+}) {
+  const { t, locale } = useI18n();
+  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+
+  function close(v: boolean) {
+    onOpenChange(v);
+    if (!v) {
+      setReason("");
+      setNotes("");
+      setError(null);
+    }
+  }
+
+  async function submit() {
+    setSaving(true);
+    setError(null);
+    const res = await freezeClientAction(clientId, { reason, notes });
+    setSaving(false);
+    if (res.ok) onFrozen();
+    else setError(res.error ?? L("تعذّر تجميد الاشتراك", "Could not freeze the subscription"));
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={close}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <PauseCircle className="h-5 w-5 text-destructive" />
+            {L("تجميد الاشتراك", "Freeze subscription")}
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          {L(
+            "سيتم إيقاف وصول العميل مؤقتاً مع الحفاظ على الأيام المتبقية. يمكنك استئناف الاشتراك في أي وقت.",
+            "The client's access is paused temporarily while their remaining days are preserved. You can resume anytime.",
+          )}
+        </p>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>{L("السبب", "Reason")}</Label>
+            <Input value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder={L("مثال: سفر، إصابة، طلب العميل", "e.g. travel, injury, client request")} />
+          </div>
+          <div className="space-y-2">
+            <Label>{L("ملاحظات (اختياري)", "Notes (optional)")}</Label>
+            <textarea
+              value={notes}
+              maxLength={1000}
+              rows={3}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full resize-none rounded-lg border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => close(false)}>{t.common.cancel}</Button>
+          <Button variant="destructive" onClick={submit} disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {L("تجميد", "Freeze")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

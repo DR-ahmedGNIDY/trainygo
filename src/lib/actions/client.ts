@@ -26,7 +26,7 @@ export async function addMeasurementAction(
   input: MeasurementInput,
 ): Promise<ActionResult> {
   return runAction(async () => {
-    const { clientId } = await getClientCtx();
+    const { clientId } = await getClientWriteCtx();
     const coachId = await getOwnCoachId(clientId);
     if (!coachId) return fail("لا يوجد مدرب", "NO_COACH");
     await addMeasurement(clientId, coachId, input);
@@ -67,7 +67,7 @@ export async function logExerciseAction(
   input: LogExerciseInput,
 ): Promise<ActionResult<{ oneRm: number }>> {
   return runAction(async () => {
-    const { clientId } = await getClientCtx();
+    const { clientId } = await getClientWriteCtx();
     const coachId = await getOwnCoachId(clientId);
     if (!coachId) return fail("لا يوجد مدرب", "NO_COACH");
     await logExercise(clientId, coachId, input);

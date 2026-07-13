@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   UserPlus,
   Search,
@@ -11,6 +11,7 @@ import {
   Eye,
   Archive,
   Trash2,
+  Snowflake,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
@@ -54,6 +55,7 @@ export interface ClientListItem {
   code: string;
   goal?: ClientGoal;
   status: AccountStatus;
+  frozen?: boolean;
   weight?: number | null;
   lastLoginAt?: string | null;
 }
@@ -70,15 +72,18 @@ export function ClientsView({
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("all");
+  const [status, setStatus] = useState(searchParams.get("status") ?? "all");
   const [isPending, startTransition] = useTransition();
 
   const filtered = clients.filter((c) => {
     const q = query.toLowerCase();
     const matchesQuery =
       c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q);
-    const matchesStatus = status === "all" || c.status === status;
+    const matchesStatus =
+      status === "all" ||
+      (status === "frozen" ? c.frozen : status === "expired" ? c.status === "expired" && !c.frozen : c.status === status && !c.frozen);
     return matchesQuery && matchesStatus;
   });
 
@@ -167,6 +172,7 @@ export function ClientsView({
               <SelectContent>
                 <SelectItem value="all">{t.common.all}</SelectItem>
                 <SelectItem value="active">{t.account.active}</SelectItem>
+                <SelectItem value="frozen">{L("مجمّد", "Frozen")}</SelectItem>
                 <SelectItem value="expired">{t.account.expired}</SelectItem>
               </SelectContent>
             </Select>
@@ -207,7 +213,17 @@ export function ClientsView({
                         <TableCell className="hidden md:table-cell">{label(GOAL_LABELS, c.goal, locale)}</TableCell>
                         <TableCell className="hidden lg:table-cell text-muted-foreground">{c.weight ? `${c.weight} kg` : "—"}</TableCell>
                         <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">{lastActive(c.lastLoginAt)}</TableCell>
-                        <TableCell><StatusBadge status={c.status} /></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <StatusBadge status={c.status} />
+                            {c.frozen && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-1.5 py-0.5 text-xs font-medium text-warning">
+                                <Snowflake className="h-3 w-3" />
+                                {L("مجمّد", "Frozen")}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

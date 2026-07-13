@@ -2,6 +2,7 @@ import { Schema, model, models, type Model, type Types } from "mongoose";
 import {
   ACCOUNT_STATUSES,
   CLIENT_GOALS,
+  CLIENT_FREEZE_STATUSES,
   GENDERS,
   LOCALES,
   PLAN_TIERS,
@@ -10,6 +11,7 @@ import {
   THEMES,
   USER_ROLES,
   type AccountStatus,
+  type ClientFreezeStatus,
   type ClientGoal,
   type Gender,
   type Locale,
@@ -111,6 +113,25 @@ export interface IClientProfile {
   subscriptionStartDate?: Date;
   subscriptionEndDate?: Date | null;
   active: boolean;
+  /**
+   * Coach-initiated subscription freeze. "active" = running normally;
+   * "frozen" = temporarily paused by the coach, preserving `remainingDays`
+   * so the client resumes with the exact days they had left. This is NOT
+   * cancellation. Defaults to "active".
+   */
+  subscriptionFreezeStatus?: ClientFreezeStatus;
+  /** When the current freeze began (set on freeze, kept for history/timeline). */
+  freezeStartDate?: Date | null;
+  /** When the most recent freeze was resumed (set on resume). */
+  freezeEndDate?: Date | null;
+  /** Days left on the subscription captured at freeze time — never lost while frozen. */
+  remainingDays?: number | null;
+  /** Cumulative total of days the client has spent frozen across all freeze periods. */
+  totalFrozenDays?: number;
+  /** Free-text reason recorded for the current/most-recent freeze. */
+  freezeReason?: string;
+  /** The coach/team member who performed the last freeze or resume (audit). */
+  lastFreezeBy?: Types.ObjectId | null;
 }
 
 export interface IUser {
@@ -233,6 +254,13 @@ const ClientProfileSchema = new Schema<IClientProfile>(
     subscriptionStartDate: { type: Date },
     subscriptionEndDate: { type: Date, default: null },
     active: { type: Boolean, default: true },
+    subscriptionFreezeStatus: { type: String, enum: CLIENT_FREEZE_STATUSES, default: "active" },
+    freezeStartDate: { type: Date, default: null },
+    freezeEndDate: { type: Date, default: null },
+    remainingDays: { type: Number, default: null },
+    totalFrozenDays: { type: Number, default: 0 },
+    freezeReason: { type: String, trim: true },
+    lastFreezeBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
   { _id: false },
 );
@@ -279,6 +307,8 @@ const UserSchema = new Schema<IUser>(
 
 // Common lookups
 UserSchema.index({ "clientProfile.coach": 1, role: 1 });
+// Fast "frozen clients for this coach" widget/filter lookups.
+UserSchema.index({ "clientProfile.coach": 1, "clientProfile.subscriptionFreezeStatus": 1 });
 UserSchema.index({ "teamProfile.ownerCoachId": 1, role: 1 });
 UserSchema.index({ role: 1, status: 1 });
 // Unique client code (only clients have one — sparse avoids null collisions)

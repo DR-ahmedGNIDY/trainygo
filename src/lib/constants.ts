@@ -104,6 +104,10 @@ export type FoodUnit = (typeof FOOD_UNITS)[number];
 export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 export type MealType = (typeof MEAL_TYPES)[number];
 
+/** A client subscription is either running normally or temporarily frozen by the coach. */
+export const CLIENT_FREEZE_STATUSES = ["active", "frozen"] as const;
+export type ClientFreezeStatus = (typeof CLIENT_FREEZE_STATUSES)[number];
+
 export const GENDERS = ["male", "female"] as const;
 export type Gender = (typeof GENDERS)[number];
 
@@ -127,6 +131,8 @@ export const NOTIFICATION_TYPES = [
   "performance_decline",
   "exercise_change_request",
   "exercise_change_resolved",
+  "subscription_frozen",
+  "subscription_resumed",
   "system",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

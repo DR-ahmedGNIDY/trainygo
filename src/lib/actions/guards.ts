@@ -187,6 +187,12 @@ export async function getClientWriteCtx(): Promise<{ clientId: string }> {
   const { getClientAccessState } = await import("@/lib/services/subscription");
   const access = await getClientAccessState(clientId);
   if (access.frozen) {
+    if (access.frozenReason === "frozen_by_coach") {
+      throw new PermissionError(
+        "تم تجميد اشتراكك مؤقتاً. يرجى التواصل مع المدرب.",
+        "SUBSCRIPTION_FROZEN",
+      );
+    }
     if (access.frozenReason === "coach") {
       throw new PermissionError(
         "حسابك قيد التجميد حالياً نتيجة تجميد حساب المدرب الخاص بك.",

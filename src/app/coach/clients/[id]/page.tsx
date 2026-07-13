@@ -8,6 +8,7 @@ import { getActiveProgram } from "@/lib/services/programs";
 import { getActivePlan } from "@/lib/services/nutrition-plans";
 import { getClientPerformanceAnalysis } from "@/lib/services/workout-analytics";
 import { listExerciseChangeHistoryForClient } from "@/lib/services/client-requests";
+import { listFreezeHistory } from "@/lib/services/subscription-freeze";
 import { mealsToBuilder } from "@/lib/builder-mappers";
 import type { IMeal } from "@/models/NutritionTemplate";
 import { ClientProfileView, type ProfileClient } from "./client-profile-view";
@@ -39,7 +40,34 @@ export default async function ClientProfilePage({
     height: (cp.height as number) ?? null,
     currentWeight: (cp.currentWeight as number) ?? null,
     startWeight: (cp.startWeight as number) ?? null,
+    freeze: {
+      status: ((cp.subscriptionFreezeStatus as string) ?? "active") === "frozen" ? "frozen" : "active",
+      remainingDays: (cp.remainingDays as number) ?? null,
+      totalFrozenDays: (cp.totalFrozenDays as number) ?? 0,
+      freezeStartDate: cp.freezeStartDate ? String(cp.freezeStartDate) : null,
+      freezeReason: (cp.freezeReason as string) ?? null,
+      subscriptionStartDate: cp.subscriptionStartDate ? String(cp.subscriptionStartDate) : null,
+      subscriptionEndDate: cp.subscriptionEndDate ? String(cp.subscriptionEndDate) : null,
+    },
   };
+
+  const freezeHistory = (
+    (await listFreezeHistory(ctx.coachId, id)) as unknown as {
+      _id: string;
+      freezeDate: string;
+      resumeDate: string | null;
+      remainingDays: number;
+      reason?: string;
+      notes?: string;
+    }[]
+  ).map((r) => ({
+    id: r._id,
+    freezeDate: r.freezeDate,
+    resumeDate: r.resumeDate ?? null,
+    remainingDays: r.remainingDays,
+    reason: r.reason ?? "",
+    notes: r.notes ?? "",
+  }));
 
   const history = (await getProgressHistory(id)) as unknown as {
     date: string;
@@ -106,6 +134,7 @@ export default async function ClientProfilePage({
       canAccessNutrition={userCanAccessNutrition}
       performanceAnalysis={performanceAnalysis}
       exerciseChangeHistory={exerciseChangeHistory}
+      freezeHistory={freezeHistory}
       program={
         program
           ? {

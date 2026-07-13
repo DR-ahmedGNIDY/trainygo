@@ -23,6 +23,7 @@ export default async function CoachClientsPage() {
       code: (cp.clientCode as string) ?? "",
       goal: cp.goal as ClientListItem["goal"],
       status: c.status,
+      frozen: ((cp.subscriptionFreezeStatus as string) ?? "active") === "frozen",
       weight: (cp.currentWeight as number) ?? null,
       lastLoginAt: c.lastLoginAt ? String(c.lastLoginAt) : null,
     };

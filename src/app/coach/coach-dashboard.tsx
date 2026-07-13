@@ -9,8 +9,10 @@ import {
   UserPlus,
   Activity,
   Trophy,
+  Snowflake,
 } from "lucide-react";
 import type { TopImprovingClient } from "@/lib/services/workout-analytics";
+import type { FreezeAnalytics } from "@/lib/services/subscription-freeze";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
@@ -56,6 +58,7 @@ export function CoachDashboard({
   growthSeries,
   adherenceSeries,
   topImproving,
+  freeze,
   canWrite,
 }: {
   kpis: CoachKpis;
@@ -64,6 +67,7 @@ export function CoachDashboard({
   growthSeries: { label: string; value: number }[];
   adherenceSeries: { label: string; value: number }[];
   topImproving: TopImprovingClient[];
+  freeze: FreezeAnalytics;
   canWrite: boolean;
 }) {
   const { t, locale } = useI18n();
@@ -121,6 +125,52 @@ export function CoachDashboard({
         <StatCard label={s.pendingCheckins} value={formatNumber(kpis.pendingCheckins, locale)} icon={ClipboardCheck} accent="warning" />
         <StatCard label={s.unreadMessages} value={formatNumber(kpis.unreadMessages, locale)} icon={MessageSquare} />
       </div>
+
+      <Link href="/coach/clients?status=frozen" className="mt-4 block">
+        <Card className="transition-colors hover:border-primary/40">
+          <CardContent className="flex items-center justify-between gap-4 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/15">
+                <Snowflake className="h-5 w-5 text-warning" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">{L("العملاء المجمّدون", "Frozen clients")}</p>
+                <p className="text-xs text-muted-foreground">{L("اضغط لعرض القائمة", "Click to view the list")}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-end">
+                <p className="text-2xl font-bold">{formatNumber(freeze.frozenNow, locale)}</p>
+              </div>
+              {freeze.avgFreezeDurationDays != null && (
+                <div className="hidden border-s ps-4 text-end sm:block">
+                  <p className="text-lg font-semibold">{freeze.avgFreezeDurationDays} {L("يوم", "d")}</p>
+                  <p className="text-xs text-muted-foreground">{L("متوسط مدة التجميد", "Avg. freeze duration")}</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+
+      {freeze.topReasons.length > 0 && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Snowflake className="h-4 w-4 text-primary" />
+              {L("أكثر أسباب التجميد شيوعاً", "Most common freeze reasons")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {freeze.topReasons.map((r) => (
+              <Badge key={r.reason} variant="secondary" className="gap-1.5">
+                {r.reason}
+                <span className="rounded-full bg-background px-1.5 text-xs">{r.count}</span>
+              </Badge>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

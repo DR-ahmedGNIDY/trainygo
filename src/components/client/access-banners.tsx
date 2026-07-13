@@ -1,12 +1,38 @@
 "use client";
 
-import { AlertTriangle, Lock } from "lucide-react";
+import { AlertTriangle, Lock, PauseCircle } from "lucide-react";
 import { useI18n } from "@/components/providers/i18n-provider";
 
 /** Shown when the client (or their coach) is frozen — blocks the relevant action. */
-export function FrozenBanner({ reason }: { reason: "coach" | "self" }) {
+export function FrozenBanner({
+  reason,
+  remainingDays,
+}: {
+  reason: "frozen_by_coach" | "coach" | "self";
+  remainingDays?: number | null;
+}) {
   const { locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
+
+  // A coach-initiated freeze gets its own calmer, "temporary pause" styling and
+  // surfaces the preserved remaining days.
+  if (reason === "frozen_by_coach") {
+    return (
+      <div className="mb-4 flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">
+        <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+        <div className="space-y-1">
+          <p className="font-medium text-foreground/90">
+            {L("اشتراكك مجمد مؤقتاً. يرجى التواصل مع المدرب.", "Your subscription is temporarily frozen. Please contact your coach.")}
+          </p>
+          {remainingDays != null && (
+            <p className="text-foreground/80">
+              {L(`الأيام المتبقية: ${remainingDays}`, `Remaining days: ${remainingDays}`)}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const message =
     reason === "coach"

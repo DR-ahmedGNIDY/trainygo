@@ -4,6 +4,7 @@ import { listClients } from "@/lib/services/clients";
 import { listResponses, countPendingCheckins } from "@/lib/services/checkins";
 import { getCoachSubscriptionSummary } from "@/lib/services/subscription";
 import { getTopImprovingClients } from "@/lib/services/workout-analytics";
+import { getFreezeAnalytics } from "@/lib/services/subscription-freeze";
 import { CoachDashboard, type RecentClient } from "./coach-dashboard";
 import type { AccountStatus, ClientGoal } from "@/lib/constants";
 
@@ -14,12 +15,13 @@ export default async function CoachHome() {
   const coachId = ctx.coachId;
   const status = ctx.status;
 
-  const [allClients, pending, responses, subscription, topImproving] = await Promise.all([
+  const [allClients, pending, responses, subscription, topImproving, freezeAnalytics] = await Promise.all([
     listClients(coachId, { includeArchived: true }),
     countPendingCheckins(coachId),
     listResponses(coachId),
     getCoachSubscriptionSummary(coachId),
     getTopImprovingClients(coachId),
+    getFreezeAnalytics(coachId),
   ]);
 
   const activeClients = allClients.filter(
@@ -78,6 +80,7 @@ export default async function CoachHome() {
       growthSeries={growthSeries}
       adherenceSeries={adherenceSeries}
       topImproving={topImproving}
+      freeze={freezeAnalytics}
       canWrite={coachCanWrite(ctx.status)}
     />
   );

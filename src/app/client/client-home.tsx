@@ -36,7 +36,7 @@ export function ClientHome({ data, access }: { data: HomeData; access: ClientAcc
       />
 
       {access.frozen ? (
-        <FrozenBanner reason={access.frozenReason!} />
+        <FrozenBanner reason={access.frozenReason!} remainingDays={access.frozenRemainingDays} />
       ) : (
         access.daysRemaining != null && <SubscriptionCountdownBanner daysRemaining={access.daysRemaining} />
       )}

@@ -23,7 +23,8 @@ export async function getCoachSubscriptionLiveAction(): Promise<ActionResult<Coa
 
 export interface ClientAccessLive {
   frozen: boolean;
-  frozenReason: "coach" | "self" | null;
+  frozenReason: "frozen_by_coach" | "coach" | "self" | null;
+  frozenRemainingDays: number | null;
   endDate: string | null;
 }
 
@@ -36,6 +37,7 @@ export async function getClientAccessLiveAction(): Promise<ActionResult<ClientAc
     return ok({
       frozen: access.frozen,
       frozenReason: access.frozenReason,
+      frozenRemainingDays: access.frozenRemainingDays,
       endDate: access.subscriptionEndDate ? access.subscriptionEndDate.toISOString() : null,
     });
   });

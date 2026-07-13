@@ -19,6 +19,7 @@ export { Notification } from "./Notification";
 export { ClientRequest } from "./ClientRequest";
 export { Settings } from "./Settings";
 export { Counter } from "./Counter";
+export { SubscriptionFreezeHistory } from "./SubscriptionFreezeHistory";
 
 export type { IUser, ICoachProfile, IClientProfile, IMedia } from "./User";
 export type { IPlan } from "./Plan";
@@ -46,3 +47,4 @@ export type { INotification } from "./Notification";
 export type { IClientRequest, IExerciseChangePayload } from "./ClientRequest";
 export type { ISettings } from "./Settings";
 export type { ICounter } from "./Counter";
+export type { ISubscriptionFreezeHistory } from "./SubscriptionFreezeHistory";

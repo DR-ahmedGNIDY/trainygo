@@ -47,7 +47,7 @@ export function RealChatView({
   peerName: string;
   messages: ChatMessage[];
   /** When set, the client cannot send messages (their or their coach's subscription lapsed). */
-  frozenReason?: "coach" | "self" | null;
+  frozenReason?: "frozen_by_coach" | "coach" | "self" | null;
 }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);

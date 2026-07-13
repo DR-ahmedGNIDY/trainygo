@@ -35,8 +35,15 @@ export async function syncCoachStatus(coachId: string): Promise<AccountStatus> {
 export interface ClientAccessState {
   /** True if the client cannot start workouts/check-ins/reports/messages. */
   frozen: boolean;
-  /** "coach" = their coach's subscription lapsed; "self" = their own subscription ended. */
-  frozenReason: "coach" | "self" | null;
+  /**
+   * Why the client is frozen:
+   * - "frozen_by_coach" = the coach explicitly froze this client's subscription (days preserved);
+   * - "coach" = the coach's own subscription lapsed;
+   * - "self" = the client's own subscription ended.
+   */
+  frozenReason: "frozen_by_coach" | "coach" | "self" | null;
+  /** When frozen by the coach, the preserved days that will be restored on resume. */
+  frozenRemainingDays: number | null;
   /** Days left on the client's own subscription (null if no end date set). */
   daysRemaining: number | null;
   /** Subscription start/end dates, for rendering a progress bar (null if not set). */
@@ -47,21 +54,42 @@ export interface ClientAccessState {
 /** Resolves whether a client is frozen (by their own or their coach's subscription) and their own countdown. */
 export async function getClientAccessState(clientId: string): Promise<ClientAccessState> {
   await connectToDatabase();
-  if (!Types.ObjectId.isValid(clientId)) {
-    return { frozen: false, frozenReason: null, daysRemaining: null, subscriptionStartDate: null, subscriptionEndDate: null };
-  }
+  const empty: ClientAccessState = {
+    frozen: false,
+    frozenReason: null,
+    frozenRemainingDays: null,
+    daysRemaining: null,
+    subscriptionStartDate: null,
+    subscriptionEndDate: null,
+  };
+  if (!Types.ObjectId.isValid(clientId)) return empty;
   const client = await User.findOne({ _id: clientId, role: "client" })
-    .select("clientProfile.coach clientProfile.subscriptionStartDate clientProfile.subscriptionEndDate")
+    .select(
+      "clientProfile.coach clientProfile.subscriptionStartDate clientProfile.subscriptionEndDate clientProfile.subscriptionFreezeStatus clientProfile.remainingDays",
+    )
     .lean();
-  if (!client) return { frozen: false, frozenReason: null, daysRemaining: null, subscriptionStartDate: null, subscriptionEndDate: null };
+  if (!client) return empty;
 
   const startDate = client.clientProfile?.subscriptionStartDate ?? null;
   const endDate = client.clientProfile?.subscriptionEndDate ?? null;
 
+  // A coach-initiated freeze takes priority: the client is locked out and the
+  // preserved days are surfaced so the app can show "remaining days: XX".
+  if (client.clientProfile?.subscriptionFreezeStatus === "frozen") {
+    return {
+      frozen: true,
+      frozenReason: "frozen_by_coach",
+      frozenRemainingDays: client.clientProfile?.remainingDays ?? null,
+      daysRemaining: null,
+      subscriptionStartDate: startDate,
+      subscriptionEndDate: endDate,
+    };
+  }
+
   const coachId = client.clientProfile?.coach ? String(client.clientProfile.coach) : null;
   const coachStatus = coachId ? await syncCoachStatus(coachId) : "active";
   if (coachIsFrozen(coachStatus)) {
-    return { frozen: true, frozenReason: "coach", daysRemaining: null, subscriptionStartDate: startDate, subscriptionEndDate: endDate };
+    return { ...empty, frozen: true, frozenReason: "coach", subscriptionStartDate: startDate, subscriptionEndDate: endDate };
   }
 
   let daysRemaining: number | null = null;
@@ -70,10 +98,10 @@ export async function getClientAccessState(clientId: string): Promise<ClientAcce
   }
 
   if (endDate && endDate.getTime() < Date.now()) {
-    return { frozen: true, frozenReason: "self", daysRemaining, subscriptionStartDate: startDate, subscriptionEndDate: endDate };
+    return { ...empty, frozen: true, frozenReason: "self", daysRemaining, subscriptionStartDate: startDate, subscriptionEndDate: endDate };
   }
 
-  return { frozen: false, frozenReason: null, daysRemaining, subscriptionStartDate: startDate, subscriptionEndDate: endDate };
+  return { ...empty, daysRemaining, subscriptionStartDate: startDate, subscriptionEndDate: endDate };
 }
 
 export interface CoachSubscriptionSummary {

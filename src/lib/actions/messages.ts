@@ -25,12 +25,19 @@ export async function sendMessageAction(
       const { getClientAccessState } = await import("@/lib/services/subscription");
       const access = await getClientAccessState(userId);
       if (access.frozen) {
-        return fail(
-          access.frozenReason === "coach"
-            ? "حسابك قيد التجميد حالياً نتيجة تجميد حساب المدرب الخاص بك."
-            : "انتهى اشتراكك. يرجى التواصل مع مدربك لتجديده.",
-          access.frozenReason === "coach" ? "COACH_FROZEN" : "CLIENT_EXPIRED",
-        );
+        const message =
+          access.frozenReason === "frozen_by_coach"
+            ? "تم تجميد اشتراكك مؤقتاً. يرجى التواصل مع المدرب."
+            : access.frozenReason === "coach"
+              ? "حسابك قيد التجميد حالياً نتيجة تجميد حساب المدرب الخاص بك."
+              : "انتهى اشتراكك. يرجى التواصل مع مدربك لتجديده.";
+        const code =
+          access.frozenReason === "frozen_by_coach"
+            ? "SUBSCRIPTION_FROZEN"
+            : access.frozenReason === "coach"
+              ? "COACH_FROZEN"
+              : "CLIENT_EXPIRED";
+        return fail(message, code);
       }
     }
     const id = await messages.sendMessage(conversationId, userId, role, payload);
