@@ -1,5 +1,6 @@
 import { categoryGramBounds, perGram, round5 } from "@/lib/generator/engine";
 import { TOLERANCE } from "@/lib/generator/config";
+import { foodFitsMeal, type MealType } from "@/lib/constants";
 import type { EngineFood } from "@/lib/generator/types";
 import { buildSwapOptions } from "./engine";
 import type { Metrics, SwapDomain, SwapOption, SwapUnit } from "./types";
@@ -68,6 +69,8 @@ export interface FoodSwapOption {
   withinTolerance: boolean;
   samePriority: boolean;
   usedElsewhere: boolean;
+  /** False when the coach didn't place this food in the meal being swapped. */
+  fitsMeal: boolean;
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -89,6 +92,7 @@ function present(option: SwapOption<FoodSwapUnit>): FoodSwapOption {
     withinTolerance: option.withinTolerance,
     samePriority: option.samePriority,
     usedElsewhere: option.usedElsewhere,
+    fitsMeal: option.fitsContext,
   };
 }
 
@@ -97,19 +101,23 @@ function present(option: SwapOption<FoodSwapUnit>): FoodSwapOption {
  *
  * `pool` is the coach's visible library (already diet-filtered); `usedElsewhere`
  * carries the food ids used by other items in the same template so repeats sink
- * to the bottom. Pure — call it from a `useMemo` and swap without a round trip.
+ * to the bottom; `meal` is the meal being swapped, so foods the coach placed in
+ * it rank first. Pure — call it from a `useMemo` and swap without a round trip.
  */
 export function buildFoodSwapOptions(args: {
   current: EngineFood;
   quantity: number;
   pool: EngineFood[];
   usedElsewhere?: Iterable<string>;
+  meal?: MealType;
   limit?: number;
 }): FoodSwapOption[] {
+  const { meal } = args;
   return buildSwapOptions(foodSwapDomain, {
     current: { unit: toFoodSwapUnit(args.current), scale: args.quantity },
     pool: args.pool.map(toFoodSwapUnit),
     usedElsewhere: args.usedElsewhere,
+    fitsContext: meal ? (u) => foodFitsMeal(u.food.meals, meal) : undefined,
     limit: args.limit ?? SWAP_OPTIONS_LIMIT,
   }).map(present);
 }

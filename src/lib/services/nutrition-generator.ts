@@ -3,8 +3,8 @@ import { connectToDatabase } from "@/lib/db";
 import { Food } from "@/models/Food";
 import { NutritionGeneration } from "@/models/NutritionGeneration";
 import { serialize } from "@/lib/serialize";
-import { DEFAULT_FOOD_PRIORITY } from "@/lib/constants";
-import { getPriorityOverrides } from "@/lib/services/foods";
+import { DEFAULT_FOOD_MEALS, DEFAULT_FOOD_PRIORITY } from "@/lib/constants";
+import { getFoodOverrides, type FoodOverride } from "@/lib/services/foods";
 import { dietAllows, generatePlan } from "@/lib/generator/engine";
 import type { EngineFood, GeneratorInput, GeneratedPlan } from "@/lib/generator/types";
 import type { GeneratorGoal } from "@/lib/constants";
@@ -36,29 +36,38 @@ export async function loadFoodPool(scope: GenScope): Promise<EngineFood[]> {
   await connectToDatabase();
   const docs = await Food.find(visibility(scope))
     .select(
-      "nameAr nameEn category priority unit unitGrams calories protein carbs fat fiber",
+      "nameAr nameEn category priority meals unit unitGrams calories protein carbs fat fiber",
     )
     .lean();
 
-  // Apply this coach's personal priority overrides on top of the base priority
-  // so the generator ranks foods the way the coach set them, per-account only.
+  // Apply this coach's personal overrides on top of the base values so the
+  // generator ranks and slots foods the way the coach set them, per-account
+  // only. Priority and meals are overridden independently — a coach who only
+  // re-slotted a food keeps its stars, and vice versa.
   const overrides =
-    scope.role === "coach" ? await getPriorityOverrides(scope.coachId) : new Map<string, number>();
+    scope.role === "coach"
+      ? await getFoodOverrides(scope.coachId)
+      : new Map<string, FoodOverride>();
 
-  return docs.map((f) => ({
-    id: String(f._id),
-    nameAr: f.nameAr,
-    nameEn: f.nameEn,
-    category: f.category,
-    priority: overrides.get(String(f._id)) ?? f.priority ?? DEFAULT_FOOD_PRIORITY,
-    unit: f.unit ?? "100g",
-    unitGrams: f.unitGrams ?? 100,
-    calories: f.calories ?? 0,
-    protein: f.protein ?? 0,
-    carbs: f.carbs ?? 0,
-    fat: f.fat ?? 0,
-    fiber: f.fiber ?? 0,
-  }));
+  return docs.map((f) => {
+    const o = overrides.get(String(f._id));
+    return {
+      id: String(f._id),
+      nameAr: f.nameAr,
+      nameEn: f.nameEn,
+      category: f.category,
+      priority: o?.priority ?? f.priority ?? DEFAULT_FOOD_PRIORITY,
+      // An absent/empty list means "fits every meal" — see foodFitsMeal.
+      meals: o?.meals ?? f.meals ?? [...DEFAULT_FOOD_MEALS],
+      unit: f.unit ?? "100g",
+      unitGrams: f.unitGrams ?? 100,
+      calories: f.calories ?? 0,
+      protein: f.protein ?? 0,
+      carbs: f.carbs ?? 0,
+      fat: f.fat ?? 0,
+      fiber: f.fiber ?? 0,
+    };
+  });
 }
 
 /**

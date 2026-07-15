@@ -2,6 +2,8 @@ import { z } from "zod";
 import {
   FOOD_CATEGORIES,
   FOOD_UNITS,
+  MEAL_TYPES,
+  DEFAULT_FOOD_MEALS,
   DEFAULT_FOOD_PRIORITY,
 } from "@/lib/constants";
 
@@ -29,6 +31,12 @@ export const foodSchema = z.object({
       return [1, 2, 3, 4, 5].includes(n) ? n : DEFAULT_FOOD_PRIORITY;
     })
     .default(DEFAULT_FOOD_PRIORITY),
+  // Which meals the food belongs in — independent of `priority`. Unknown values
+  // are dropped rather than rejected; an empty list reads back as "every meal".
+  meals: z
+    .array(z.string())
+    .transform((v) => MEAL_TYPES.filter((m) => v.includes(m)))
+    .default(() => [...DEFAULT_FOOD_MEALS]),
   imageUrl: z.string().url().optional().or(z.literal("")),
   imagePublicId: z.string().optional().or(z.literal("")),
 });

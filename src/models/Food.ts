@@ -3,10 +3,13 @@ import {
   FOOD_CATEGORIES,
   FOOD_PRIORITIES,
   FOOD_UNITS,
+  MEAL_TYPES,
+  DEFAULT_FOOD_MEALS,
   DEFAULT_FOOD_PRIORITY,
   type FoodCategory,
   type FoodPriority,
   type FoodUnit,
+  type MealType,
 } from "@/lib/constants";
 
 /**
@@ -28,6 +31,11 @@ export interface IFood {
   fiber: number;
   /** Coach preference weight for the generator's rule engine (1–5, 5 = highest). */
   priority: FoodPriority;
+  /**
+   * Meals this food belongs in. Independent of `priority`: stars rank it, this
+   * places it. Empty/missing = fits every meal (see DEFAULT_FOOD_MEALS).
+   */
+  meals?: MealType[];
   imageUrl?: string;
   imagePublicId?: string;
   isSystemFood: boolean;
@@ -58,6 +66,11 @@ const FoodSchema = new Schema<IFood>(
       enum: FOOD_PRIORITIES,
       default: DEFAULT_FOOD_PRIORITY,
       index: true,
+    },
+    meals: {
+      type: [String],
+      enum: MEAL_TYPES,
+      default: () => [...DEFAULT_FOOD_MEALS],
     },
     imageUrl: { type: String },
     imagePublicId: { type: String },

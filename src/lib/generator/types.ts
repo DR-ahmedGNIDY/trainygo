@@ -1,5 +1,6 @@
 import type { FoodCategory, GeneratorGoal, MealType } from "@/lib/constants";
 
+
 /**
  * A food as the generator engine consumes it. Macros are stored per the food's
  * base unit (`unitGrams`, default 100g) — exactly as the Food model stores them.
@@ -12,6 +13,11 @@ export interface EngineFood {
   nameEn: string;
   category: FoodCategory;
   priority: number; // 1–5, 5 = highest
+  /**
+   * Meals this food belongs in — a separate axis from `priority`. Empty means
+   * "fits every meal"; see foodFitsMeal in constants.
+   */
+  meals: MealType[];
   unit: string;
   unitGrams: number;
   calories: number;

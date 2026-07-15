@@ -117,6 +117,23 @@ export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 export type MealType = (typeof MEAL_TYPES)[number];
 
 /**
+ * Which meals a food belongs in — a second, independent axis from the star
+ * priority: stars say how much a coach likes a food, this says *when* it fits
+ * (oats at breakfast, not dinner). The generator prefers foods tagged for the
+ * meal it is filling and only falls back to the rest when nothing fits, so the
+ * two rank together rather than one overriding the other.
+ *
+ * An empty or missing list means "no preference — fits every meal", which is
+ * also the default. That keeps every existing food working untouched.
+ */
+export const DEFAULT_FOOD_MEALS: MealType[] = [...MEAL_TYPES];
+
+/** True when `meals` places a food in `meal` (an empty list fits everything). */
+export function foodFitsMeal(meals: MealType[] | undefined, meal: MealType): boolean {
+  return !meals?.length || meals.includes(meal);
+}
+
+/**
  * Goals offered by the nutrition template generator. Each maps to a default
  * macro ratio (see src/lib/generator/config.ts). `vegetarian`/`vegan` also
  * apply a diet filter over the food pool. Kept here (not just in the generator)
