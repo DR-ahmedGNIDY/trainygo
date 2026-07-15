@@ -1,7 +1,6 @@
 import { requireRole } from "@/lib/auth/session";
 import { listFoods } from "@/lib/services/foods";
 import { FoodLibrary, type FoodItem } from "@/components/library/food-library";
-import { ResetPrioritiesButton } from "./reset-priorities-button";
 
 export const dynamic = "force-dynamic";
 
@@ -31,9 +30,6 @@ export default async function AdminFoodsPage({
       category={sp.category ?? "all"}
       sort={sp.sort ?? ""}
       canWrite
-      /* TEMPORARY: one-time reset-all-priorities button — sits next to "Add food".
-         Remove with admin-maintenance.ts + reset-priorities-button.tsx. */
-      headerExtra={<ResetPrioritiesButton />}
     />
   );
 }
