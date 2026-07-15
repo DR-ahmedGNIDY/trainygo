@@ -137,3 +137,31 @@ export async function resetFoodPriorityAction(id: string): Promise<ActionResult>
     return ok();
   });
 }
+
+/**
+ * Set which meals a food belongs in. Same scope routing as the priority
+ * actions, and independent of them — this never touches a food's stars.
+ */
+export async function setFoodMealsAction(
+  id: string,
+  meals: string[],
+): Promise<ActionResult> {
+  return runAction(async () => {
+    const scope = await resolveScope();
+    const done = await foods.setFoodMeals(scope, id, meals);
+    if (!done) return fail("غير موجود", "NOT_FOUND");
+    revalidate();
+    return ok();
+  });
+}
+
+/** Reset a food's meals to the default (every meal) for the current scope. */
+export async function resetFoodMealsAction(id: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const scope = await resolveScope();
+    const done = await foods.resetFoodMeals(scope, id);
+    if (!done) return fail("غير موجود", "NOT_FOUND");
+    revalidate();
+    return ok();
+  });
+}

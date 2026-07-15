@@ -97,12 +97,17 @@ function errorOf(
  *
  * Candidates are filtered to the current unit's group (never cross categories)
  * and then ordered by, in strict precedence:
- *   1. metrics within tolerance — a valid swap beats a merely preferred one;
- *   2. priority, penalising only *downgrades*, so an equal-or-better preference
+ *   1. suits the context it's being swapped into (the meal, for food). This
+ *      outranks even the macro match, mirroring the generator, which narrows by
+ *      meal before it looks at anything else: a steak the coach marked
+ *      dinner-only must not head the list for a breakfast item just because its
+ *      macros line up. Nothing is hidden — it still appears, further down;
+ *   2. metrics within tolerance — a valid swap beats a merely preferred one;
+ *   3. priority, penalising only *downgrades*, so an equal-or-better preference
  *      always outranks a lower one and a low-star food is never chosen over a
  *      preferred one while a valid alternative exists;
- *   3. not already used elsewhere in the template;
- *   4. closest metrics overall.
+ *   4. not already used elsewhere in the template;
+ *   5. closest metrics overall.
  */
 export function buildSwapOptions<U extends SwapUnit>(
   domain: SwapDomain<U>,
@@ -142,6 +147,7 @@ export function buildSwapOptions<U extends SwapUnit>(
         withinTolerance: deviation <= domain.tolerance,
         samePriority: unit.priority === current.unit.priority,
         usedElsewhere: used.has(unit.id),
+        fitsContext: request.fitsContext?.(unit) ?? true,
         // Sort-only fields, stripped before returning.
         _downgrade: Math.max(0, current.unit.priority - unit.priority),
         _error: errorOf(metrics, target, keys, negligible),
@@ -149,6 +155,7 @@ export function buildSwapOptions<U extends SwapUnit>(
     })
     .sort(
       (a, b) =>
+        Number(b.fitsContext) - Number(a.fitsContext) ||
         Number(b.withinTolerance) - Number(a.withinTolerance) ||
         a._downgrade - b._downgrade ||
         b.unit.priority - a.unit.priority ||

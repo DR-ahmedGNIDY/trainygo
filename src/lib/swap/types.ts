@@ -59,6 +59,13 @@ export interface SwapRequest<U extends SwapUnit> {
    * rather than dropped — the spec allows repetition when nothing else fits.
    */
   usedElsewhere?: Iterable<string>;
+  /**
+   * Where the swap is happening, if the domain has such a notion — the meal a
+   * food sits in, the session an exercise belongs to. Units the predicate
+   * accepts rank above those it doesn't, without ever being dropped: a soft
+   * preference, mirroring how the generator picks in the first place.
+   */
+  fitsContext?: (unit: U) => boolean;
   /** Cap on returned options; omit for all valid candidates. */
   limit?: number;
 }
@@ -79,4 +86,9 @@ export interface SwapOption<U extends SwapUnit> {
   samePriority: boolean;
   /** True when this unit already appears elsewhere in the template. */
   usedElsewhere: boolean;
+  /**
+   * True when the unit suits where the swap is happening (see
+   * `SwapRequest.fitsContext`). Always true when the request set no context.
+   */
+  fitsContext: boolean;
 }

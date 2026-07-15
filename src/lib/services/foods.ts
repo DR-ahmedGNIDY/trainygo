@@ -1,10 +1,19 @@
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/lib/db";
 import { Food } from "@/models/Food";
-import { FoodPriorityOverride } from "@/models/FoodPriorityOverride";
+import {
+  FoodPriorityOverride,
+  type IFoodPriorityOverride,
+} from "@/models/FoodPriorityOverride";
 import { serialize } from "@/lib/serialize";
 import { PermissionError } from "@/lib/permissions";
-import { FOOD_PRIORITIES, DEFAULT_FOOD_PRIORITY } from "@/lib/constants";
+import {
+  FOOD_PRIORITIES,
+  MEAL_TYPES,
+  DEFAULT_FOOD_MEALS,
+  DEFAULT_FOOD_PRIORITY,
+  type MealType,
+} from "@/lib/constants";
 import type { FoodData } from "@/lib/validations/food";
 
 export type FoodScope =
@@ -123,33 +132,111 @@ export async function deleteFood(id: string, scope: FoodScope) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Per-coach food priority (for the nutrition generator)                     */
+/*  Per-coach food preferences: priority + meal times (for the generator)     */
 /* -------------------------------------------------------------------------- */
 
 function isValidPriority(p: number): p is (typeof FOOD_PRIORITIES)[number] {
   return (FOOD_PRIORITIES as readonly number[]).includes(p);
 }
 
+/** Keep only real meal types, de-duplicated and in canonical order. */
+function normaliseMeals(meals: unknown): MealType[] {
+  if (!Array.isArray(meals)) return [];
+  return MEAL_TYPES.filter((m) => meals.includes(m));
+}
+
+/** This coach's personal overrides for a food. Absent field = not overridden. */
+export interface FoodOverride {
+  priority?: number;
+  meals?: MealType[];
+}
+
 /**
- * Map of food id → this coach's personal priority override. System foods a
- * coach re-prioritised live here; the coach's own custom foods don't (their
- * priority is stored on the Food document itself).
+ * Map of food id → this coach's personal overrides. System foods a coach
+ * re-prioritised or re-slotted live here; the coach's own custom foods don't
+ * (their values are stored on the Food document itself).
  */
-export async function getPriorityOverrides(
+export async function getFoodOverrides(
   coachId: string,
   foodIds?: string[],
-): Promise<Map<string, number>> {
+): Promise<Map<string, FoodOverride>> {
   await connectToDatabase();
   const filter: Record<string, unknown> = { coach: new Types.ObjectId(coachId) };
   if (foodIds?.length) {
     filter.food = { $in: foodIds.map((id) => new Types.ObjectId(id)) };
   }
   const rows = await FoodPriorityOverride.find(filter)
-    .select("food priority")
+    .select("food priority meals")
     .lean();
-  const map = new Map<string, number>();
-  for (const r of rows) map.set(String(r.food), r.priority);
+  const map = new Map<string, FoodOverride>();
+  for (const r of rows) {
+    const o: FoodOverride = {};
+    // The two axes are independent — only carry across what was actually set,
+    // so a meals-only override can't drag a priority along with it.
+    if (r.priority != null) o.priority = r.priority;
+    if (r.meals != null) o.meals = r.meals;
+    map.set(String(r.food), o);
+  }
   return map;
+}
+
+/**
+ * Where a write for `scope` lands: "base" edits the Food document itself,
+ * "override" writes this coach's personal row for a system food. Returns null
+ * when the food isn't visible to the scope.
+ *
+ * @throws {PermissionError} when the scope may see the food but not edit it.
+ */
+async function resolveWriteTarget(
+  scope: FoodScope,
+  foodId: string,
+): Promise<"base" | "override" | null> {
+  const food = await Food.findOne({ _id: foodId, ...visibilityFilter(scope) })
+    .select("isSystemFood createdByCoach")
+    .lean();
+  if (!food) return null;
+
+  if (scope.role === "super_admin") {
+    if (!food.isSystemFood)
+      throw new PermissionError("Cannot edit coach food", "FORBIDDEN");
+    return "base";
+  }
+  // Coach (or team member acting as coach) on their OWN custom food.
+  if (!food.isSystemFood && String(food.createdByCoach) === scope.coachId) return "base";
+  if (food.isSystemFood) return "override";
+  throw new PermissionError("Forbidden", "FORBIDDEN");
+}
+
+/** Upsert one field of a coach's override row without disturbing the other. */
+async function setOverrideField(
+  coachId: string,
+  foodId: string,
+  patch: Partial<Pick<IFoodPriorityOverride, "priority" | "meals">>,
+) {
+  await FoodPriorityOverride.updateOne(
+    { coach: new Types.ObjectId(coachId), food: new Types.ObjectId(foodId) },
+    { $set: patch },
+    { upsert: true },
+  );
+}
+
+/**
+ * Clear one field of a coach's override row, dropping the row once neither
+ * axis is overridden any more. Unsetting rather than deleting matters: the row
+ * may still hold the coach's choice for the *other* axis.
+ */
+async function clearOverrideField(
+  coachId: string,
+  foodId: string,
+  field: "priority" | "meals",
+) {
+  const key = { coach: new Types.ObjectId(coachId), food: new Types.ObjectId(foodId) };
+  await FoodPriorityOverride.updateOne(key, { $unset: { [field]: 1 } });
+  await FoodPriorityOverride.deleteOne({
+    ...key,
+    priority: { $exists: false },
+    meals: { $exists: false },
+  });
 }
 
 /**
@@ -165,38 +252,21 @@ export async function setFoodPriority(
 ): Promise<boolean> {
   await connectToDatabase();
   if (!Types.ObjectId.isValid(foodId) || !isValidPriority(priority)) return false;
-  const food = await Food.findOne({ _id: foodId, ...visibilityFilter(scope) })
-    .select("isSystemFood createdByCoach")
-    .lean();
-  if (!food) return false;
+  const target = await resolveWriteTarget(scope, foodId);
+  if (!target) return false;
 
-  if (scope.role === "super_admin") {
-    if (!food.isSystemFood)
-      throw new PermissionError("Cannot edit coach food", "FORBIDDEN");
+  if (target === "base") {
     await Food.updateOne({ _id: foodId }, { $set: { priority } });
-    return true;
+  } else {
+    await setOverrideField((scope as { coachId: string }).coachId, foodId, { priority });
   }
-
-  // Coach (or team member acting as coach).
-  const isOwn = !food.isSystemFood && String(food.createdByCoach) === scope.coachId;
-  if (isOwn) {
-    await Food.updateOne({ _id: foodId }, { $set: { priority } });
-    return true;
-  }
-  if (food.isSystemFood) {
-    await FoodPriorityOverride.updateOne(
-      { coach: new Types.ObjectId(scope.coachId), food: new Types.ObjectId(foodId) },
-      { $set: { priority } },
-      { upsert: true },
-    );
-    return true;
-  }
-  throw new PermissionError("Forbidden", "FORBIDDEN");
+  return true;
 }
 
 /**
  * Reset a food's priority back to its default for the current scope.
- * - coach on a system food: removes their override (back to global default).
+ * - coach on a system food: removes their priority override (back to global
+ *   default), leaving any meal-times override of theirs intact.
  * - coach on their own food / super_admin on a system food: sets the base
  *   priority back to DEFAULT_FOOD_PRIORITY.
  */
@@ -206,27 +276,61 @@ export async function resetFoodPriority(
 ): Promise<boolean> {
   await connectToDatabase();
   if (!Types.ObjectId.isValid(foodId)) return false;
-  const food = await Food.findOne({ _id: foodId, ...visibilityFilter(scope) })
-    .select("isSystemFood createdByCoach")
-    .lean();
-  if (!food) return false;
+  const target = await resolveWriteTarget(scope, foodId);
+  if (!target) return false;
 
-  if (scope.role === "super_admin") {
-    if (!food.isSystemFood)
-      throw new PermissionError("Cannot edit coach food", "FORBIDDEN");
+  if (target === "base") {
     await Food.updateOne({ _id: foodId }, { $set: { priority: DEFAULT_FOOD_PRIORITY } });
-    return true;
+  } else {
+    await clearOverrideField((scope as { coachId: string }).coachId, foodId, "priority");
   }
+  return true;
+}
 
-  const isOwn = !food.isSystemFood && String(food.createdByCoach) === scope.coachId;
-  if (isOwn) {
-    await Food.updateOne({ _id: foodId }, { $set: { priority: DEFAULT_FOOD_PRIORITY } });
-    return true;
+/**
+ * Set which meals a food belongs in, for the current scope. Same routing as
+ * setFoodPriority, and deliberately separate from it: a coach re-slotting a
+ * food must never disturb its stars.
+ *
+ * An empty selection is stored as-is and read back as "fits every meal", so the
+ * generator can never end up with a food that fits nothing.
+ */
+export async function setFoodMeals(
+  scope: FoodScope,
+  foodId: string,
+  meals: unknown,
+): Promise<boolean> {
+  await connectToDatabase();
+  if (!Types.ObjectId.isValid(foodId)) return false;
+  const target = await resolveWriteTarget(scope, foodId);
+  if (!target) return false;
+
+  const clean = normaliseMeals(meals);
+  if (target === "base") {
+    await Food.updateOne({ _id: foodId }, { $set: { meals: clean } });
+  } else {
+    await setOverrideField((scope as { coachId: string }).coachId, foodId, { meals: clean });
   }
-  // System food → drop the coach's override.
-  await FoodPriorityOverride.deleteOne({
-    coach: new Types.ObjectId(scope.coachId),
-    food: new Types.ObjectId(foodId),
-  });
+  return true;
+}
+
+/**
+ * Reset a food's meals for the current scope — coach on a system food drops
+ * their override; otherwise the base goes back to "every meal".
+ */
+export async function resetFoodMeals(
+  scope: FoodScope,
+  foodId: string,
+): Promise<boolean> {
+  await connectToDatabase();
+  if (!Types.ObjectId.isValid(foodId)) return false;
+  const target = await resolveWriteTarget(scope, foodId);
+  if (!target) return false;
+
+  if (target === "base") {
+    await Food.updateOne({ _id: foodId }, { $set: { meals: [...DEFAULT_FOOD_MEALS] } });
+  } else {
+    await clearOverrideField((scope as { coachId: string }).coachId, foodId, "meals");
+  }
   return true;
 }

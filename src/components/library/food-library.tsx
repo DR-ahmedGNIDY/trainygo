@@ -12,6 +12,7 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Loader2,
   ArrowUpDown,
   RotateCcw,
@@ -40,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -57,14 +59,18 @@ import {
   FOOD_CATEGORY_LABELS,
   FOOD_PRIORITY_LABELS,
   FOOD_PRIORITY_STARS,
+  MEAL_LABELS,
   label,
 } from "@/lib/i18n/labels";
 import {
   FOOD_CATEGORIES,
   FOOD_PRIORITIES,
   FOOD_UNITS,
+  MEAL_TYPES,
+  DEFAULT_FOOD_MEALS,
   DEFAULT_FOOD_PRIORITY,
   type FoodPriority,
+  type MealType,
 } from "@/lib/constants";
 import {
   createFoodAction,
@@ -72,6 +78,8 @@ import {
   deleteFoodAction,
   setFoodPriorityAction,
   resetFoodPriorityAction,
+  setFoodMealsAction,
+  resetFoodMealsAction,
 } from "@/lib/actions/foods";
 
 export interface FoodItem {
@@ -88,6 +96,10 @@ export interface FoodItem {
   priority?: number;
   /** Coach only: true when this priority is a personal override on a system food. */
   priorityOverridden?: boolean;
+  /** Meals this food belongs in. Empty/missing = every meal. */
+  meals?: string[];
+  /** Coach only: true when these meals are a personal override on a system food. */
+  mealsOverridden?: boolean;
   imageUrl?: string;
   isSystemFood: boolean;
 }
@@ -111,7 +123,6 @@ export function FoodLibrary({
   category,
   sort,
   canWrite,
-  headerExtra,
 }: {
   role: "super_admin" | "coach";
   items: FoodItem[];
@@ -122,8 +133,6 @@ export function FoodLibrary({
   category: string;
   sort: string;
   canWrite: boolean;
-  /** Optional extra control rendered in the page header (e.g. admin tools). */
-  headerExtra?: React.ReactNode;
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -154,9 +163,10 @@ export function FoodLibrary({
   const canMutate = (food: FoodItem) =>
     canWrite && (role === "coach" ? !food.isSystemFood : food.isSystemFood);
 
-  // A coach may re-prioritise ANY visible food (own or system, the latter via a
-  // personal override); an admin only the system foods they own.
-  const canEditPriority = (food: FoodItem) =>
+  // A coach may re-tune ANY visible food's generator preferences — priority and
+  // meals alike (own foods directly, system foods via a personal override); an
+  // admin only the system foods they own.
+  const canEditPreferences = (food: FoodItem) =>
     canWrite && (role === "coach" ? true : food.isSystemFood);
 
   function onDelete(food: FoodItem) {
@@ -173,7 +183,6 @@ export function FoodLibrary({
         title={role === "super_admin" ? t.dashboard.adminNav.foods : t.dashboard.coachNav.foodLibrary}
         description={`${total} ${locale === "ar" ? "صنف · لكل ١٠٠ جرام" : "items · per 100g"}`}
       >
-        {headerExtra}
         {canWrite && (
           <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
             <Plus className="h-4 w-4" />
@@ -220,6 +229,7 @@ export function FoodLibrary({
                     <TableHead className="hidden md:table-cell">{t.client.carbs}</TableHead>
                     <TableHead className="hidden md:table-cell">{t.client.fat}</TableHead>
                     <TableHead className="hidden lg:table-cell">{locale === "ar" ? "الأولوية" : "Priority"}</TableHead>
+                    <TableHead className="hidden lg:table-cell">{locale === "ar" ? "الوجبات" : "Meals"}</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -247,7 +257,14 @@ export function FoodLibrary({
                       <TableCell className="hidden lg:table-cell">
                         <PriorityCell
                           food={food}
-                          canEdit={canEditPriority(food)}
+                          canEdit={canEditPreferences(food)}
+                          onDone={() => router.refresh()}
+                        />
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        <MealsCell
+                          food={food}
+                          canEdit={canEditPreferences(food)}
                           onDone={() => router.refresh()}
                         />
                       </TableCell>
@@ -291,6 +308,103 @@ export function FoodLibrary({
           onSaved={() => { setDialogOpen(false); router.refresh(); }}
         />
       )}
+    </div>
+  );
+}
+
+/** Meals a food is set to, normalised — empty/missing means every meal. */
+function mealsOf(food: FoodItem): MealType[] {
+  const set = MEAL_TYPES.filter((m) => food.meals?.includes(m));
+  return set.length ? set : [...DEFAULT_FOOD_MEALS];
+}
+
+/**
+ * The food's meal times, edited in place. Independent of PriorityCell: writing
+ * here never touches the food's stars, and the two can be custom separately.
+ */
+function MealsCell({
+  food,
+  canEdit,
+  onDone,
+}: {
+  food: FoodItem;
+  canEdit: boolean;
+  onDone: () => void;
+}) {
+  const { locale } = useI18n();
+  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
+  const [pending, start] = useTransition();
+  const selected = mealsOf(food);
+  const all = selected.length === MEAL_TYPES.length;
+
+  const summary = all
+    ? L("كل الوجبات", "All meals")
+    : selected.map((m) => label(MEAL_LABELS, m, locale)).join("، ");
+
+  if (!canEdit) {
+    return <span className="text-xs text-muted-foreground">{summary}</span>;
+  }
+
+  function toggle(meal: MealType) {
+    const next = selected.includes(meal)
+      ? selected.filter((m) => m !== meal)
+      : [...selected, meal];
+    start(async () => {
+      await setFoodMealsAction(food._id, next);
+      onDone();
+    });
+  }
+  function reset() {
+    start(async () => {
+      await resetFoodMealsAction(food._id);
+      onDone();
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pending}
+            className="h-8 max-w-[150px] justify-between gap-1 px-2 text-xs font-normal"
+          >
+            <span className="truncate">{summary}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {MEAL_TYPES.map((m) => (
+            <DropdownMenuCheckboxItem
+              key={m}
+              checked={selected.includes(m)}
+              // A food has to fit somewhere: an empty selection would read back
+              // as "every meal", so block the last tick rather than silently
+              // turning "none" into "all".
+              disabled={pending || (selected.length === 1 && selected.includes(m))}
+              // Keep the menu open so several meals can be ticked in one go.
+              onSelect={(e) => e.preventDefault()}
+              onCheckedChange={() => toggle(m)}
+            >
+              {label(MEAL_LABELS, m, locale)}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {food.mealsOverridden && (
+        <button
+          type="button"
+          onClick={reset}
+          disabled={pending}
+          title={L("مخصّص — استرجاع الافتراضي", "Custom — reset to default")}
+          className="text-amber-500 transition-colors hover:text-foreground"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {pending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
     </div>
   );
 }
@@ -391,10 +505,21 @@ function FoodFormDialog({
       fat: food?.fat?.toString() ?? "",
       fiber: food?.fiber?.toString() ?? "",
       priority: (food?.priority ?? DEFAULT_FOOD_PRIORITY).toString(),
+      meals: food ? mealsOf(food) : [...DEFAULT_FOOD_MEALS],
       imageUrl: food?.imageUrl ?? "",
     };
   }
   const set = (k: keyof ReturnType<typeof init>) => (v: string) => setF((s) => ({ ...s, [k]: v }));
+
+  function toggleMeal(meal: MealType) {
+    setF((s) => {
+      const next = s.meals.includes(meal)
+        ? s.meals.filter((m) => m !== meal)
+        : MEAL_TYPES.filter((m) => m === meal || s.meals.includes(m));
+      // An empty list would read back as "every meal" — keep at least one.
+      return next.length ? { ...s, meals: next } : s;
+    });
+  }
 
   async function save() {
     setSaving(true);
@@ -409,6 +534,7 @@ function FoodFormDialog({
       fat: f.fat || 0,
       fiber: f.fiber || 0,
       priority: Number(f.priority) || DEFAULT_FOOD_PRIORITY,
+      meals: f.meals,
       imageUrl: f.imageUrl || undefined,
     };
     const res = editing ? await updateFoodAction(editing._id, payload) : await createFoodAction(payload);
@@ -458,6 +584,32 @@ function FoodFormDialog({
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">{L("يستخدمها المولّد الذكي لترتيب الأطعمة المفضّلة أولاً.", "The smart generator picks higher-priority foods first.")}</p>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>{L("الوجبات", "Meals")}</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {MEAL_TYPES.map((m) => {
+                const on = f.meals.includes(m);
+                return (
+                  <Button
+                    key={m}
+                    type="button"
+                    size="sm"
+                    variant={on ? "default" : "outline"}
+                    className="h-8 px-3 text-xs font-normal"
+                    onClick={() => toggleMeal(m)}
+                  >
+                    {label(MEAL_LABELS, m, locale)}
+                  </Button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {L(
+                "الوجبات التي يظهر فيها الصنف — مستقلة تماماً عن النجوم؛ الاثنان يعملان معاً.",
+                "Which meals this food appears in — fully independent of its stars; the two work together.",
+              )}
+            </p>
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label>{L("صورة الغذاء (اختياري)", "Food image (optional)")}</Label>

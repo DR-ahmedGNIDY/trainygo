@@ -47,6 +47,7 @@ import {
   GENERATOR_MEALS_OPTIONS,
   type FoodPriority,
   type GeneratorGoal,
+  type MealType,
 } from "@/lib/constants";
 import { DEFAULT_RATIOS, TOLERANCE } from "@/lib/generator/config";
 import type { EngineFood } from "@/lib/generator/types";
@@ -501,6 +502,8 @@ function PlanResult({
             quantity: it.quantity,
             pool: swapPool,
             usedElsewhere,
+            // Rank foods the coach placed in this meal first.
+            meal: meal.type as MealType,
           }),
         );
       });
@@ -694,6 +697,11 @@ function SwapDialog({
                     ) : (
                       <Badge variant="secondary" className="gap-1 text-[10px] text-amber-600">
                         <AlertTriangle className="h-3 w-3" />{L("فرق أكبر من ٥٪", "Off by more than 5%")}
+                      </Badge>
+                    )}
+                    {!o.fitsMeal && (
+                      <Badge variant="secondary" className="text-[10px] text-muted-foreground">
+                        {L("خارج وجبات هذا الصنف", "Not set for this meal")}
                       </Badge>
                     )}
                     {o.usedElsewhere && (

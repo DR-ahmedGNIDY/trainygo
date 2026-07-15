@@ -1,4 +1,4 @@
-import type { FoodCategory, MealType } from "@/lib/constants";
+import { foodFitsMeal, type FoodCategory, type MealType } from "@/lib/constants";
 import {
   DEFAULT_RATIOS,
   DIET_EXCLUDE_KEYWORDS,
@@ -87,22 +87,36 @@ interface PickCtx {
 }
 
 /**
- * Selection rules (in order): highest priority → not used yet today → not the
- * same food as the previous meal in this category → rotate among equal-priority
- * options by seed for variety. Returns null when the category has no candidate.
+ * Selection rules, in order: belongs in this meal → not used yet today → not
+ * the same food as the previous meal in this category → highest priority →
+ * rotate among equal-priority options by seed for variety. Returns null when
+ * the category has no candidate.
+ *
+ * Meal times narrow first and stars rank inside what's left, so the two work
+ * together rather than one overriding the other: a coach's ★★★★★ dinner steak
+ * never lands in breakfast while any breakfast food exists, but among the
+ * breakfast foods their stars still decide. Every narrowing falls back to the
+ * wider set when it would empty it — the preference is soft, so a thin library
+ * degrades to a worse-fitting plan instead of no plan.
  */
 function pickFood(
   category: FoodCategory,
   pools: Map<FoodCategory, EngineFood[]>,
   ctx: PickCtx,
   slot: number,
+  meal: MealType,
 ): EngineFood | null {
   const cands = pools.get(category);
   if (!cands || cands.length === 0) return null;
 
+  // Meal times before freshness: putting the right food in the meal matters
+  // more than variety within it.
+  const fitting = cands.filter((c) => foodFitsMeal(c.meals, meal));
+  const inMeal = fitting.length ? fitting : cands;
+
   // Prefer foods not yet used today; only reuse when nothing fresh is left.
-  let avail = cands.filter((c) => !ctx.usedToday.has(c.id));
-  if (avail.length === 0) avail = cands;
+  let avail = inMeal.filter((c) => !ctx.usedToday.has(c.id));
+  if (avail.length === 0) avail = inMeal;
 
   // Rotation: avoid repeating the previous meal's food in this category.
   const last = ctx.lastByCat.get(category);
@@ -215,7 +229,7 @@ export function generatePlan(
     const cats = categoriesForMeal(type, type === "snack" ? snackIndex++ : 0);
     const picked: EngineFood[] = [];
     cats.forEach((cat, slot) => {
-      const food = pickFood(cat, pools, ctx, mealIndex + slot);
+      const food = pickFood(cat, pools, ctx, mealIndex + slot, type);
       if (!food) return;
       picked.push(food);
       ctx.usedToday.add(food.id);
