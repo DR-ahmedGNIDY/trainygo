@@ -1,6 +1,7 @@
 import { requireRole } from "@/lib/auth/session";
 import { listFoods } from "@/lib/services/foods";
 import { FoodLibrary, type FoodItem } from "@/components/library/food-library";
+import { ResetPrioritiesButton } from "./reset-priorities-button";
 
 export const dynamic = "force-dynamic";
 
@@ -20,16 +21,20 @@ export default async function AdminFoodsPage({
     { query: sp.q, category: sp.category, page: Number(sp.page) || 1, sortBy, sortDir },
   );
   return (
-    <FoodLibrary
-      role="super_admin"
-      items={res.items as unknown as FoodItem[]}
-      total={res.total}
-      page={res.page}
-      pages={res.pages}
-      query={sp.q ?? ""}
-      category={sp.category ?? "all"}
-      sort={sp.sort ?? ""}
-      canWrite
-    />
+    <>
+      {/* TEMPORARY: one-time reset-all-priorities button. Remove with admin-maintenance.ts. */}
+      <ResetPrioritiesButton />
+      <FoodLibrary
+        role="super_admin"
+        items={res.items as unknown as FoodItem[]}
+        total={res.total}
+        page={res.page}
+        pages={res.pages}
+        query={sp.q ?? ""}
+        category={sp.category ?? "all"}
+        sort={sp.sort ?? ""}
+        canWrite
+      />
+    </>
   );
 }
