@@ -4,6 +4,7 @@ import { Food } from "@/models/Food";
 import { NutritionGeneration } from "@/models/NutritionGeneration";
 import { serialize } from "@/lib/serialize";
 import { DEFAULT_FOOD_PRIORITY } from "@/lib/constants";
+import { getPriorityOverrides } from "@/lib/services/foods";
 import { generatePlan } from "@/lib/generator/engine";
 import type { EngineFood, GeneratorInput, GeneratedPlan } from "@/lib/generator/types";
 
@@ -37,12 +38,18 @@ export async function loadFoodPool(scope: GenScope): Promise<EngineFood[]> {
       "nameAr nameEn category priority unit unitGrams calories protein carbs fat fiber",
     )
     .lean();
+
+  // Apply this coach's personal priority overrides on top of the base priority
+  // so the generator ranks foods the way the coach set them, per-account only.
+  const overrides =
+    scope.role === "coach" ? await getPriorityOverrides(scope.coachId) : new Map<string, number>();
+
   return docs.map((f) => ({
     id: String(f._id),
     nameAr: f.nameAr,
     nameEn: f.nameEn,
     category: f.category,
-    priority: f.priority ?? DEFAULT_FOOD_PRIORITY,
+    priority: overrides.get(String(f._id)) ?? f.priority ?? DEFAULT_FOOD_PRIORITY,
     unit: f.unit ?? "100g",
     unitGrams: f.unitGrams ?? 100,
     calories: f.calories ?? 0,

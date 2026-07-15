@@ -109,3 +109,31 @@ export async function deleteFoodAction(id: string): Promise<ActionResult> {
     return ok();
   });
 }
+
+/**
+ * Set a food's generator priority. Super-admin edits system foods globally; a
+ * coach edits their own foods directly and system foods via a personal override.
+ */
+export async function setFoodPriorityAction(
+  id: string,
+  priority: number,
+): Promise<ActionResult> {
+  return runAction(async () => {
+    const scope = await resolveScope();
+    const done = await foods.setFoodPriority(scope, id, priority);
+    if (!done) return fail("غير موجود", "NOT_FOUND");
+    revalidate();
+    return ok();
+  });
+}
+
+/** Reset a food's priority to its default for the current scope. */
+export async function resetFoodPriorityAction(id: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const scope = await resolveScope();
+    const done = await foods.resetFoodPriority(scope, id);
+    if (!done) return fail("غير موجود", "NOT_FOUND");
+    revalidate();
+    return ok();
+  });
+}

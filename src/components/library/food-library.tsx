@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Loader2,
   ArrowUpDown,
+  RotateCcw,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -69,6 +70,8 @@ import {
   createFoodAction,
   updateFoodAction,
   deleteFoodAction,
+  setFoodPriorityAction,
+  resetFoodPriorityAction,
 } from "@/lib/actions/foods";
 
 export interface FoodItem {
@@ -83,6 +86,8 @@ export interface FoodItem {
   fat: number;
   fiber: number;
   priority?: number;
+  /** Coach only: true when this priority is a personal override on a system food. */
+  priorityOverridden?: boolean;
   imageUrl?: string;
   isSystemFood: boolean;
 }
@@ -145,6 +150,11 @@ export function FoodLibrary({
 
   const canMutate = (food: FoodItem) =>
     canWrite && (role === "coach" ? !food.isSystemFood : food.isSystemFood);
+
+  // A coach may re-prioritise ANY visible food (own or system, the latter via a
+  // personal override); an admin only the system foods they own.
+  const canEditPriority = (food: FoodItem) =>
+    canWrite && (role === "coach" ? true : food.isSystemFood);
 
   function onDelete(food: FoodItem) {
     if (!window.confirm(`${t.common.delete}؟`)) return;
@@ -231,12 +241,11 @@ export function FoodLibrary({
                       <TableCell className="hidden text-muted-foreground md:table-cell">{food.carbs}g</TableCell>
                       <TableCell className="hidden text-muted-foreground md:table-cell">{food.fat}g</TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        <span
-                          className="text-amber-500"
-                          title={label(FOOD_PRIORITY_LABELS, String((food.priority ?? DEFAULT_FOOD_PRIORITY)), locale)}
-                        >
-                          {FOOD_PRIORITY_STARS[(food.priority ?? DEFAULT_FOOD_PRIORITY) as FoodPriority]}
-                        </span>
+                        <PriorityCell
+                          food={food}
+                          canEdit={canEditPriority(food)}
+                          onDone={() => router.refresh()}
+                        />
                       </TableCell>
                       <TableCell>
                         {canMutate(food) && (
@@ -278,6 +287,73 @@ export function FoodLibrary({
           onSaved={() => { setDialogOpen(false); router.refresh(); }}
         />
       )}
+    </div>
+  );
+}
+
+function PriorityCell({
+  food,
+  canEdit,
+  onDone,
+}: {
+  food: FoodItem;
+  canEdit: boolean;
+  onDone: () => void;
+}) {
+  const { locale } = useI18n();
+  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
+  const [pending, start] = useTransition();
+  const value = (food.priority ?? DEFAULT_FOOD_PRIORITY) as FoodPriority;
+
+  if (!canEdit) {
+    return (
+      <span className="text-amber-500" title={label(FOOD_PRIORITY_LABELS, String(value), locale)}>
+        {FOOD_PRIORITY_STARS[value]}
+      </span>
+    );
+  }
+
+  function change(v: string) {
+    const p = Number(v);
+    if (p === value) return;
+    start(async () => {
+      await setFoodPriorityAction(food._id, p);
+      onDone();
+    });
+  }
+  function reset() {
+    start(async () => {
+      await resetFoodPriorityAction(food._id);
+      onDone();
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <Select value={String(value)} onValueChange={change} disabled={pending}>
+        <SelectTrigger className="h-8 w-[104px] px-2 text-amber-500">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {FOOD_PRIORITIES.map((p) => (
+            <SelectItem key={p} value={String(p)}>
+              <span className="text-amber-500">{FOOD_PRIORITY_STARS[p]}</span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {food.priorityOverridden && (
+        <button
+          type="button"
+          onClick={reset}
+          disabled={pending}
+          title={L("مخصّص — استرجاع الافتراضي", "Custom — reset to default")}
+          className="text-amber-500 transition-colors hover:text-foreground"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {pending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
     </div>
   );
 }

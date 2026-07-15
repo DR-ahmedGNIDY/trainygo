@@ -12,6 +12,7 @@ export { ClientProgram } from "./ClientProgram";
 export { NutritionTemplate } from "./NutritionTemplate";
 export { NutritionPlan } from "./NutritionPlan";
 export { NutritionGeneration } from "./NutritionGeneration";
+export { FoodPriorityOverride } from "./FoodPriorityOverride";
 export { WorkoutLog } from "./WorkoutLog";
 export { ProgressEntry } from "./ProgressEntry";
 export { CheckinForm, CheckinResponse } from "./Checkin";
@@ -41,6 +42,7 @@ export type {
 } from "./NutritionTemplate";
 export type { INutritionPlan } from "./NutritionPlan";
 export type { INutritionGeneration } from "./NutritionGeneration";
+export type { IFoodPriorityOverride } from "./FoodPriorityOverride";
 export type { IWorkoutLog, ILoggedSet } from "./WorkoutLog";
 export type { IProgressEntry } from "./ProgressEntry";
 export type { ICheckinForm, ICheckinResponse, ICheckinField } from "./Checkin";
