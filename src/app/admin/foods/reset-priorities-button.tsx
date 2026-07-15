@@ -45,14 +45,17 @@ export function ResetPrioritiesButton() {
   }
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-amber-500/50 bg-amber-500/5 p-3">
-      <Button variant="outline" onClick={run} disabled={pending}>
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        variant="outline"
+        onClick={run}
+        disabled={pending}
+        className="border-amber-500/60 text-amber-600 hover:bg-amber-500/10 hover:text-amber-600"
+      >
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4 text-amber-500" />}
         {L("تصفير كل الأولويات إلى ★", "Reset all priorities to ★")}
       </Button>
-      <span className="text-sm text-muted-foreground">
-        {msg ?? L("إجراء صيانة مؤقت — لمرة واحدة.", "One-time maintenance action.")}
-      </span>
+      {msg && <span className="text-sm text-muted-foreground">{msg}</span>}
     </div>
   );
 }

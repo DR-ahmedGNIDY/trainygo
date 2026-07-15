@@ -111,6 +111,7 @@ export function FoodLibrary({
   category,
   sort,
   canWrite,
+  headerExtra,
 }: {
   role: "super_admin" | "coach";
   items: FoodItem[];
@@ -121,6 +122,8 @@ export function FoodLibrary({
   category: string;
   sort: string;
   canWrite: boolean;
+  /** Optional extra control rendered in the page header (e.g. admin tools). */
+  headerExtra?: React.ReactNode;
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -170,6 +173,7 @@ export function FoodLibrary({
         title={role === "super_admin" ? t.dashboard.adminNav.foods : t.dashboard.coachNav.foodLibrary}
         description={`${total} ${locale === "ar" ? "صنف · لكل ١٠٠ جرام" : "items · per 100g"}`}
       >
+        {headerExtra}
         {canWrite && (
           <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
             <Plus className="h-4 w-4" />
