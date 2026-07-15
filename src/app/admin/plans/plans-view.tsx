@@ -37,6 +37,8 @@ export interface PlanItem {
   price: number;
   durationMonths: number;
   maxClients: number;
+  /** null = unlimited. */
+  maxTeamMembers: number | null;
   featuresAr: string[];
   featuresEn: string[];
   branding: boolean;
@@ -122,6 +124,7 @@ function PlanDialog({
       price: p?.price?.toString() ?? "",
       durationMonths: p?.durationMonths?.toString() ?? "1",
       maxClients: p?.maxClients?.toString() ?? "",
+      maxTeamMembers: p?.maxTeamMembers?.toString() ?? "",
       featuresAr: (p?.featuresAr ?? []).join("\n"),
       featuresEn: (p?.featuresEn ?? []).join("\n"),
       branding: p?.branding ?? false,
@@ -138,6 +141,8 @@ function PlanDialog({
       price: Number(f.price) || 0,
       durationMonths: Number(f.durationMonths) || 1,
       maxClients: Number(f.maxClients) || 0,
+      // Blank = unlimited; "0" is a real cap meaning no team members at all.
+      maxTeamMembers: f.maxTeamMembers.trim() === "" ? undefined : Number(f.maxTeamMembers) || 0,
       featuresAr: f.featuresAr.split("\n").map((x) => x.trim()).filter(Boolean),
       featuresEn: f.featuresEn.split("\n").map((x) => x.trim()).filter(Boolean),
       branding: f.branding,
@@ -163,6 +168,10 @@ function PlanDialog({
           <div className="space-y-2"><Label>{L("الاسم بالإنجليزية", "English name")}</Label><Input dir="ltr" value={f.nameEn} onChange={(e) => set("nameEn")(e.target.value)} /></div>
           <div className="space-y-2"><Label>{L("المدة (شهور)", "Duration (months)")}</Label><Input type="number" min={1} value={f.durationMonths} onChange={(e) => set("durationMonths")(e.target.value)} /></div>
           <div className="space-y-2"><Label>{L("أقصى عملاء", "Max clients")}</Label><Input type="number" value={f.maxClients} onChange={(e) => set("maxClients")(e.target.value)} /></div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>{L("أقصى أعضاء فريق", "Max team members")} <span className="text-xs text-muted-foreground">({L("اتركه فارغاً لغير محدود", "leave empty for unlimited")})</span></Label>
+            <Input type="number" min={0} value={f.maxTeamMembers} onChange={(e) => set("maxTeamMembers")(e.target.value)} />
+          </div>
           <div className="space-y-2 sm:col-span-2"><Label>{L("المميزات (عربي — سطر لكل ميزة)", "Features AR (one per line)")}</Label><textarea className={ta} value={f.featuresAr} onChange={(e) => set("featuresAr")(e.target.value)} /></div>
           <div className="space-y-2 sm:col-span-2"><Label>{L("المميزات (إنجليزي)", "Features EN (one per line)")}</Label><textarea className={ta} value={f.featuresEn} onChange={(e) => set("featuresEn")(e.target.value)} /></div>
           <div className="space-y-2 sm:col-span-2">

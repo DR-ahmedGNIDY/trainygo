@@ -222,6 +222,7 @@ function TeamMemberDialog({
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -233,6 +234,7 @@ function TeamMemberDialog({
   useEffect(() => {
     if (!open) return;
     setCreds(null);
+    setError(null);
     if (editing) {
       setName(editing.name);
       setEmail(editing.email ?? "");
@@ -254,20 +256,25 @@ function TeamMemberDialog({
 
   async function save() {
     setSaving(true);
+    setError(null);
     if (editing) {
-      await updateTeamMemberAction(editing.id, { name, email, phone, specialization, permissions });
+      const res = await updateTeamMemberAction(editing.id, { name, email, phone, specialization, permissions });
       setSaving(false);
+      if (!res.ok) return setError(res.error);
       onSaved();
       return;
     }
     const res = await createTeamMemberAction({ name, email, phone, specialization });
-    setSaving(false);
-    if (res.ok) {
-      if (permissions) {
-        await updateTeamMemberAction(res.data!.teamMemberId, { permissions });
-      }
-      setCreds(res.data!.credentials);
+    if (!res.ok) {
+      setSaving(false);
+      return setError(res.error);
     }
+    const permRes = await updateTeamMemberAction(res.data!.teamMemberId, { permissions });
+    setSaving(false);
+    // The member exists either way, so surface the credentials regardless —
+    // losing them would strand an account whose password is shown only once.
+    setCreds(res.data!.credentials);
+    if (!permRes.ok) setError(permRes.error);
   }
 
   function copyAll() {
@@ -293,6 +300,11 @@ function TeamMemberDialog({
               </div>
             ))}
           </div>
+          {error && (
+            <p role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <DialogFooter>
             <Button onClick={copyAll} className="gap-2">{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}{copied ? t.common.copied : L("نسخ البيانات", "Copy details")}</Button>
             <Button variant="outline" onClick={() => { onOpenChange(false); onSaved(); }}>{t.common.close}</Button>
@@ -336,6 +348,11 @@ function TeamMemberDialog({
             </div>
           </div>
         </div>
+        {error && (
+          <p role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>
           <Button onClick={save} disabled={saving || !name}>{saving && <Loader2 className="h-4 w-4 animate-spin" />}{t.common.save}</Button>

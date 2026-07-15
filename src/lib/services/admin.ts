@@ -1,7 +1,7 @@
-import { Types } from "mongoose";
+import { Types, type UpdateQuery } from "mongoose";
 import { addMonths } from "date-fns";
 import { connectToDatabase } from "@/lib/db";
-import { User } from "@/models/User";
+import { User, type IUser } from "@/models/User";
 import { Plan } from "@/models/Plan";
 import { Subscription } from "@/models/Subscription";
 import { ClientProgram } from "@/models/ClientProgram";
@@ -176,7 +176,6 @@ export async function activateSubscription(
   if (!before) throw new PermissionError("Coach not found", "NOT_FOUND");
   const plan = await Plan.findById(input.planId);
   if (!plan) throw new PermissionError("Plan not found", "NOT_FOUND");
-  console.log("PLAN", plan.toObject());
 
   // Guard against legacy/un-migrated Plan documents that predate the
   // durationMonths field (they still had the old `durationDays` field, or
@@ -194,8 +193,6 @@ export async function activateSubscription(
   const now = new Date();
   const startDate = now;
   const endDate = addMonths(startDate, plan.durationMonths);
-  console.log("START", startDate);
-  console.log("END", endDate);
 
   // Any previously "active" subscription for this coach is now superseded.
   await Subscription.updateMany(
@@ -217,7 +214,7 @@ export async function activateSubscription(
     activatedAt: now,
   });
 
-  const updatePayload = {
+  const updatePayload: Record<string, unknown> = {
     status: "active" as const,
     "coachProfile.currentPlan": plan._id,
     "coachProfile.subscriptionStatus": "active" as const,
@@ -227,27 +224,29 @@ export async function activateSubscription(
     "coachProfile.subscriptionTier": plan.tier,
     "coachProfile.planFeatures": plan.planFeatures,
     "coachProfile.maxClients": plan.maxClients,
+    // A paid subscription supersedes the trial outright; leaving the trial
+    // window behind would let trial-expiry checks act on an active coach.
+    "coachProfile.trialStartDate": null,
+    "coachProfile.trialEndDate": null,
   };
-  console.log("UPDATE", updatePayload);
+  // Registration caps a trial at `maxTeamMembers: 0`, so activation MUST carry
+  // the plan's own cap across — otherwise the coach keeps the trial's 0 for the
+  // life of the account and the Team feature stays permanently unusable.
+  // An unset cap on the plan means unlimited, which is represented on the coach
+  // by the field's absence: $unset it rather than writing undefined, since
+  // Mongoose strips undefined from $set and would silently leave the 0 in place.
+  const update: UpdateQuery<IUser> = { $set: updatePayload };
+  if (typeof plan.maxTeamMembers === "number") {
+    updatePayload["coachProfile.maxTeamMembers"] = plan.maxTeamMembers;
+  } else {
+    update.$unset = { "coachProfile.maxTeamMembers": "" };
+  }
 
-  const res = await User.updateOne(
-    { _id: coachId, role: "coach" },
-    { $set: updatePayload },
-  );
-  console.log("MATCHED", res.matchedCount);
-  console.log("MODIFIED", res.modifiedCount);
+  const res = await User.updateOne({ _id: coachId, role: "coach" }, update);
   if (res.matchedCount === 0) throw new PermissionError("Coach not found", "NOT_FOUND");
 
-  const updatedCoach = await User.findById(coachId).lean();
-  console.log("AFTER coachProfile (unpopulated)", updatedCoach?.coachProfile);
-
-  // Reload once more with currentPlan populated, to verify the ref: "Plan"
-  // relationship actually resolves against the plan we just wrote.
-  const populatedCoach = await User.findById(coachId).populate("coachProfile.currentPlan").lean();
-  console.log("AFTER coachProfile (populated)", populatedCoach?.coachProfile);
-  console.log("AFTER coachProfile.currentPlan (populated)", populatedCoach?.coachProfile?.currentPlan);
-
-  const after = updatedCoach;
+  // Re-read so the caller can record the resulting profile in the audit log.
+  const after = await User.findById(coachId).lean();
 
   await createNotification({
     recipient: coachId,
@@ -264,10 +263,19 @@ export async function changePlan(coachId: string, planId: string) {
   await connectToDatabase();
   const plan = await Plan.findById(planId);
   if (!plan) throw new PermissionError("Plan not found", "NOT_FOUND");
-  await User.updateOne(
-    { _id: coachId, role: "coach" },
-    { $set: { "coachProfile.currentPlan": plan._id, "coachProfile.maxClients": plan.maxClients } },
-  );
+  // Both caps travel with the plan — see activateSubscription() for why an
+  // absent plan cap has to be $unset on the coach rather than written as undefined.
+  const set: Record<string, unknown> = {
+    "coachProfile.currentPlan": plan._id,
+    "coachProfile.maxClients": plan.maxClients,
+  };
+  const update: UpdateQuery<IUser> = { $set: set };
+  if (typeof plan.maxTeamMembers === "number") {
+    set["coachProfile.maxTeamMembers"] = plan.maxTeamMembers;
+  } else {
+    update.$unset = { "coachProfile.maxTeamMembers": "" };
+  }
+  await User.updateOne({ _id: coachId, role: "coach" }, update);
   return true;
 }
 

@@ -19,6 +19,8 @@ export interface IPlan {
   /** Billing period in whole calendar months (1 = monthly, 3 = quarterly). Subscription end dates are computed via addMonths(startDate, durationMonths) — never as a raw day count. */
   durationMonths: number;
   maxClients: number;
+  /** Max team members a subscriber of this plan may create. `undefined` = unlimited — same semantics as `coachProfile.maxTeamMembers`, which this value is copied into on activation. */
+  maxTeamMembers?: number;
   features: { ar: string; en: string }[];
   /** Feature flags that unlock gated capabilities for subscribers of this plan. */
   planFeatures: IPlanFeatures;
@@ -53,6 +55,7 @@ const PlanSchema = new Schema<IPlan>(
     price: { type: Number, required: true, min: 0 },
     durationMonths: { type: Number, required: true, min: 1 },
     maxClients: { type: Number, required: true, min: 0 },
+    maxTeamMembers: { type: Number, min: 0, default: undefined },
     features: { type: [LocalizedString], default: [] },
     planFeatures: {
       type: PlanFeaturesSchema,

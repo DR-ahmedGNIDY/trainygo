@@ -7,7 +7,7 @@ import {
   coachRegisterSchema,
   type CoachRegisterInput,
 } from "@/lib/validations/auth";
-import { TRIAL_DURATION_DAYS, TRIAL_MAX_CLIENTS } from "@/lib/constants";
+import { TRIAL_DURATION_DAYS, TRIAL_MAX_CLIENTS, TRIAL_MAX_TEAM_MEMBERS } from "@/lib/constants";
 import { getLocale } from "@/lib/i18n/server";
 import { logError } from "@/lib/logging/error-log";
 import { rateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
@@ -70,7 +70,7 @@ export async function registerCoach(
         // Trial accounts are capped (1 client, no team members) so the free
         // trial can't be used as unlimited production capacity.
         maxClients: TRIAL_MAX_CLIENTS,
-        maxTeamMembers: 0,
+        maxTeamMembers: TRIAL_MAX_TEAM_MEMBERS,
       },
     });
   } catch (e: unknown) {

@@ -15,6 +15,7 @@ export default async function AdminPlansPage() {
     price: p.price,
     durationMonths: p.durationMonths,
     maxClients: p.maxClients,
+    maxTeamMembers: p.maxTeamMembers ?? null,
     featuresAr: (p.features ?? []).map((f) => f.ar).filter(Boolean),
     featuresEn: (p.features ?? []).map((f) => f.en).filter(Boolean),
     branding: p.planFeatures?.branding ?? false,
