@@ -5,8 +5,9 @@ import { NutritionGeneration } from "@/models/NutritionGeneration";
 import { serialize } from "@/lib/serialize";
 import { DEFAULT_FOOD_PRIORITY } from "@/lib/constants";
 import { getPriorityOverrides } from "@/lib/services/foods";
-import { generatePlan } from "@/lib/generator/engine";
+import { dietAllows, generatePlan } from "@/lib/generator/engine";
 import type { EngineFood, GeneratorInput, GeneratedPlan } from "@/lib/generator/types";
+import type { GeneratorGoal } from "@/lib/constants";
 
 export type GenScope =
   | { role: "super_admin" }
@@ -61,6 +62,41 @@ export async function loadFoodPool(scope: GenScope): Promise<EngineFood[]> {
 }
 
 /**
+ * The candidate pool the swap engine works from: the same foods the generator
+ * could have chosen (diet filter applied, so a vegan plan never offers chicken),
+ * narrowed to the categories the plan actually uses. Sent to the client once
+ * alongside the plan so swapping is a pure client-side computation — the spec
+ * requires candidates to be pre-calculated and cached, never queried per click.
+ */
+export function swapPoolFor(
+  pool: EngineFood[],
+  goal: GeneratorGoal,
+  foodIds: Iterable<string>,
+): EngineFood[] {
+  const ids = new Set(foodIds);
+  const categories = new Set(
+    pool.filter((f) => ids.has(f.id)).map((f) => f.category),
+  );
+  return pool.filter((f) => categories.has(f.category) && dietAllows(f, goal));
+}
+
+function planFoodIds(plan: Pick<GeneratedPlan, "meals">): string[] {
+  return plan.meals.flatMap((m) => m.items.map((it) => it.food));
+}
+
+/**
+ * Load the swap candidate pool for an existing plan — used when a coach reopens
+ * a plan from history, where no pool was shipped with it.
+ */
+export async function loadSwapPool(
+  scope: GenScope,
+  goal: GeneratorGoal,
+  foodIds: string[],
+): Promise<EngineFood[]> {
+  return swapPoolFor(await loadFoodPool(scope), goal, foodIds);
+}
+
+/**
  * Generate a plan and persist it to the coach's history (last 20 kept). Throws
  * GeneratorError on empty library / missing categories — the action layer maps
  * those to a friendly message.
@@ -68,9 +104,10 @@ export async function loadFoodPool(scope: GenScope): Promise<EngineFood[]> {
 export async function generateAndRecord(
   scope: GenScope,
   input: GeneratorInput,
-): Promise<{ plan: GeneratedPlan; historyId: string | null }> {
+): Promise<{ plan: GeneratedPlan; historyId: string | null; swapPool: EngineFood[] }> {
   const pool = await loadFoodPool(scope);
   const plan = generatePlan(pool, input);
+  const swapPool = swapPoolFor(pool, input.goal, planFoodIds(plan));
 
   let historyId: string | null = null;
   if (scope.role === "coach") {
@@ -106,7 +143,7 @@ export async function generateAndRecord(
     }
   }
 
-  return { plan, historyId };
+  return { plan, historyId, swapPool };
 }
 
 export async function listGenerations(scope: GenScope) {
