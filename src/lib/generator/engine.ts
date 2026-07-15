@@ -22,10 +22,11 @@ import {
 } from "./types";
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
-const round5 = (n: number) => Math.max(5, Math.round(n / 5) * 5);
+/** Portions are always written in 5g steps — never 147g. */
+export const round5 = (n: number) => Math.max(5, Math.round(n / 5) * 5);
 
 /** Per-gram macros for a food (macros are stored per `unitGrams`). */
-function perGram(food: EngineFood) {
+export function perGram(food: EngineFood) {
   const base = food.unitGrams > 0 ? food.unitGrams : 100;
   return {
     calories: food.calories / base,
@@ -51,7 +52,7 @@ function resolveRatio(input: GeneratorInput): MacroRatio {
   };
 }
 
-function dietAllows(food: EngineFood, goal: GeneratorInput["goal"]): boolean {
+export function dietAllows(food: EngineFood, goal: GeneratorInput["goal"]): boolean {
   if (goal !== "vegetarian" && goal !== "vegan") return true;
   if (goal === "vegan" && food.category === "dairy") return false;
   const words = DIET_EXCLUDE_KEYWORDS[goal];
@@ -124,7 +125,9 @@ function categoriesForMeal(type: MealType, snackIndex: number): FoodCategory[] {
 }
 
 /** Gram bounds per category so fillers (fruit/veg) stay sensible. */
-function bounds(category: FoodCategory): { min: number; max: number; start: number } {
+export function categoryGramBounds(
+  category: FoodCategory,
+): { min: number; max: number; start: number } {
   switch (category) {
     case "vegetables":
       return { min: 30, max: 300, start: 100 };
@@ -236,7 +239,7 @@ export function generatePlan(
     if (chosenAll.length === 0) return [] as number[];
     const solverFoods: SolverFood[] = chosenAll.map((c) => {
       const pg = perGram(c.food);
-      const b = bounds(c.food.category);
+      const b = categoryGramBounds(c.food.category);
       // Seed each food near its share of the day's calories so the descent
       // starts from a balanced portion rather than all-or-nothing.
       const startCal = dayTarget.calories * c.startShare;

@@ -7,7 +7,7 @@ import { runAction, ok, fail, type ActionResult } from "./result";
 import * as gen from "@/lib/services/nutrition-generator";
 import * as nt from "@/lib/services/nutrition-templates";
 import { GeneratorError } from "@/lib/generator/types";
-import type { GeneratedPlan, MacroRatio } from "@/lib/generator/types";
+import type { EngineFood, GeneratedPlan, MacroRatio } from "@/lib/generator/types";
 import {
   GENERATOR_GOALS,
   GENERATOR_CALORIE_OPTIONS,
@@ -47,7 +47,9 @@ function friendlyError(e: GeneratorError): ReturnType<typeof fail> {
 
 export async function generateNutritionAction(
   input: GenerateInput,
-): Promise<ActionResult<{ plan: GeneratedPlan; historyId: string | null }>> {
+): Promise<
+  ActionResult<{ plan: GeneratedPlan; historyId: string | null; swapPool: EngineFood[] }>
+> {
   return runAction(async () => {
     // Validate inputs against the allowed presets.
     if (!GENERATOR_CALORIE_OPTIONS.includes(input.calories as never))
@@ -72,6 +74,25 @@ export async function generateNutritionAction(
       if (e instanceof GeneratorError) return friendlyError(e);
       throw e;
     }
+  });
+}
+
+/**
+ * Fetch the swap candidate pool for a plan the client already holds — used when
+ * a coach reopens a generation from history, where no pool came with the plan.
+ * Generating returns its pool inline, so this is one query per reopen, not one
+ * per swap; the client caches the result.
+ */
+export async function getSwapPoolAction(input: {
+  goal: GeneratorGoal;
+  foodIds: string[];
+}): Promise<ActionResult<{ swapPool: EngineFood[] }>> {
+  return runAction(async () => {
+    if (!GENERATOR_GOALS.includes(input.goal))
+      return fail("هدف غير صالح", "VALIDATION");
+    const scope = await resolveScope();
+    const swapPool = await gen.loadSwapPool(scope, input.goal, input.foodIds ?? []);
+    return ok({ swapPool });
   });
 }
 
