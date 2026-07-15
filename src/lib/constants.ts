@@ -109,7 +109,9 @@ export type FoodUnit = (typeof FOOD_UNITS)[number];
  */
 export const FOOD_PRIORITIES = [5, 4, 3, 2, 1] as const;
 export type FoodPriority = (typeof FOOD_PRIORITIES)[number];
-export const DEFAULT_FOOD_PRIORITY: FoodPriority = 4;
+// Baseline is the lowest star: every food starts at ★ and coaches raise the
+// stars for the foods they actually want the generator to prefer.
+export const DEFAULT_FOOD_PRIORITY: FoodPriority = 1;
 
 export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 export type MealType = (typeof MEAL_TYPES)[number];
