@@ -3,8 +3,10 @@ import type {
   ExerciseCategory,
   ExerciseChangeQuickReason,
   FoodCategory,
+  FoodPriority,
   FoodUnit,
   Gender,
+  GeneratorGoal,
   Locale,
   MealType,
   RequestStatus,
@@ -50,6 +52,34 @@ export const FOOD_CATEGORY_LABELS: Record<FoodCategory, L> = {
   snacks: { ar: "وجبات خفيفة", en: "Snacks" },
   fast_food: { ar: "وجبات سريعة", en: "Fast Food" },
   supplements: { ar: "مكملات", en: "Supplements" },
+};
+
+export const FOOD_PRIORITY_LABELS: Record<FoodPriority, L> = {
+  5: { ar: "مفضل جداً", en: "Highest" },
+  4: { ar: "مفضل", en: "Preferred" },
+  3: { ar: "متوسط", en: "Medium" },
+  2: { ar: "استخدام قليل", en: "Low use" },
+  1: { ar: "نادراً", en: "Rarely" },
+};
+
+/** Star glyphs for each priority level (presentation-only). */
+export const FOOD_PRIORITY_STARS: Record<FoodPriority, string> = {
+  5: "★★★★★",
+  4: "★★★★☆",
+  3: "★★★☆☆",
+  2: "★★☆☆☆",
+  1: "★☆☆☆☆",
+};
+
+export const GENERATOR_GOAL_LABELS: Record<GeneratorGoal, L> = {
+  weight_loss: { ar: "خسارة الوزن", en: "Weight Loss" },
+  maintain: { ar: "الحفاظ على الوزن", en: "Maintain Weight" },
+  muscle_gain: { ar: "بناء العضلات", en: "Muscle Gain" },
+  high_protein: { ar: "بروتين عالٍ", en: "High Protein" },
+  low_carb: { ar: "كربوهيدرات منخفضة", en: "Low Carb" },
+  balanced: { ar: "متوازن", en: "Balanced" },
+  vegetarian: { ar: "نباتي", en: "Vegetarian" },
+  vegan: { ar: "نباتي صرف", en: "Vegan" },
 };
 
 export const FOOD_UNIT_LABELS: Record<FoodUnit, L> = {

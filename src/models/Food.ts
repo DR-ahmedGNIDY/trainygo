@@ -1,8 +1,11 @@
 import { Schema, model, models, type Model, type Types } from "mongoose";
 import {
   FOOD_CATEGORIES,
+  FOOD_PRIORITIES,
   FOOD_UNITS,
+  DEFAULT_FOOD_PRIORITY,
   type FoodCategory,
+  type FoodPriority,
   type FoodUnit,
 } from "@/lib/constants";
 
@@ -23,6 +26,8 @@ export interface IFood {
   carbs: number;
   fat: number;
   fiber: number;
+  /** Coach preference weight for the generator's rule engine (1–5, 5 = highest). */
+  priority: FoodPriority;
   imageUrl?: string;
   imagePublicId?: string;
   isSystemFood: boolean;
@@ -48,6 +53,12 @@ const FoodSchema = new Schema<IFood>(
     carbs: { type: Number, default: 0, min: 0 },
     fat: { type: Number, default: 0, min: 0 },
     fiber: { type: Number, default: 0, min: 0 },
+    priority: {
+      type: Number,
+      enum: FOOD_PRIORITIES,
+      default: DEFAULT_FOOD_PRIORITY,
+      index: true,
+    },
     imageUrl: { type: String },
     imagePublicId: { type: String },
     isSystemFood: { type: Boolean, default: true, index: true },

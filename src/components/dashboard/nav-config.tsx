@@ -26,6 +26,7 @@ import {
   Wrench,
   UserCog,
   RefreshCw,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
@@ -85,6 +86,7 @@ export function getCoachNav(t: Dictionary, opts?: { branding?: boolean; teamCtx?
       label: g.nutrition,
       items: [
         { label: n.foodLibrary, href: "/coach/nutrition/foods", icon: Apple, permission: "canAccessFoods" },
+        { label: n.nutritionGenerator, href: "/coach/nutrition/generator", icon: Sparkles, permission: "canAccessTemplates" },
         { label: n.nutritionTemplates, href: "/coach/nutrition/templates", icon: Salad, permission: "canAccessTemplates" },
         { label: n.clientNutritionPlans, href: "/coach/nutrition/plans", icon: NotebookPen, permission: "canAccessNutrition" },
         { label: n.nutritionProgress, href: "/coach/nutrition/progress", icon: TrendingUp, permission: "canAccessNutrition" },

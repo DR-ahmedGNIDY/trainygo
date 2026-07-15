@@ -52,8 +52,19 @@ import {
 } from "@/components/ui/dialog";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { CloudinaryUpload } from "@/components/media/cloudinary-upload";
-import { FOOD_CATEGORY_LABELS, label } from "@/lib/i18n/labels";
-import { FOOD_CATEGORIES, FOOD_UNITS } from "@/lib/constants";
+import {
+  FOOD_CATEGORY_LABELS,
+  FOOD_PRIORITY_LABELS,
+  FOOD_PRIORITY_STARS,
+  label,
+} from "@/lib/i18n/labels";
+import {
+  FOOD_CATEGORIES,
+  FOOD_PRIORITIES,
+  FOOD_UNITS,
+  DEFAULT_FOOD_PRIORITY,
+  type FoodPriority,
+} from "@/lib/constants";
 import {
   createFoodAction,
   updateFoodAction,
@@ -71,6 +82,7 @@ export interface FoodItem {
   carbs: number;
   fat: number;
   fiber: number;
+  priority?: number;
   imageUrl?: string;
   isSystemFood: boolean;
 }
@@ -193,6 +205,7 @@ export function FoodLibrary({
                     <TableHead className="hidden md:table-cell">{t.client.protein}</TableHead>
                     <TableHead className="hidden md:table-cell">{t.client.carbs}</TableHead>
                     <TableHead className="hidden md:table-cell">{t.client.fat}</TableHead>
+                    <TableHead className="hidden lg:table-cell">{locale === "ar" ? "الأولوية" : "Priority"}</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -217,6 +230,14 @@ export function FoodLibrary({
                       <TableCell className="hidden text-muted-foreground md:table-cell">{food.protein}g</TableCell>
                       <TableCell className="hidden text-muted-foreground md:table-cell">{food.carbs}g</TableCell>
                       <TableCell className="hidden text-muted-foreground md:table-cell">{food.fat}g</TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        <span
+                          className="text-amber-500"
+                          title={label(FOOD_PRIORITY_LABELS, String((food.priority ?? DEFAULT_FOOD_PRIORITY)), locale)}
+                        >
+                          {FOOD_PRIORITY_STARS[(food.priority ?? DEFAULT_FOOD_PRIORITY) as FoodPriority]}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         {canMutate(food) && (
                           <DropdownMenu>
@@ -289,6 +310,7 @@ function FoodFormDialog({
       carbs: food?.carbs?.toString() ?? "",
       fat: food?.fat?.toString() ?? "",
       fiber: food?.fiber?.toString() ?? "",
+      priority: (food?.priority ?? DEFAULT_FOOD_PRIORITY).toString(),
       imageUrl: food?.imageUrl ?? "",
     };
   }
@@ -306,6 +328,7 @@ function FoodFormDialog({
       carbs: f.carbs || 0,
       fat: f.fat || 0,
       fiber: f.fiber || 0,
+      priority: Number(f.priority) || DEFAULT_FOOD_PRIORITY,
       imageUrl: f.imageUrl || undefined,
     };
     const res = editing ? await updateFoodAction(editing._id, payload) : await createFoodAction(payload);
@@ -341,6 +364,21 @@ function FoodFormDialog({
           <div className="space-y-2"><Label>{t.client.carbs} (g)</Label><Input type="number" value={f.carbs} onChange={(e) => set("carbs")(e.target.value)} /></div>
           <div className="space-y-2"><Label>{t.client.fat} (g)</Label><Input type="number" value={f.fat} onChange={(e) => set("fat")(e.target.value)} /></div>
           <div className="space-y-2"><Label>{L("الألياف", "Fiber")} (g)</Label><Input type="number" value={f.fiber} onChange={(e) => set("fiber")(e.target.value)} /></div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>{L("أولوية المولّد", "Generator priority")}</Label>
+            <Select value={f.priority} onValueChange={set("priority")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {FOOD_PRIORITIES.map((p) => (
+                  <SelectItem key={p} value={String(p)}>
+                    <span className="text-amber-500">{FOOD_PRIORITY_STARS[p]}</span>{" "}
+                    {label(FOOD_PRIORITY_LABELS, String(p), locale)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{L("يستخدمها المولّد الذكي لترتيب الأطعمة المفضّلة أولاً.", "The smart generator picks higher-priority foods first.")}</p>
+          </div>
           <div className="space-y-2 sm:col-span-2">
             <Label>{L("صورة الغذاء (اختياري)", "Food image (optional)")}</Label>
             <div className="flex gap-2">

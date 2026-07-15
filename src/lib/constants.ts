@@ -101,8 +101,44 @@ export type FoodCategory = (typeof FOOD_CATEGORIES)[number];
 export const FOOD_UNITS = ["100g", "piece", "cup", "spoon"] as const;
 export type FoodUnit = (typeof FOOD_UNITS)[number];
 
+/**
+ * Coach-assigned preference weight for a food, used by the nutrition
+ * generator's rule engine to rank candidates. 5 = ★★★★★ (highest / most
+ * preferred), 1 = ★☆☆☆☆ (rarely). Stored as a number so it sorts cheaply;
+ * the star glyphs and Arabic labels are presentation-only (see labels.ts).
+ */
+export const FOOD_PRIORITIES = [5, 4, 3, 2, 1] as const;
+export type FoodPriority = (typeof FOOD_PRIORITIES)[number];
+export const DEFAULT_FOOD_PRIORITY: FoodPriority = 4;
+
 export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 export type MealType = (typeof MEAL_TYPES)[number];
+
+/**
+ * Goals offered by the nutrition template generator. Each maps to a default
+ * macro ratio (see src/lib/generator/config.ts). `vegetarian`/`vegan` also
+ * apply a diet filter over the food pool. Kept here (not just in the generator)
+ * so future generators can share the same goal vocabulary.
+ */
+export const GENERATOR_GOALS = [
+  "weight_loss",
+  "maintain",
+  "muscle_gain",
+  "high_protein",
+  "low_carb",
+  "balanced",
+  "vegetarian",
+  "vegan",
+] as const;
+export type GeneratorGoal = (typeof GENERATOR_GOALS)[number];
+
+/** Calorie presets the coach can pick as a daily target. */
+export const GENERATOR_CALORIE_OPTIONS = [
+  1200, 1500, 1800, 2000, 2200, 2500, 2800, 3000, 3500, 4000,
+] as const;
+
+/** Meals-per-day presets. */
+export const GENERATOR_MEALS_OPTIONS = [3, 4, 5, 6] as const;
 
 /** A client subscription is either running normally or temporarily frozen by the coach. */
 export const CLIENT_FREEZE_STATUSES = ["active", "frozen"] as const;

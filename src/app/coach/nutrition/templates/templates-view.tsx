@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Salad, Copy, Trash2, Pencil, Flame, Loader2 } from "lucide-react";
+import { Plus, Salad, Copy, Trash2, Pencil, Flame, Loader2, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,7 +58,12 @@ export function NutritionTemplatesView({
   return (
     <div>
       <PageHeader title={t.dashboard.coachNav.nutritionTemplates} description={L("خطط غذائية جاهزة لإعادة الاستخدام.", "Reusable nutrition templates.")}>
-        {canWrite && <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" />{t.dashboard.ui.createTemplate}</Button>}
+        {canWrite && (
+          <>
+            <Button asChild variant="outline"><Link href="/coach/nutrition/generator"><Sparkles className="h-4 w-4" />{t.dashboard.coachNav.nutritionGenerator}</Link></Button>
+            <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" />{t.dashboard.ui.createTemplate}</Button>
+          </>
+        )}
       </PageHeader>
 
       {items.length === 0 ? (
