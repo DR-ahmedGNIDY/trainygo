@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers/providers";
 import { getLocale } from "@/lib/i18n/server";
 import { dirForLocale } from "@/lib/i18n/config";
+import { APP_URL } from "@/lib/app-url";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
     "تغذية",
   ],
   authors: [{ name: "FITXNET" }],
-  metadataBase: new URL("https://fitxnet.com"),
+  metadataBase: new URL(APP_URL),
   openGraph: {
     title: "FITXNET — منصة إدارة المدربين الشخصيين",
     description:

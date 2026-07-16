@@ -13,6 +13,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { appUrl } from "@/lib/app-url";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,7 +122,7 @@ export function AddClientForm() {
 
   function whatsappLink() {
     if (!creds) return "#";
-    const loginUrl = typeof window !== "undefined" ? `${window.location.origin}/login` : "/login";
+    const loginUrl = appUrl("/login");
     const message = L(
       `مرحباً ${form.name}،\nتم إنشاء حسابك في ${academyName}.\nاسم المستخدم: ${creds.username}\nكلمة المرور: ${creds.password}\nرابط تسجيل الدخول: ${loginUrl}`,
       `Hi ${form.name},\nYour ${academyName} account is ready.\nUsername: ${creds.username}\nPassword: ${creds.password}\nLogin link: ${loginUrl}`,
