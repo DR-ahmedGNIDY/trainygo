@@ -107,19 +107,20 @@ export function DashboardShell({
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side={mobileSide} className="w-72 p-0">
+            <SheetContent side={mobileSide} className="flex w-72 flex-col gap-0 p-0">
               <SheetTitle className="sr-only">{brand.academyName}</SheetTitle>
-              <div className="flex h-16 items-center border-b px-5">
+              <div className="flex h-16 shrink-0 items-center border-b px-5">
                 <BrandLogo />
               </div>
-              <div className="overflow-y-auto py-3">
+              {/* min-h-0 lets this shrink below its content height so overflow-y-auto engages. */}
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3">
                 <SidebarNav
                   sections={sections}
                   onNavigate={() => setMobileOpen(false)}
                 />
               </div>
               {brand.showFitxnetBadge && (
-                <div className="border-t px-5 py-3 text-center text-xs text-muted-foreground">
+                <div className="shrink-0 border-t px-5 py-3 text-center text-xs text-muted-foreground">
                   {locale === "ar" ? "بدعم من FITXNET" : "Powered by FITXNET"}
                 </div>
               )}
