@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/auth/session";
 import { listNutritionTemplates } from "@/lib/services/nutrition-templates";
-import { resolveCreatorType } from "@/models/template-creator";
+import { isOfficialTemplate } from "@/lib/templates";
 import {
   NutritionTemplatesView,
   type NutritionTplItem,
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  * Global Nutrition Templates — the super admin's authoring surface.
  *
  * Same view and builder the coach uses; the only difference is the scope, which
- * makes everything created here `createdByType: "super_admin"` and therefore
+ * marks everything created here as isSystemTemplate (official) and therefore
  * visible to every coach.
  */
 export default async function AdminNutritionTemplatesPage() {
@@ -24,7 +24,10 @@ export default async function AdminNutritionTemplatesPage() {
     nameEn: tpl.nameEn,
     targetCalories: tpl.targetCalories,
     meals: tpl.meals?.length ?? 0,
-    createdByType: resolveCreatorType(tpl),
+    official: isOfficialTemplate(tpl),
+    // Both fields postdate the earliest templates, hence the defaults.
+    featured: tpl.featured ?? false,
+    version: tpl.version ?? 1,
   }));
   return (
     <NutritionTemplatesView

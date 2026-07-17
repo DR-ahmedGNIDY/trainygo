@@ -86,6 +86,23 @@ export async function deleteWorkoutTemplateAction(id: string): Promise<ActionRes
   });
 }
 
+/**
+ * Pin/unpin an official template. The service re-checks the role, so this stays
+ * safe even though the action is reachable by any signed-in caller.
+ */
+export async function setWorkoutTemplateFeaturedAction(
+  id: string,
+  featured: boolean,
+): Promise<ActionResult> {
+  return runAction(async () => {
+    const scope = await resolveScope();
+    const done = await wt.setWorkoutTemplateFeatured(id, scope, featured);
+    if (!done) return fail("غير موجود", "NOT_FOUND");
+    revalidateWorkout(id);
+    return ok();
+  });
+}
+
 export async function saveWorkoutTemplateBuilderAction(
   id: string,
   input: { nameAr: string; nameEn: string; goal?: ClientGoal; weeks: IWorkoutWeek[] },
@@ -142,6 +159,23 @@ export async function deleteNutritionTemplateAction(id: string): Promise<ActionR
     const done = await nt.deleteNutritionTemplate(id, scope);
     if (!done) return fail("غير موجود", "NOT_FOUND");
     revalidateNutrition();
+    return ok();
+  });
+}
+
+/**
+ * Pin/unpin an official template. The service re-checks the role, so this stays
+ * safe even though the action is reachable by any signed-in caller.
+ */
+export async function setNutritionTemplateFeaturedAction(
+  id: string,
+  featured: boolean,
+): Promise<ActionResult> {
+  return runAction(async () => {
+    const scope = await resolveScope();
+    const done = await nt.setNutritionTemplateFeatured(id, scope, featured);
+    if (!done) return fail("غير موجود", "NOT_FOUND");
+    revalidateNutrition(id);
     return ok();
   });
 }

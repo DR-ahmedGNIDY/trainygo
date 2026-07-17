@@ -5,8 +5,10 @@
  *  - global templates are read-only for a coach (no edit, no delete)
  *  - duplicating a global template yields an independent coach-owned copy
  *  - only a super admin authors global templates
- *  - templates written BEFORE `createdByType` existed (legacy docs carrying
- *    only `isSystemTemplate`) keep behaving correctly
+ *  - templates written before version/featured existed keep behaving correctly
+ *  - version increments on edit, and a duplicate restarts at 1
+ *  - only a super admin may feature a template; order is featured -> official
+ *    -> newest
  *  - custom meal names survive a duplicate, and fall back when absent
  */
 import { mkdirSync, rmSync } from "node:fs";
@@ -42,7 +44,7 @@ async function main() {
   const { NutritionTemplate } = await import("@/models/NutritionTemplate");
   const { User } = await import("@/models/User");
   const { hashPassword } = await import("@/lib/auth/password");
-  const { resolveCreatorType, isGlobalTemplate } = await import("@/models/template-creator");
+  const { isOfficialTemplate, isGlobalTemplate } = await import("@/lib/templates");
   const { mealDisplayName } = await import("@/lib/i18n/labels");
   const wt = await import("@/lib/services/workout-templates");
   const nt = await import("@/lib/services/nutrition-templates");
@@ -78,15 +80,17 @@ async function main() {
   });
 
   const gDoc = await WorkoutTemplate.findById(gid).lean();
-  check("super admin authors createdByType=super_admin", gDoc!.createdByType === "super_admin");
-  check("legacy isSystemTemplate stays in sync (true)", gDoc!.isSystemTemplate === true);
-  check("global template has no owning coach", gDoc!.createdByCoach == null);
+  check("super admin authors an official template", isOfficialTemplate(gDoc!) === true);
+  check("official template is global", isGlobalTemplate(gDoc!) === true);
+  check("official template has no owning coach", gDoc!.createdByCoach == null);
+  check("new template starts at version 1", gDoc!.version === 1);
+  check("new template starts unfeatured", gDoc!.featured === false);
 
   const aDoc = await WorkoutTemplate.findById(a1).lean();
-  check("coach authors createdByType=coach", aDoc!.createdByType === "coach");
-  check("legacy isSystemTemplate stays in sync (false)", aDoc!.isSystemTemplate === false);
+  check("coach authors a NON-official template", isOfficialTemplate(aDoc!) === false);
+  check("coach template records its owner", String(aDoc!.createdByCoach) === scopeA.coachId);
 
-  /* ---- a legacy doc: only isSystemTemplate, no createdByType ---- */
+  /* ---- a legacy doc: no version/featured fields at all ---- */
 
   const legacy = await WorkoutTemplate.collection.insertOne({
     nameAr: "قالب قديم",
@@ -98,9 +102,10 @@ async function main() {
     updatedAt: new Date(),
   });
   const legacyDoc = await WorkoutTemplate.findById(legacy.insertedId).lean();
-  check("legacy doc really has no createdByType", legacyDoc!.createdByType === undefined);
-  check("legacy global resolves to super_admin", resolveCreatorType(legacyDoc!) === "super_admin");
-  check("legacy global counts as global", isGlobalTemplate(legacyDoc!) === true);
+  check("legacy doc really has no version field", legacyDoc!.version === undefined);
+  check("legacy doc really has no featured field", legacyDoc!.featured === undefined);
+  check("legacy global still reads as official", isOfficialTemplate(legacyDoc!) === true);
+  check("legacy global still counts as global", isGlobalTemplate(legacyDoc!) === true);
 
   /* ---- visibility ---- */
 
@@ -160,20 +165,69 @@ async function main() {
   check("coach CAN edit their own template", (await wt.updateWorkoutTemplate(a1, scopeA, { nameAr: "أ١ب", nameEn: "A1b" })) === true);
   check("super admin CAN edit a global template", (await wt.updateWorkoutTemplate(gid, admin, { nameAr: "ف", nameEn: "FB" })) === true);
 
+  /* ---- versioning ---- */
+
+  check("editing bumps version to 2", (await WorkoutTemplate.findById(a1).lean())!.version === 2);
+  await wt.updateWorkoutTemplate(a1, scopeA, { nameAr: "أ١ج", nameEn: "A1c" });
+  check("editing again bumps version to 3", (await WorkoutTemplate.findById(a1).lean())!.version === 3);
+
+  // A legacy doc has no version at all: its first edit must land on 2, not NaN.
+  await wt.updateWorkoutTemplate(String(legacy.insertedId), admin, {
+    nameAr: "قديم",
+    nameEn: "Legacy Global",
+  });
+  check(
+    "editing a legacy (version-less) template lands on 2",
+    (await WorkoutTemplate.findById(legacy.insertedId).lean())!.version === 2,
+  );
+
+  /* ---- featuring ---- */
+
+  check("coach cannot feature a template", await throws(() => wt.setWorkoutTemplateFeatured(gid, scopeA, true)));
+  check("super admin can feature an official template", (await wt.setWorkoutTemplateFeatured(gid, admin, true)) === true);
+  const featuredDoc = await WorkoutTemplate.findById(gid).lean();
+  check("featuring sets the flag", featuredDoc!.featured === true);
+  check("featuring does NOT bump version", featuredDoc!.version === 2);
+  check(
+    "super admin cannot feature a coach's private template",
+    (await wt.setWorkoutTemplateFeatured(a1, admin, true)) === false,
+  );
+  check(
+    "coach A's private template stayed unfeatured",
+    (await WorkoutTemplate.findById(a1).lean())!.featured === false,
+  );
+
+  // Order must be: featured -> official -> newest.
+  const ordered = await wt.listWorkoutTemplates(scopeA);
+  check("featured template sorts first", ordered[0].nameEn === "FB" && ordered[0].featured === true);
+  check("official sorts above coach templates", isOfficialTemplate(ordered[1]));
+  check("coach templates come last", ordered.slice(2).every((t) => !isOfficialTemplate(t)));
+
+  check("super admin can unfeature", (await wt.setWorkoutTemplateFeatured(gid, admin, false)) === true);
+  check("unfeaturing clears the flag", (await WorkoutTemplate.findById(gid).lean())!.featured === false);
+  await wt.setWorkoutTemplateFeatured(gid, admin, true);
+
   /* ---- duplication ---- */
 
   const dupId = await wt.cloneWorkoutTemplate(gid, scopeA);
   const dup = await WorkoutTemplate.findById(dupId).lean();
-  check("coach can duplicate a global template", dup !== null);
-  check("duplicate is coach-owned", dup!.createdByType === "coach");
+  check("coach can duplicate an official template", dup !== null);
+  check("duplicate is NOT official", isOfficialTemplate(dup!) === false);
   check("duplicate belongs to the duplicating coach", String(dup!.createdByCoach) === scopeA.coachId);
-  check("duplicate is no longer global", dup!.isSystemTemplate === false);
+  check("duplicate restarts at version 1", dup!.version === 1);
+  check("duplicate is never featured", dup!.featured === false);
   check("coach can edit their duplicate", (await wt.updateWorkoutTemplate(String(dupId), scopeA, { nameAr: "z", nameEn: "z" })) === true);
   check("duplicate is invisible to coach B", (await wt.getWorkoutTemplate(String(dupId), scopeB)) === null);
 
+  // Independence: editing the source must not touch an existing duplicate.
+  await wt.updateWorkoutTemplate(gid, admin, { nameAr: "محدث", nameEn: "FB updated" });
+  const dupAfter = await WorkoutTemplate.findById(dupId).lean();
+  check("editing the source leaves the duplicate's name alone", dupAfter!.nameEn === "z");
+  check("editing the source leaves the duplicate's version alone", dupAfter!.version === 2);
+
   const dupLegacy = await wt.cloneWorkoutTemplate(String(legacy.insertedId), scopeA);
   const dupLegacyDoc = await WorkoutTemplate.findById(dupLegacy).lean();
-  check("duplicating a LEGACY global yields a coach-owned copy", dupLegacyDoc!.createdByType === "coach");
+  check("duplicating a LEGACY global yields a coach-owned copy", isOfficialTemplate(dupLegacyDoc!) === false);
 
   /* ---- nutrition parity + custom meal names ---- */
 
@@ -199,7 +253,8 @@ async function main() {
 
   const nDup = await nt.cloneNutritionTemplate(gnid, scopeA);
   const nDupDoc = await NutritionTemplate.findById(nDup).lean();
-  check("nutrition: duplicate is coach-owned", nDupDoc!.createdByType === "coach");
+  check("nutrition: duplicate is coach-owned", isOfficialTemplate(nDupDoc!) === false);
+  check("nutrition: duplicate restarts at version 1", nDupDoc!.version === 1);
   check("nutrition: custom meal name survives duplication", nDupDoc!.meals[0].name?.en === "Meal 1");
 
   check("custom meal name is rendered", mealDisplayName(nDupDoc!.meals[0], "en") === "Meal 1");
@@ -222,7 +277,7 @@ async function main() {
     updatedAt: new Date(),
   });
   const legacyNDoc = await NutritionTemplate.findById(legacyN.insertedId).lean();
-  check("legacy coach nutrition template still resolves as coach-owned", resolveCreatorType(legacyNDoc!) === "coach");
+  check("legacy coach nutrition template still resolves as coach-owned", isOfficialTemplate(legacyNDoc!) === false);
   check("legacy meal with no name renders its type", mealDisplayName(legacyNDoc!.meals[0], "en") === "Breakfast");
   check(
     "legacy coach template is visible to its owner",

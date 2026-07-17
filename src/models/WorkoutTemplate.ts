@@ -1,11 +1,5 @@
 import { Schema, model, models, type Model, type Types } from "mongoose";
-import {
-  CLIENT_GOALS,
-  TEMPLATE_CREATOR_TYPES,
-  type ClientGoal,
-  type TemplateCreatorType,
-} from "@/lib/constants";
-import { syncCreatorType } from "./template-creator";
+import { CLIENT_GOALS, type ClientGoal } from "@/lib/constants";
 
 /**
  * One exercise inside a workout day. The exercise name is denormalized
@@ -45,11 +39,13 @@ export interface IWorkoutTemplate {
   goal?: ClientGoal;
   weeks: IWorkoutWeek[];
   /**
-   * Authoring source. Prefer this over `isSystemTemplate` in new code — it is
-   * the field that can grow to premium/marketplace/ai_generated later.
+   * Bumped on every content edit. A duplicate starts back at 1: it is an
+   * independent template, not a continuation of the source's history.
    */
-  createdByType: TemplateCreatorType;
-  /** @deprecated Kept in sync with `createdByType` for backward compatibility. */
+  version: number;
+  /** Super admin pins important templates to the top of every coach's list. */
+  featured: boolean;
+  /** True when a super admin authored it: global to all coaches, and official. */
   isSystemTemplate: boolean;
   createdByCoach?: Types.ObjectId | null;
   createdAt: Date;
@@ -102,12 +98,11 @@ const WorkoutTemplateSchema = new Schema<IWorkoutTemplate>(
     description: { type: Localized },
     goal: { type: String, enum: CLIENT_GOALS },
     weeks: { type: [WorkoutWeekSchema], default: [] },
-    createdByType: {
-      type: String,
-      enum: TEMPLATE_CREATOR_TYPES,
-      default: "coach",
-      index: true,
-    },
+    // Existing documents predate these two fields and so read back as
+    // undefined; the services default them (version -> 1, featured -> false)
+    // rather than requiring a migration.
+    version: { type: Number, default: 1, min: 1 },
+    featured: { type: Boolean, default: false, index: true },
     isSystemTemplate: { type: Boolean, default: false, index: true },
     createdByCoach: {
       type: Schema.Types.ObjectId,
@@ -119,11 +114,9 @@ const WorkoutTemplateSchema = new Schema<IWorkoutTemplate>(
   { timestamps: true },
 );
 
-// Coach template lists filter on (createdByCoach OR global) and sort globals
-// first, so index that access path rather than each field alone.
-WorkoutTemplateSchema.index({ createdByType: 1, createdByCoach: 1, createdAt: -1 });
-
-syncCreatorType(WorkoutTemplateSchema);
+// Matches the list access path: filter by (own OR global), then sort
+// featured -> official -> newest.
+WorkoutTemplateSchema.index({ featured: -1, isSystemTemplate: -1, createdAt: -1 });
 
 export const WorkoutTemplate: Model<IWorkoutTemplate> =
   (models.WorkoutTemplate as Model<IWorkoutTemplate>) ||

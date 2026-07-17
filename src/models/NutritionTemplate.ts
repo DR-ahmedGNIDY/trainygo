@@ -1,13 +1,5 @@
 import { Schema, model, models, type Model, type Types } from "mongoose";
-import {
-  MEAL_TYPES,
-  FOOD_UNITS,
-  TEMPLATE_CREATOR_TYPES,
-  type MealType,
-  type FoodUnit,
-  type TemplateCreatorType,
-} from "@/lib/constants";
-import { syncCreatorType } from "./template-creator";
+import { MEAL_TYPES, FOOD_UNITS, type MealType, type FoodUnit } from "@/lib/constants";
 
 /** A single food item within a meal, with snapshotted macros + substitutions. */
 export interface INutritionItem {
@@ -52,11 +44,13 @@ export interface INutritionTemplate {
   targetCalories?: number;
   meals: IMeal[];
   /**
-   * Authoring source. Prefer this over `isSystemTemplate` in new code — it is
-   * the field that can grow to premium/marketplace/ai_generated later.
+   * Bumped on every content edit. A duplicate starts back at 1: it is an
+   * independent template, not a continuation of the source's history.
    */
-  createdByType: TemplateCreatorType;
-  /** @deprecated Kept in sync with `createdByType` for backward compatibility. */
+  version: number;
+  /** Super admin pins important templates to the top of every coach's list. */
+  featured: boolean;
+  /** True when a super admin authored it: global to all coaches, and official. */
   isSystemTemplate: boolean;
   createdByCoach?: Types.ObjectId | null;
   createdAt: Date;
@@ -113,12 +107,11 @@ const NutritionTemplateSchema = new Schema<INutritionTemplate>(
     description: { type: Localized },
     targetCalories: { type: Number, min: 0 },
     meals: { type: [MealSchema], default: [] },
-    createdByType: {
-      type: String,
-      enum: TEMPLATE_CREATOR_TYPES,
-      default: "coach",
-      index: true,
-    },
+    // Existing documents predate these two fields and so read back as
+    // undefined; the services default them (version -> 1, featured -> false)
+    // rather than requiring a migration.
+    version: { type: Number, default: 1, min: 1 },
+    featured: { type: Boolean, default: false, index: true },
     isSystemTemplate: { type: Boolean, default: false, index: true },
     createdByCoach: {
       type: Schema.Types.ObjectId,
@@ -130,11 +123,9 @@ const NutritionTemplateSchema = new Schema<INutritionTemplate>(
   { timestamps: true },
 );
 
-// Coach template lists filter on (createdByCoach OR global) and sort globals
-// first, so index that access path rather than each field alone.
-NutritionTemplateSchema.index({ createdByType: 1, createdByCoach: 1, createdAt: -1 });
-
-syncCreatorType(NutritionTemplateSchema);
+// Matches the list access path: filter by (own OR global), then sort
+// featured -> official -> newest.
+NutritionTemplateSchema.index({ featured: -1, isSystemTemplate: -1, createdAt: -1 });
 
 export const NutritionTemplate: Model<INutritionTemplate> =
   (models.NutritionTemplate as Model<INutritionTemplate>) ||

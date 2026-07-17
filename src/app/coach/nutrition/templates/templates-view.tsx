@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Salad, Copy, Trash2, Pencil, Flame, Loader2, Sparkles, Eye } from "lucide-react";
+import { Plus, Salad, Copy, Trash2, Pencil, Flame, Loader2, Sparkles, Eye, History, Pin, PinOff } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,10 +24,11 @@ import {
   deleteNutritionTemplateAction,
 } from "@/lib/actions/templates";
 import {
+  FeaturedBadge,
   TemplateSourceBadge,
   useTemplateFilters,
 } from "@/components/templates/template-filters";
-import type { TemplateCreatorType } from "@/lib/constants";
+import { setNutritionTemplateFeaturedAction } from "@/lib/actions/templates";
 
 export interface NutritionTplItem {
   id: string;
@@ -35,7 +36,10 @@ export interface NutritionTplItem {
   nameEn: string;
   targetCalories?: number;
   meals: number;
-  createdByType: TemplateCreatorType;
+  /** Authored by FITXNET: visible to every coach, read-only to them. */
+  official: boolean;
+  featured: boolean;
+  version: number;
 }
 
 export function NutritionTemplatesView({
@@ -48,7 +52,10 @@ export function NutritionTemplatesView({
   canWrite: boolean;
   /** Route prefix for edit/preview links — lets the admin area reuse this view. */
   basePath?: string;
-  /** Super admin authors global templates only, so the source filter is moot. */
+  /**
+   * Super admin mode: authors official templates only (so the source filter is
+   * moot) and may pin/unpin them.
+   */
   isAdmin?: boolean;
 }) {
   const { t, locale } = useI18n();
@@ -64,6 +71,9 @@ export function NutritionTemplatesView({
   function remove(id: string) {
     if (!window.confirm(`${t.common.delete}؟`)) return;
     startTransition(async () => { await deleteNutritionTemplateAction(id); router.refresh(); });
+  }
+  function toggleFeatured(id: string, featured: boolean) {
+    startTransition(async () => { await setNutritionTemplateFeaturedAction(id, featured); router.refresh(); });
   }
 
   return (
@@ -89,15 +99,18 @@ export function NutritionTemplatesView({
         ) : (
         <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 ${isPending ? "opacity-60" : ""}`}>
           {filtered.map((tpl) => {
-          // Global templates are read-only for coaches (duplicate/assign only),
-          // but the super admin who owns them edits them in place.
-          const readOnly = !isAdmin && tpl.createdByType !== "coach";
+          // Official templates are read-only for coaches (duplicate/assign
+          // only), but the super admin who owns them edits them in place.
+          const readOnly = !isAdmin && tpl.official;
           return (
             <Card key={tpl.id} className="flex flex-col">
               <CardHeader>
-                <div className="mb-2 flex items-center justify-between">
+                <div className="mb-2 flex items-center justify-between gap-2">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><Salad className="h-5 w-5" /></div>
-                  <TemplateSourceBadge createdByType={tpl.createdByType} />
+                  <div className="flex flex-wrap justify-end gap-1">
+                    {tpl.featured && <FeaturedBadge />}
+                    <TemplateSourceBadge official={tpl.official} />
+                  </div>
                 </div>
                 <CardTitle className="text-base">{locale === "ar" ? tpl.nameAr : tpl.nameEn}</CardTitle>
               </CardHeader>
@@ -106,6 +119,18 @@ export function NutritionTemplatesView({
                   <div className="rounded-lg bg-muted/50 py-2"><p className="flex items-center justify-center gap-1 text-sm font-bold"><Flame className="h-3.5 w-3.5 text-primary" />{tpl.targetCalories ?? "—"}</p><p className="text-xs text-muted-foreground">{t.client.calories}</p></div>
                   <div className="rounded-lg bg-muted/50 py-2"><p className="text-sm font-bold">{tpl.meals}</p><p className="text-xs text-muted-foreground">{L("وجبات", "meals")}</p></div>
                 </div>
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><History className="h-3.5 w-3.5" />{L("إصدار", "v")} {tpl.version}</p>
+                {isAdmin && (
+                  <Button
+                    variant={tpl.featured ? "default" : "outline"}
+                    size="sm"
+                    className="w-full"
+                    onClick={() => toggleFeatured(tpl.id, !tpl.featured)}
+                  >
+                    {tpl.featured ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                    {tpl.featured ? L("إلغاء التثبيت", "Unpin") : L("تثبيت", "Pin")}
+                  </Button>
+                )}
                 {canWrite && (
                   <div className="flex gap-2">
                     {readOnly ? (

@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/components/providers/i18n-provider";
-import { TemplateSourceBadge } from "./template-filters";
+import { OfficialTemplateBadge } from "./template-filters";
 import { mealDisplayName } from "@/lib/i18n/labels";
 import type { ActionResult } from "@/lib/actions/result";
 import type { MealType } from "@/lib/constants";
@@ -72,11 +72,11 @@ function PreviewShell({
       </PageHeader>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <TemplateSourceBadge createdByType="super_admin" />
+        <OfficialTemplateBadge />
         <p className="text-sm text-muted-foreground">
           {L(
-            "هذا قالب عام من إدارة المنصة — للقراءة فقط. انسخه لتحصل على نسخة خاصة بك يمكنك تعديلها.",
-            "This is a global template from the platform admin — read only. Duplicate it to get your own editable copy.",
+            "هذا قالب رسمي من FITXNET — للقراءة فقط. انسخه لتحصل على نسخة خاصة بك يمكنك تعديلها.",
+            "This is an official FITXNET template — read only. Duplicate it to get your own editable copy.",
           )}
         </p>
       </div>

@@ -12,7 +12,10 @@ import {
   CalendarRange,
   Dumbbell,
   Eye,
+  History,
   Loader2,
+  Pin,
+  PinOff,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -43,10 +46,12 @@ import {
   deleteWorkoutTemplateAction,
 } from "@/lib/actions/templates";
 import {
+  FeaturedBadge,
   TemplateSourceBadge,
   useTemplateFilters,
 } from "@/components/templates/template-filters";
-import type { ClientGoal, TemplateCreatorType } from "@/lib/constants";
+import { setWorkoutTemplateFeaturedAction } from "@/lib/actions/templates";
+import type { ClientGoal } from "@/lib/constants";
 
 export interface WorkoutTplItem {
   id: string;
@@ -55,7 +60,10 @@ export interface WorkoutTplItem {
   goal?: ClientGoal;
   weeks: number;
   days: number;
-  createdByType: TemplateCreatorType;
+  /** Authored by FITXNET: visible to every coach, read-only to them. */
+  official: boolean;
+  featured: boolean;
+  version: number;
 }
 
 export function WorkoutTemplatesView({
@@ -68,7 +76,10 @@ export function WorkoutTemplatesView({
   canWrite: boolean;
   /** Route prefix for edit/preview links — lets the admin area reuse this view. */
   basePath?: string;
-  /** Super admin authors global templates only, so the source filter is moot. */
+  /**
+   * Super admin mode: authors official templates only (so the source filter is
+   * moot) and may pin/unpin them.
+   */
   isAdmin?: boolean;
 }) {
   const { t, locale } = useI18n();
@@ -84,6 +95,9 @@ export function WorkoutTemplatesView({
   function remove(id: string) {
     if (!window.confirm(`${t.common.delete}؟`)) return;
     startTransition(async () => { await deleteWorkoutTemplateAction(id); router.refresh(); });
+  }
+  function toggleFeatured(id: string, featured: boolean) {
+    startTransition(async () => { await setWorkoutTemplateFeaturedAction(id, featured); router.refresh(); });
   }
 
   return (
@@ -104,24 +118,39 @@ export function WorkoutTemplatesView({
         ) : (
         <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 ${isPending ? "opacity-60" : ""}`}>
           {filtered.map((tpl) => {
-          // Global templates are read-only for coaches (duplicate/assign only),
-          // but the super admin who owns them edits them in place.
-          const readOnly = !isAdmin && tpl.createdByType !== "coach";
+          // Official templates are read-only for coaches (duplicate/assign
+          // only), but the super admin who owns them edits them in place.
+          const readOnly = !isAdmin && tpl.official;
           return (
             <Card key={tpl.id} className="flex flex-col">
               <CardHeader>
-                <div className="mb-2 flex items-center justify-between">
+                <div className="mb-2 flex items-center justify-between gap-2">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><Layers className="h-5 w-5" /></div>
-                  <TemplateSourceBadge createdByType={tpl.createdByType} />
+                  <div className="flex flex-wrap justify-end gap-1">
+                    {tpl.featured && <FeaturedBadge />}
+                    <TemplateSourceBadge official={tpl.official} />
+                  </div>
                 </div>
                 <CardTitle className="text-base">{locale === "ar" ? tpl.nameAr : tpl.nameEn}</CardTitle>
                 {tpl.goal && <Badge variant="secondary" className="w-fit">{label(GOAL_LABELS, tpl.goal, locale)}</Badge>}
               </CardHeader>
               <CardContent className="mt-auto space-y-4">
-                <div className="flex gap-4 text-sm text-muted-foreground">
+                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5"><CalendarRange className="h-4 w-4" />{tpl.weeks} {L("أسابيع", "weeks")}</span>
                   <span className="flex items-center gap-1.5"><Dumbbell className="h-4 w-4" />{tpl.days} {L("أيام", "days")}</span>
+                  <span className="flex items-center gap-1.5"><History className="h-4 w-4" />{L("إصدار", "v")} {tpl.version}</span>
                 </div>
+                {isAdmin && (
+                  <Button
+                    variant={tpl.featured ? "default" : "outline"}
+                    size="sm"
+                    className="w-full"
+                    onClick={() => toggleFeatured(tpl.id, !tpl.featured)}
+                  >
+                    {tpl.featured ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                    {tpl.featured ? L("إلغاء التثبيت", "Unpin") : L("تثبيت", "Pin")}
+                  </Button>
+                )}
                 {canWrite && (
                   <div className="flex gap-2">
                     {readOnly ? (

@@ -12,7 +12,7 @@ import {
   NutritionTemplatePreview,
   type PreviewMeal,
 } from "@/components/templates/template-preview";
-import { isGlobalTemplate } from "@/models/template-creator";
+import { isOfficialTemplate } from "@/lib/templates";
 import { mealsToBuilder } from "@/lib/builder-mappers";
 import type { IMeal } from "@/models/NutritionTemplate";
 
@@ -32,8 +32,8 @@ export default async function NutritionTemplateBuilderPage({
   const tpl = await getNutritionTemplate(id, { role: "coach", coachId: ctx.coachId });
   if (!tpl) notFound();
 
-  // Global templates are read-only for a coach — preview + duplicate instead.
-  if (isGlobalTemplate(tpl)) {
+  // Official templates are read-only for a coach — preview + duplicate instead.
+  if (isOfficialTemplate(tpl)) {
     async function duplicate() {
       "use server";
       return cloneNutritionTemplateAction(id);

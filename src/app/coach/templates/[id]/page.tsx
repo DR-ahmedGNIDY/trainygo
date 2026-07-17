@@ -12,7 +12,7 @@ import {
   WorkoutTemplatePreview,
   type PreviewWeek,
 } from "@/components/templates/template-preview";
-import { isGlobalTemplate } from "@/models/template-creator";
+import { isOfficialTemplate } from "@/lib/templates";
 import type { IWorkoutWeek } from "@/models/WorkoutTemplate";
 
 export const dynamic = "force-dynamic";
@@ -31,8 +31,8 @@ export default async function TemplateBuilderPage({
   const tpl = await getWorkoutTemplate(id, { role: "coach", coachId: ctx.coachId });
   if (!tpl) notFound();
 
-  // Global templates are read-only for a coach — preview + duplicate instead.
-  if (isGlobalTemplate(tpl)) {
+  // Official templates are read-only for a coach — preview + duplicate instead.
+  if (isOfficialTemplate(tpl)) {
     async function duplicate() {
       "use server";
       return cloneWorkoutTemplateAction(id);

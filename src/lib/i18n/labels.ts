@@ -10,7 +10,6 @@ import type {
   Locale,
   MealType,
   RequestStatus,
-  TemplateCreatorType,
 } from "@/lib/constants";
 
 type L = { ar: string; en: string };
@@ -114,10 +113,6 @@ export function mealDisplayName(
   );
 }
 
-export const TEMPLATE_CREATOR_LABELS: Record<TemplateCreatorType, L> = {
-  coach: { ar: "خاص", en: "Private" },
-  super_admin: { ar: "قالب عام", en: "Global" },
-};
 
 export const EXERCISE_CHANGE_QUICK_REASON_LABELS: Record<ExerciseChangeQuickReason, L> = {
   pain: { ar: "يوجد ألم أثناء أداء التمرين", en: "There's pain while doing the exercise" },

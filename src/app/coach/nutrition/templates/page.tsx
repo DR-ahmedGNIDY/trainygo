@@ -2,7 +2,7 @@ import { requireCoachArea } from "@/lib/auth/session";
 import { canAccessTemplates } from "@/lib/permissions/team";
 import { coachCanWrite } from "@/lib/permissions";
 import { listNutritionTemplates } from "@/lib/services/nutrition-templates";
-import { resolveCreatorType } from "@/models/template-creator";
+import { isOfficialTemplate } from "@/lib/templates";
 import { NutritionTemplatesView, type NutritionTplItem } from "./templates-view";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,10 @@ export default async function NutritionTemplatesPage() {
     nameEn: tpl.nameEn,
     targetCalories: tpl.targetCalories,
     meals: tpl.meals?.length ?? 0,
-    createdByType: resolveCreatorType(tpl),
+    official: isOfficialTemplate(tpl),
+    // Both fields postdate the earliest templates, hence the defaults.
+    featured: tpl.featured ?? false,
+    version: tpl.version ?? 1,
   }));
   return <NutritionTemplatesView items={items} canWrite={coachCanWrite(ctx.status)} />;
 }

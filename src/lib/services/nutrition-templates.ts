@@ -3,10 +3,11 @@ import { connectToDatabase } from "@/lib/db";
 import { NutritionTemplate, type IMeal } from "@/models/NutritionTemplate";
 import { serialize } from "@/lib/serialize";
 import { PermissionError } from "@/lib/permissions";
-import { isGlobalTemplate, type CreatorFields } from "@/models/template-creator";
+import { canMutateTemplate, type TemplateOwnership } from "@/lib/templates";
 import {
   globalTemplateFilter,
   ownTemplateFilter,
+  templateOwnershipFor,
   TEMPLATE_SORT,
 } from "./template-visibility";
 
@@ -61,34 +62,18 @@ export async function createNutritionTemplate(scope: TplScope, input: NutritionT
     description: input.description,
     targetCalories: input.targetCalories,
     meals: input.meals?.length ? input.meals : defaultMeals(),
-    ...ownershipFor(scope),
+    ...templateOwnershipFor(scope),
   });
   return doc._id.toString();
 }
 
 /**
- * Ownership fields for a template this scope is creating. Only a super admin
- * can author a global one — a coach scope always yields a coach-owned template.
- * `isSystemTemplate` is derived by the model's pre-save hook.
+ * A coach may only mutate their OWN templates — never an official one
+ * (read-only for them: duplicate/assign/preview instead) and never another
+ * coach's.
  */
-function ownershipFor(scope: TplScope) {
-  return scope.role === "super_admin"
-    ? { createdByType: "super_admin" as const, createdByCoach: null }
-    : {
-        createdByType: "coach" as const,
-        createdByCoach: new Types.ObjectId(scope.coachId),
-      };
-}
-
-/**
- * A coach may only mutate their OWN templates — never a global one (read-only
- * for them: duplicate/assign/preview instead) and never another coach's.
- */
-function assertCanMutate(tpl: CreatorFields & { createdByCoach?: Types.ObjectId | null }, scope: TplScope) {
-  const global = isGlobalTemplate(tpl);
-  if (scope.role === "super_admin") {
-    if (!global) throw new PermissionError("Forbidden", "FORBIDDEN");
-  } else if (global || String(tpl.createdByCoach) !== scope.coachId) {
+function assertCanMutate(tpl: TemplateOwnership, scope: TplScope) {
+  if (!canMutateTemplate(tpl, scope)) {
     throw new PermissionError("Forbidden", "FORBIDDEN");
   }
 }
@@ -103,8 +88,32 @@ export async function updateNutritionTemplate(id: string, scope: TplScope, input
   if (input.description !== undefined) tpl.description = input.description;
   if (input.targetCalories !== undefined) tpl.targetCalories = input.targetCalories;
   if (input.meals !== undefined) tpl.meals = input.meals;
+  // Content changed -> new version. `?? 1` covers documents written before the
+  // field existed, so their first edit lands on 2 rather than NaN.
+  tpl.version = (tpl.version ?? 1) + 1;
   await tpl.save();
   return true;
+}
+
+/**
+ * Pin/unpin a template to the top of every coach's list. Super admin only, and
+ * only for official templates — a coach's private template is not the super
+ * admin's to promote. Featuring is not a content edit, so it does NOT bump
+ * `version`; updateOne also avoids re-validating the whole meals tree.
+ */
+export async function setNutritionTemplateFeatured(
+  id: string,
+  scope: TplScope,
+  featured: boolean,
+) {
+  await connectToDatabase();
+  if (scope.role !== "super_admin") throw new PermissionError("Forbidden", "FORBIDDEN");
+  if (!Types.ObjectId.isValid(id)) return false;
+  const res = await NutritionTemplate.updateOne(
+    { _id: id, ...globalTemplateFilter() },
+    { $set: { featured } },
+  );
+  return res.matchedCount > 0;
 }
 
 export async function deleteNutritionTemplate(id: string, scope: TplScope) {
@@ -117,9 +126,10 @@ export async function deleteNutritionTemplate(id: string, scope: TplScope) {
 }
 
 /**
- * Duplicate a template the scope can see (global or own) into a NEW template
- * owned by the caller. A coach duplicating a global one gets a fully
- * independent coach-owned copy — custom meal names included.
+ * Duplicate a template the scope can see (official or own) into a NEW template
+ * owned by the caller. A coach duplicating an official one gets a fully
+ * independent coach-owned copy — custom meal names included. It starts at
+ * version 1 and later edits to the source never reach it.
  */
 export async function cloneNutritionTemplate(id: string, scope: TplScope) {
   await connectToDatabase();
@@ -131,7 +141,7 @@ export async function cloneNutritionTemplate(id: string, scope: TplScope) {
     description: src.description,
     targetCalories: src.targetCalories,
     meals: src.meals,
-    ...ownershipFor(scope),
+    ...templateOwnershipFor(scope),
   });
   return copy._id.toString();
 }

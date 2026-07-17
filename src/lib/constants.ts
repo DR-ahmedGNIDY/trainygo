@@ -116,23 +116,6 @@ export const DEFAULT_FOOD_PRIORITY: FoodPriority = 1;
 export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 export type MealType = (typeof MEAL_TYPES)[number];
 
-/**
- * Who authored a template — the discriminator behind template visibility.
- * `coach` templates stay private to their owner; `super_admin` templates are
- * global and visible to every coach.
- *
- * This list is the extension point for future sources (premium, marketplace,
- * ai_generated, ...): adding a value here plus a branch in the services'
- * `visibility()` is enough — no schema redesign.
- *
- * Kept in sync with the older `isSystemTemplate` boolean, which predates it and
- * stays on the documents for backward compatibility (super_admin <-> true).
- */
-export const TEMPLATE_CREATOR_TYPES = ["coach", "super_admin"] as const;
-export type TemplateCreatorType = (typeof TEMPLATE_CREATOR_TYPES)[number];
-
-/** The creator types a coach is allowed to see besides their own templates. */
-export const GLOBAL_TEMPLATE_CREATOR_TYPES: TemplateCreatorType[] = ["super_admin"];
 
 /**
  * Which meals a food belongs in — a second, independent axis from the star

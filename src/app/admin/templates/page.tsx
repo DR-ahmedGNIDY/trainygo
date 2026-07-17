@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/auth/session";
 import { listWorkoutTemplates } from "@/lib/services/workout-templates";
-import { resolveCreatorType } from "@/models/template-creator";
+import { isOfficialTemplate } from "@/lib/templates";
 import {
   WorkoutTemplatesView,
   type WorkoutTplItem,
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  * Global Workout Templates — the super admin's authoring surface.
  *
  * Same view and builder the coach uses; the only difference is the scope, which
- * makes everything created here `createdByType: "super_admin"` and therefore
+ * marks everything created here as isSystemTemplate (official) and therefore
  * visible to every coach.
  */
 export default async function AdminWorkoutTemplatesPage() {
@@ -25,7 +25,10 @@ export default async function AdminWorkoutTemplatesPage() {
     goal: tpl.goal as WorkoutTplItem["goal"],
     weeks: tpl.weeks?.length ?? 0,
     days: (tpl.weeks ?? []).reduce((s, w) => s + (w.days?.length ?? 0), 0),
-    createdByType: resolveCreatorType(tpl),
+    official: isOfficialTemplate(tpl),
+    // Both fields postdate the earliest templates, hence the defaults.
+    featured: tpl.featured ?? false,
+    version: tpl.version ?? 1,
   }));
   return (
     <WorkoutTemplatesView items={items} canWrite basePath="/admin/templates" isAdmin />
