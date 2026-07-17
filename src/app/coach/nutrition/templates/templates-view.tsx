@@ -3,12 +3,11 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Salad, Copy, Trash2, Pencil, Flame, Loader2, Sparkles } from "lucide-react";
+import { Plus, Salad, Copy, Trash2, Pencil, Flame, Loader2, Sparkles, Eye } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -24,6 +23,11 @@ import {
   cloneNutritionTemplateAction,
   deleteNutritionTemplateAction,
 } from "@/lib/actions/templates";
+import {
+  TemplateSourceBadge,
+  useTemplateFilters,
+} from "@/components/templates/template-filters";
+import type { TemplateCreatorType } from "@/lib/constants";
 
 export interface NutritionTplItem {
   id: string;
@@ -31,21 +35,28 @@ export interface NutritionTplItem {
   nameEn: string;
   targetCalories?: number;
   meals: number;
-  isSystem: boolean;
+  createdByType: TemplateCreatorType;
 }
 
 export function NutritionTemplatesView({
   items,
   canWrite,
+  basePath = "/coach/nutrition/templates",
+  isAdmin = false,
 }: {
   items: NutritionTplItem[];
   canWrite: boolean;
+  /** Route prefix for edit/preview links — lets the admin area reuse this view. */
+  basePath?: string;
+  /** Super admin authors global templates only, so the source filter is moot. */
+  isAdmin?: boolean;
 }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const { filtered, toolbar } = useTemplateFilters(items, { enabled: !isAdmin });
 
   function clone(id: string) {
     startTransition(async () => { await cloneNutritionTemplateAction(id); router.refresh(); });
@@ -71,13 +82,22 @@ export function NutritionTemplatesView({
           {canWrite && <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" />{t.dashboard.ui.createTemplate}</Button>}
         </EmptyState>
       ) : (
+        <>
+        {toolbar}
+        {filtered.length === 0 ? (
+          <EmptyState icon={Salad} title={L("لا نتائج", "No results")} description={L("جرّب تعديل البحث أو الفلتر.", "Try adjusting your search or filter.")} />
+        ) : (
         <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 ${isPending ? "opacity-60" : ""}`}>
-          {items.map((tpl) => (
+          {filtered.map((tpl) => {
+          // Global templates are read-only for coaches (duplicate/assign only),
+          // but the super admin who owns them edits them in place.
+          const readOnly = !isAdmin && tpl.createdByType !== "coach";
+          return (
             <Card key={tpl.id} className="flex flex-col">
               <CardHeader>
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><Salad className="h-5 w-5" /></div>
-                  {tpl.isSystem && <Badge variant="secondary">{L("نظام", "System")}</Badge>}
+                  <TemplateSourceBadge createdByType={tpl.createdByType} />
                 </div>
                 <CardTitle className="text-base">{locale === "ar" ? tpl.nameAr : tpl.nameEn}</CardTitle>
               </CardHeader>
@@ -88,15 +108,22 @@ export function NutritionTemplatesView({
                 </div>
                 {canWrite && (
                   <div className="flex gap-2">
-                    {!tpl.isSystem && <Button asChild variant="outline" size="sm" className="flex-1"><Link href={`/coach/nutrition/templates/${tpl.id}`}><Pencil className="h-4 w-4" />{t.common.edit}</Link></Button>}
+                    {readOnly ? (
+                      <Button asChild variant="outline" size="sm" className="flex-1"><Link href={`${basePath}/${tpl.id}`}><Eye className="h-4 w-4" />{L("معاينة", "Preview")}</Link></Button>
+                    ) : (
+                      <Button asChild variant="outline" size="sm" className="flex-1"><Link href={`${basePath}/${tpl.id}`}><Pencil className="h-4 w-4" />{t.common.edit}</Link></Button>
+                    )}
                     <Button variant="outline" size="sm" className="flex-1" onClick={() => clone(tpl.id)}><Copy className="h-4 w-4" />{L("نسخ", "Clone")}</Button>
-                    {!tpl.isSystem && <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => remove(tpl.id)}><Trash2 className="h-4 w-4" /></Button>}
+                    {!readOnly && <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => remove(tpl.id)}><Trash2 className="h-4 w-4" /></Button>}
                   </div>
                 )}
               </CardContent>
             </Card>
-          ))}
+          );
+          })}
         </div>
+        )}
+        </>
       )}
 
       {canWrite && <CreateDialog open={open} onOpenChange={setOpen} onSaved={() => { setOpen(false); router.refresh(); }} />}

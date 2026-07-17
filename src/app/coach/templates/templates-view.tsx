@@ -11,6 +11,7 @@ import {
   Pencil,
   CalendarRange,
   Dumbbell,
+  Eye,
   Loader2,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -41,7 +42,11 @@ import {
   cloneWorkoutTemplateAction,
   deleteWorkoutTemplateAction,
 } from "@/lib/actions/templates";
-import type { ClientGoal } from "@/lib/constants";
+import {
+  TemplateSourceBadge,
+  useTemplateFilters,
+} from "@/components/templates/template-filters";
+import type { ClientGoal, TemplateCreatorType } from "@/lib/constants";
 
 export interface WorkoutTplItem {
   id: string;
@@ -50,21 +55,28 @@ export interface WorkoutTplItem {
   goal?: ClientGoal;
   weeks: number;
   days: number;
-  isSystem: boolean;
+  createdByType: TemplateCreatorType;
 }
 
 export function WorkoutTemplatesView({
   items,
   canWrite,
+  basePath = "/coach/templates",
+  isAdmin = false,
 }: {
   items: WorkoutTplItem[];
   canWrite: boolean;
+  /** Route prefix for edit/preview links — lets the admin area reuse this view. */
+  basePath?: string;
+  /** Super admin authors global templates only, so the source filter is moot. */
+  isAdmin?: boolean;
 }) {
   const { t, locale } = useI18n();
   const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const { filtered, toolbar } = useTemplateFilters(items, { enabled: !isAdmin });
 
   function clone(id: string) {
     startTransition(async () => { await cloneWorkoutTemplateAction(id); router.refresh(); });
@@ -85,13 +97,22 @@ export function WorkoutTemplatesView({
           {canWrite && <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" />{t.dashboard.ui.createTemplate}</Button>}
         </EmptyState>
       ) : (
+        <>
+        {toolbar}
+        {filtered.length === 0 ? (
+          <EmptyState icon={Layers} title={L("لا نتائج", "No results")} description={L("جرّب تعديل البحث أو الفلتر.", "Try adjusting your search or filter.")} />
+        ) : (
         <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 ${isPending ? "opacity-60" : ""}`}>
-          {items.map((tpl) => (
+          {filtered.map((tpl) => {
+          // Global templates are read-only for coaches (duplicate/assign only),
+          // but the super admin who owns them edits them in place.
+          const readOnly = !isAdmin && tpl.createdByType !== "coach";
+          return (
             <Card key={tpl.id} className="flex flex-col">
               <CardHeader>
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><Layers className="h-5 w-5" /></div>
-                  {tpl.isSystem && <Badge variant="secondary">{L("نظام", "System")}</Badge>}
+                  <TemplateSourceBadge createdByType={tpl.createdByType} />
                 </div>
                 <CardTitle className="text-base">{locale === "ar" ? tpl.nameAr : tpl.nameEn}</CardTitle>
                 {tpl.goal && <Badge variant="secondary" className="w-fit">{label(GOAL_LABELS, tpl.goal, locale)}</Badge>}
@@ -103,15 +124,22 @@ export function WorkoutTemplatesView({
                 </div>
                 {canWrite && (
                   <div className="flex gap-2">
-                    {!tpl.isSystem && <Button asChild variant="outline" size="sm" className="flex-1"><Link href={`/coach/templates/${tpl.id}`}><Pencil className="h-4 w-4" />{t.common.edit}</Link></Button>}
+                    {readOnly ? (
+                      <Button asChild variant="outline" size="sm" className="flex-1"><Link href={`${basePath}/${tpl.id}`}><Eye className="h-4 w-4" />{L("معاينة", "Preview")}</Link></Button>
+                    ) : (
+                      <Button asChild variant="outline" size="sm" className="flex-1"><Link href={`${basePath}/${tpl.id}`}><Pencil className="h-4 w-4" />{t.common.edit}</Link></Button>
+                    )}
                     <Button variant="outline" size="sm" className="flex-1" onClick={() => clone(tpl.id)}><Copy className="h-4 w-4" />{L("نسخ", "Clone")}</Button>
-                    {!tpl.isSystem && <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => remove(tpl.id)}><Trash2 className="h-4 w-4" /></Button>}
+                    {!readOnly && <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => remove(tpl.id)}><Trash2 className="h-4 w-4" /></Button>}
                   </div>
                 )}
               </CardContent>
             </Card>
-          ))}
+          );
+          })}
         </div>
+        )}
+        </>
       )}
 
       {canWrite && <CreateWorkoutTemplateDialog open={open} onOpenChange={setOpen} onSaved={() => { setOpen(false); router.refresh(); }} />}

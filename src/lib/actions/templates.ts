@@ -12,6 +12,29 @@ import type { IMeal } from "@/models/NutritionTemplate";
 
 type Scope = { role: "super_admin" } | { role: "coach"; coachId: string };
 
+/**
+ * The coach area and the admin area render the same templates, so a write from
+ * either must refresh both lists — otherwise a global template edited by the
+ * admin keeps serving stale to coaches.
+ */
+function revalidateWorkout(id?: string) {
+  revalidatePath("/coach/templates");
+  revalidatePath("/admin/templates");
+  if (id) {
+    revalidatePath(`/coach/templates/${id}`);
+    revalidatePath(`/admin/templates/${id}`);
+  }
+}
+
+function revalidateNutrition(id?: string) {
+  revalidatePath("/coach/nutrition/templates");
+  revalidatePath("/admin/nutrition-templates");
+  if (id) {
+    revalidatePath(`/coach/nutrition/templates/${id}`);
+    revalidatePath(`/admin/nutrition-templates/${id}`);
+  }
+}
+
 async function resolveScope(): Promise<Scope> {
   return resolveCoachAreaScope(canAccessTemplates);
 }
@@ -38,7 +61,7 @@ export async function createWorkoutTemplateAction(
       goal: input.goal,
       description: { ar: input.descriptionAr, en: input.descriptionEn },
     });
-    revalidatePath("/coach/templates");
+    revalidateWorkout();
     return ok({ id });
   });
 }
@@ -48,7 +71,7 @@ export async function cloneWorkoutTemplateAction(id: string): Promise<ActionResu
     const scope = await resolveScope();
     const newId = await wt.cloneWorkoutTemplate(id, scope);
     if (!newId) return fail("غير موجود", "NOT_FOUND");
-    revalidatePath("/coach/templates");
+    revalidateWorkout();
     return ok();
   });
 }
@@ -58,7 +81,7 @@ export async function deleteWorkoutTemplateAction(id: string): Promise<ActionRes
     const scope = await resolveScope();
     const done = await wt.deleteWorkoutTemplate(id, scope);
     if (!done) return fail("غير موجود", "NOT_FOUND");
-    revalidatePath("/coach/templates");
+    revalidateWorkout();
     return ok();
   });
 }
@@ -71,8 +94,7 @@ export async function saveWorkoutTemplateBuilderAction(
     const scope = await resolveScope();
     const done = await wt.updateWorkoutTemplate(id, scope, input);
     if (!done) return fail("غير موجود", "NOT_FOUND");
-    revalidatePath("/coach/templates");
-    revalidatePath(`/coach/templates/${id}`);
+    revalidateWorkout(id);
     return ok();
   });
 }
@@ -99,7 +121,7 @@ export async function createNutritionTemplateAction(
       targetCalories: input.targetCalories,
       description: { ar: input.descriptionAr, en: input.descriptionEn },
     });
-    revalidatePath("/coach/nutrition/templates");
+    revalidateNutrition();
     return ok({ id });
   });
 }
@@ -109,7 +131,7 @@ export async function cloneNutritionTemplateAction(id: string): Promise<ActionRe
     const scope = await resolveScope();
     const newId = await nt.cloneNutritionTemplate(id, scope);
     if (!newId) return fail("غير موجود", "NOT_FOUND");
-    revalidatePath("/coach/nutrition/templates");
+    revalidateNutrition();
     return ok();
   });
 }
@@ -119,7 +141,7 @@ export async function deleteNutritionTemplateAction(id: string): Promise<ActionR
     const scope = await resolveScope();
     const done = await nt.deleteNutritionTemplate(id, scope);
     if (!done) return fail("غير موجود", "NOT_FOUND");
-    revalidatePath("/coach/nutrition/templates");
+    revalidateNutrition();
     return ok();
   });
 }
@@ -132,8 +154,7 @@ export async function saveNutritionTemplateBuilderAction(
     const scope = await resolveScope();
     const done = await nt.updateNutritionTemplate(id, scope, input);
     if (!done) return fail("غير موجود", "NOT_FOUND");
-    revalidatePath("/coach/nutrition/templates");
-    revalidatePath(`/coach/nutrition/templates/${id}`);
+    revalidateNutrition(id);
     return ok();
   });
 }

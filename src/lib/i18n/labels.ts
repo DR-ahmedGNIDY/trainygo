@@ -10,6 +10,7 @@ import type {
   Locale,
   MealType,
   RequestStatus,
+  TemplateCreatorType,
 } from "@/lib/constants";
 
 type L = { ar: string; en: string };
@@ -94,6 +95,28 @@ export const MEAL_LABELS: Record<MealType, L> = {
   lunch: { ar: "الغداء", en: "Lunch" },
   dinner: { ar: "العشاء", en: "Dinner" },
   snack: { ar: "وجبة خفيفة", en: "Snack" },
+};
+
+/**
+ * The name to show for a meal: the coach's custom name when they set one,
+ * otherwise the default label for its type. Every surface that renders a meal
+ * name (builder, client app, reports, previews, history) must go through this
+ * so templates saved without a custom name keep working.
+ */
+export function mealDisplayName(
+  // `type` is widened to string because several call sites carry it as a plain
+  // string; an unrecognized value falls through to the raw type rather than "".
+  meal: { type: MealType | string; name?: { ar?: string; en?: string } | null },
+  locale: Locale,
+): string {
+  return (
+    meal.name?.[locale]?.trim() || label(MEAL_LABELS, meal.type, locale) || meal.type
+  );
+}
+
+export const TEMPLATE_CREATOR_LABELS: Record<TemplateCreatorType, L> = {
+  coach: { ar: "خاص", en: "Private" },
+  super_admin: { ar: "قالب عام", en: "Global" },
 };
 
 export const EXERCISE_CHANGE_QUICK_REASON_LABELS: Record<ExerciseChangeQuickReason, L> = {

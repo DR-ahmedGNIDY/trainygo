@@ -127,6 +127,8 @@ export function getAdminNav(t: Dictionary): NavSection[] {
       items: [
         { label: n.exercises, href: "/admin/exercises", icon: Dumbbell },
         { label: n.foods, href: "/admin/foods", icon: Apple },
+        { label: n.globalWorkoutTemplates, href: "/admin/templates", icon: Layers },
+        { label: n.globalNutritionTemplates, href: "/admin/nutrition-templates", icon: Salad },
       ],
     },
     {

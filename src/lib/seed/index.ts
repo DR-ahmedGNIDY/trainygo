@@ -75,8 +75,17 @@ export async function seedFoods(log: Log) {
 export async function seedWorkoutTemplates(log: Log) {
   if ((await WorkoutTemplate.countDocuments({ isSystemTemplate: true })) > 0)
     return log("• system workout templates — skipped");
+  // createdByType must be set explicitly: insertMany applies schema defaults
+  // but skips the save hook that would otherwise derive it from
+  // isSystemTemplate, which would leave these seeded globals marked "coach".
   await WorkoutTemplate.insertMany(
-    SYSTEM_WORKOUT_TEMPLATES.map((t) => ({ ...t, goal: normalizeGoal(t.goal), isSystemTemplate: true, createdByCoach: null })),
+    SYSTEM_WORKOUT_TEMPLATES.map((t) => ({
+      ...t,
+      goal: normalizeGoal(t.goal),
+      createdByType: "super_admin",
+      isSystemTemplate: true,
+      createdByCoach: null,
+    })),
   );
   log(`✓ ${SYSTEM_WORKOUT_TEMPLATES.length} system workout templates seeded`);
 }
@@ -84,9 +93,11 @@ export async function seedWorkoutTemplates(log: Log) {
 export async function seedNutritionTemplates(log: Log) {
   if ((await NutritionTemplate.countDocuments({ isSystemTemplate: true })) > 0)
     return log("• system nutrition templates — skipped");
+  // See seedWorkoutTemplates: insertMany skips the createdByType sync hook.
   await NutritionTemplate.insertMany(
     SYSTEM_NUTRITION_TEMPLATES.map((t) => ({
       ...t,
+      createdByType: "super_admin",
       isSystemTemplate: true,
       createdByCoach: null,
     })),

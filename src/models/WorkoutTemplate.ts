@@ -1,5 +1,11 @@
 import { Schema, model, models, type Model, type Types } from "mongoose";
-import { CLIENT_GOALS, type ClientGoal } from "@/lib/constants";
+import {
+  CLIENT_GOALS,
+  TEMPLATE_CREATOR_TYPES,
+  type ClientGoal,
+  type TemplateCreatorType,
+} from "@/lib/constants";
+import { syncCreatorType } from "./template-creator";
 
 /**
  * One exercise inside a workout day. The exercise name is denormalized
@@ -38,6 +44,12 @@ export interface IWorkoutTemplate {
   description?: { ar?: string; en?: string };
   goal?: ClientGoal;
   weeks: IWorkoutWeek[];
+  /**
+   * Authoring source. Prefer this over `isSystemTemplate` in new code — it is
+   * the field that can grow to premium/marketplace/ai_generated later.
+   */
+  createdByType: TemplateCreatorType;
+  /** @deprecated Kept in sync with `createdByType` for backward compatibility. */
   isSystemTemplate: boolean;
   createdByCoach?: Types.ObjectId | null;
   createdAt: Date;
@@ -90,6 +102,12 @@ const WorkoutTemplateSchema = new Schema<IWorkoutTemplate>(
     description: { type: Localized },
     goal: { type: String, enum: CLIENT_GOALS },
     weeks: { type: [WorkoutWeekSchema], default: [] },
+    createdByType: {
+      type: String,
+      enum: TEMPLATE_CREATOR_TYPES,
+      default: "coach",
+      index: true,
+    },
     isSystemTemplate: { type: Boolean, default: false, index: true },
     createdByCoach: {
       type: Schema.Types.ObjectId,
@@ -100,6 +118,12 @@ const WorkoutTemplateSchema = new Schema<IWorkoutTemplate>(
   },
   { timestamps: true },
 );
+
+// Coach template lists filter on (createdByCoach OR global) and sort globals
+// first, so index that access path rather than each field alone.
+WorkoutTemplateSchema.index({ createdByType: 1, createdByCoach: 1, createdAt: -1 });
+
+syncCreatorType(WorkoutTemplateSchema);
 
 export const WorkoutTemplate: Model<IWorkoutTemplate> =
   (models.WorkoutTemplate as Model<IWorkoutTemplate>) ||

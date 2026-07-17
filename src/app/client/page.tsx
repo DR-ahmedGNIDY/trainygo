@@ -8,7 +8,7 @@ import {
 import { getProgressHistory } from "@/lib/services/progress";
 import { getRecentLogs } from "@/lib/services/workout-logs";
 import { getClientAccessState } from "@/lib/services/subscription";
-import { MEAL_LABELS } from "@/lib/i18n/labels";
+import { mealDisplayName } from "@/lib/i18n/labels";
 import { ClientHome } from "./client-home";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +55,7 @@ export default async function ClientHomePage() {
     ? (plan.meals ?? [])
         .filter((m) => (m.items ?? []).length > 0)
         .map((m) => ({
-          name: m.name?.[locale] || MEAL_LABELS[m.type]?.[locale] || m.type,
+          name: mealDisplayName(m, locale),
           kcal: Math.round((m.items ?? []).reduce((s, it) => s + (it.calories ?? 0), 0)),
         }))
     : null;

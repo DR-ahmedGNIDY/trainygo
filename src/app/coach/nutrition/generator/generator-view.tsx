@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { useI18n } from "@/components/providers/i18n-provider";
 import {
-  MEAL_LABELS,
+  mealDisplayName,
   GENERATOR_GOAL_LABELS,
   FOOD_PRIORITY_STARS,
   label,
@@ -570,7 +570,7 @@ function PlanResult({
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <UtensilsCrossed className="h-4 w-4 text-primary" />
-                {label(MEAL_LABELS, meal.type, locale)}
+                {mealDisplayName(meal, locale)}
               </CardTitle>
               <span className="text-xs text-muted-foreground">
                 {r1(mt.calories)} {t.client.calories} · {t.client.protein} {r1(mt.protein)}g · {t.client.carbs} {r1(mt.carbs)}g · {t.client.fat} {r1(mt.fat)}g

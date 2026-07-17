@@ -3,10 +3,18 @@
  * then serves the production build against it. For local previews/screenshots
  * without provisioning a real database. Not used in production.
  */
-import { MongoMemoryServer } from "mongodb-memory-server";
 import { spawn } from "node:child_process";
 
+// The C: drive can run low on space, which corrupts the ~800MB mongod
+// download/extraction (truncated .exe -> "not a valid application for this
+// OS platform" / spawn EFTYPE). Redirect the binary cache and temp dbPath to
+// a drive with room before mongodb-memory-server touches os.tmpdir().
+process.env.MONGOMS_DOWNLOAD_DIR ||= "G:\\mongo-memory-server-cache\\binaries";
+process.env.TEMP = "G:\\mongo-memory-server-cache\\tmp";
+process.env.TMP = "G:\\mongo-memory-server-cache\\tmp";
+
 async function main() {
+  const { MongoMemoryServer } = await import("mongodb-memory-server");
   const mem = await MongoMemoryServer.create();
   const uri = mem.getUri();
   process.env.MONGODB_URI = uri;

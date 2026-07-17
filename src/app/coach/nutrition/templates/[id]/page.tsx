@@ -3,8 +3,16 @@ import { requireCoachArea } from "@/lib/auth/session";
 import { canAccessTemplates } from "@/lib/permissions/team";
 import { coachCanWrite } from "@/lib/permissions";
 import { getNutritionTemplate } from "@/lib/services/nutrition-templates";
-import { saveNutritionTemplateBuilderAction } from "@/lib/actions/templates";
+import {
+  cloneNutritionTemplateAction,
+  saveNutritionTemplateBuilderAction,
+} from "@/lib/actions/templates";
 import { NutritionBuilder } from "@/components/builders/nutrition-builder";
+import {
+  NutritionTemplatePreview,
+  type PreviewMeal,
+} from "@/components/templates/template-preview";
+import { isGlobalTemplate } from "@/models/template-creator";
 import { mealsToBuilder } from "@/lib/builder-mappers";
 import type { IMeal } from "@/models/NutritionTemplate";
 
@@ -19,8 +27,29 @@ export default async function NutritionTemplateBuilderPage({
   const ctx = await requireCoachArea(canAccessTemplates);
   if (!coachCanWrite(ctx.status)) redirect("/coach/subscription");
 
+  // The service already scoped this to "own or global", so a hit here is never
+  // another coach's template.
   const tpl = await getNutritionTemplate(id, { role: "coach", coachId: ctx.coachId });
-  if (!tpl || tpl.isSystemTemplate) notFound();
+  if (!tpl) notFound();
+
+  // Global templates are read-only for a coach — preview + duplicate instead.
+  if (isGlobalTemplate(tpl)) {
+    async function duplicate() {
+      "use server";
+      return cloneNutritionTemplateAction(id);
+    }
+    return (
+      <NutritionTemplatePreview
+        backHref="/coach/nutrition/templates"
+        duplicateHref="/coach/nutrition/templates"
+        title="قوالب التغذية"
+        nameAr={tpl.nameAr}
+        nameEn={tpl.nameEn}
+        meals={tpl.meals as unknown as PreviewMeal[]}
+        onDuplicate={duplicate}
+      />
+    );
+  }
 
   async function save(data: { nameAr: string; nameEn: string; meals: unknown[] }) {
     "use server";

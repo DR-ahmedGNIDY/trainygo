@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/dashboard/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/components/providers/i18n-provider";
-import { MEAL_LABELS, label } from "@/lib/i18n/labels";
+import { mealDisplayName } from "@/lib/i18n/labels";
 import { setMealDoneAction } from "@/lib/actions/client";
 
 interface Item {
@@ -91,7 +91,7 @@ export function NutritionView({
           return (
             <Card key={mi} className={isDone ? "border-success/40" : ""}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="flex items-center gap-2 text-base"><UtensilsCrossed className="h-4 w-4 text-primary" />{(locale === "ar" ? meal.name?.ar : meal.name?.en) || label(MEAL_LABELS, meal.type, locale)}</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-base"><UtensilsCrossed className="h-4 w-4 text-primary" />{mealDisplayName(meal, locale)}</CardTitle>
                 <Button variant={isDone ? "default" : "outline"} size="sm" onClick={() => toggle(mi)} disabled={isPending} className="gap-1.5">
                   {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : isDone ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
                   <span className="hidden sm:inline">{t.client.markMealDone}</span>
