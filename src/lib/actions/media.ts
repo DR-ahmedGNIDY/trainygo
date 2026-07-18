@@ -6,8 +6,8 @@ import { PermissionError } from "@/lib/permissions";
 import { runAction, ok, fail, type ActionResult } from "./result";
 import { logError } from "@/lib/logging/error-log";
 import {
-  MAX_UPLOAD_BYTES,
-  FILE_TOO_LARGE_MESSAGE,
+  maxUploadBytesFor,
+  fileTooLargeMessage,
   INVALID_FILE_TYPE_MESSAGE,
   ALLOWED_FORMATS_PARAM,
   isAcceptedExtension,
@@ -42,7 +42,7 @@ export interface CloudinarySignature {
  *  - `allowed_formats` is signed, so Cloudinary itself rejects any file whose
  *    real format is outside jpg/jpeg/png/webp/mp4/webm — regardless of the
  *    (spoofable) declared name/extension.
- *  - Declared size over 2MB is rejected before signing.
+ *  - Declared size over the kind's ceiling is rejected before signing.
  */
 export async function getCloudinarySignatureAction(
   kind: UploadKind,
@@ -66,8 +66,9 @@ export async function getCloudinarySignatureAction(
     }
 
     if (file) {
-      if (typeof file.size !== "number" || file.size > MAX_UPLOAD_BYTES) {
-        return fail(FILE_TOO_LARGE_MESSAGE, "FILE_TOO_LARGE");
+      const maxBytes = maxUploadBytesFor(kind);
+      if (typeof file.size !== "number" || file.size > maxBytes) {
+        return fail(fileTooLargeMessage(maxBytes), "FILE_TOO_LARGE");
       }
       if (file.resourceType !== "image" && file.resourceType !== "video") {
         return fail(INVALID_FILE_TYPE_MESSAGE, "INVALID_FILE_TYPE");

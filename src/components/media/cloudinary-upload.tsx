@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { getCloudinarySignatureAction } from "@/lib/actions/media";
 import { toast } from "@/components/ui/toast";
-import { MAX_UPLOAD_BYTES, isAcceptedExtension } from "@/lib/media/upload-limits";
+import { maxUploadBytesFor, maxUploadMb, isAcceptedExtension } from "@/lib/media/upload-limits";
+import { compressImageIfNeeded } from "@/lib/media/compress-image";
 import type { UploadKind } from "@/lib/media/cloudinary-folder";
 
 /**
@@ -38,12 +39,27 @@ export function CloudinaryUpload({
   const inputRef = useRef<HTMLInputElement>(null);
   const text = label ?? (resourceType === "video" ? L("رفع فيديو", "Upload video") : L("رفع صورة", "Upload image"));
 
-  async function handleFile(file: File) {
-    if (file.size > MAX_UPLOAD_BYTES) {
-      toast.error(L("الملف أكبر من 2 ميجابايت", "الملف أكبر من 2 ميجابايت"));
+  async function handleFile(original: File) {
+    const maxBytes = maxUploadBytesFor(kind);
+    const tooLarge = L(
+      `الملف أكبر من ${maxUploadMb(maxBytes)} ميجابايت`,
+      `File is larger than ${maxUploadMb(maxBytes)}MB`,
+    );
+
+    // Phone camera photos routinely blow past the ceiling; shrink in-browser
+    // first and only complain if it still doesn't fit. Decoding a large photo
+    // is slow enough to need the spinner already showing.
+    setBusy(true);
+    const file =
+      resourceType === "image" ? await compressImageIfNeeded(original, maxBytes) : original;
+
+    if (file.size > maxBytes) {
+      setBusy(false);
+      toast.error(tooLarge);
       return;
     }
     if (!isAcceptedExtension(file.name, resourceType)) {
+      setBusy(false);
       toast.error(
         L(
           resourceType === "video" ? "امتداد الفيديو غير مدعوم (mp4, webm)" : "امتداد الصورة غير مدعوم (jpg, jpeg, png, webp)",
@@ -53,7 +69,6 @@ export function CloudinaryUpload({
       return;
     }
 
-    setBusy(true);
     const sig = await getCloudinarySignatureAction(kind, {
       name: file.name,
       size: file.size,
@@ -62,7 +77,7 @@ export function CloudinaryUpload({
     if (!sig.ok) {
       setBusy(false);
       if (sig.code === "FILE_TOO_LARGE") {
-        toast.error(L("الملف أكبر من 2 ميجابايت", "الملف أكبر من 2 ميجابايت"));
+        toast.error(tooLarge);
       } else if (sig.code === "INVALID_FILE_TYPE" || sig.code === "INVALID_KIND") {
         toast.error(sig.error);
       } else if (sig.code === "RATE_LIMITED") {

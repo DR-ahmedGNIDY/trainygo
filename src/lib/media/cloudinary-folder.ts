@@ -11,6 +11,7 @@ export const UPLOAD_KINDS = [
   "foods",
   "messages",
   "progress",
+  "nutrition",
   "branding",
   "avatar",
 ] as const;
