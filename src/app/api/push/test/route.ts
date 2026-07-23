@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security/request-context";
 import { rateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
+import { allChannels } from "@/lib/notifications/channels";
+import { connectToDatabase } from "@/lib/db";
+import { Device } from "@/models/Device";
 
 /**
  * Send the CURRENT user a test notification. Diagnostic only: it always creates
@@ -28,6 +31,18 @@ export async function POST(req: Request) {
     );
   }
 
+  // Diagnostics computed synchronously (the actual push send runs after the
+  // response, so we report what CAN be known now): is a web-push channel
+  // registered (VAPID configured on the server?) and does the user have a live
+  // subscription on any device?
+  const webPushConfigured = allChannels().some((c) => c.channel === "web_push");
+  await connectToDatabase();
+  const devices = await Device.countDocuments({
+    user: session.user.id,
+    transport: "webpush",
+    disabledAt: null,
+  });
+
   await dispatchNotification({
     recipient: session.user.id,
     type: "system",
@@ -38,5 +53,5 @@ export async function POST(req: Request) {
     link: "/",
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, webPushConfigured, devices });
 }

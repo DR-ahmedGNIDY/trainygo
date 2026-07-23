@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bell, Save, MoonStar, Send } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ function Toggle({
 
 export function NotificationPreferencesForm() {
   const { t, locale } = useI18n();
+  const router = useRouter();
   const ui = t.dashboard.ui;
   const [prefs, setPrefs] = useState<PreferenceView | null>(null);
   const [saving, setSaving] = useState(false);
@@ -233,8 +235,16 @@ export function NotificationPreferencesForm() {
             onClick={async () => {
               setTesting(true);
               try {
-                const ok = await sendTestPush();
-                ok ? toast.success(ui.prefTestSent) : toast.error(ui.prefTestFailed);
+                const r = await sendTestPush();
+                if (!r.ok) {
+                  toast.error(ui.prefTestFailed);
+                } else {
+                  // The in-app notification exists now — refresh so the bell shows it.
+                  router.refresh();
+                  if (!r.webPushConfigured) toast.error(ui.prefTestNoServer);
+                  else if (!r.devices) toast.error(ui.prefTestNoDevice);
+                  else toast.success(ui.prefTestSent);
+                }
               } finally {
                 setTesting(false);
               }

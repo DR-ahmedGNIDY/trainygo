@@ -87,18 +87,31 @@ export async function enablePush(locale: string): Promise<boolean> {
   return postSubscription(subscription, locale);
 }
 
+export interface TestPushResult {
+  ok: boolean;
+  /** Whether the server registered a web-push channel (VAPID keys present). */
+  webPushConfigured?: boolean;
+  /** Number of the user's live web-push subscriptions. */
+  devices?: number;
+}
+
 /**
  * Ask the backend to send the current user a test notification. Always creates
  * an in-app notification (visible in the bell) and additionally a web-push if a
- * subscription + VAPID keys are configured — so it doubles as a diagnostic.
+ * subscription + VAPID keys are configured. Returns diagnostics so the UI can
+ * tell the user exactly what's missing (server keys vs. no subscription).
  */
-export async function sendTestPush(): Promise<boolean> {
+export async function sendTestPush(): Promise<TestPushResult> {
   try {
     const res = await fetch("/api/push/test", { method: "POST" });
     const data = await res.json().catch(() => ({}));
-    return res.ok && Boolean(data?.ok);
+    return {
+      ok: res.ok && Boolean(data?.ok),
+      webPushConfigured: data?.webPushConfigured,
+      devices: data?.devices,
+    };
   } catch {
-    return false;
+    return { ok: false };
   }
 }
 
