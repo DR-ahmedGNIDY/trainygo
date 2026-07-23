@@ -243,6 +243,8 @@ export function NotificationPreferencesForm() {
                   router.refresh();
                   if (!r.webPushConfigured) toast.error(ui.prefTestNoServer);
                   else if (!r.devices) toast.error(ui.prefTestNoDevice);
+                  else if (r.pushSent === false)
+                    toast.error(`${ui.prefTestPushRejected} ${r.pushError ?? ""}`.trim());
                   else toast.success(ui.prefTestSent);
                 }
               } finally {

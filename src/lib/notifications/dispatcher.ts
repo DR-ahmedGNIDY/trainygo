@@ -288,7 +288,9 @@ export async function dispatchNotification(input: DispatchInput): Promise<Dispat
 
   // Only schedule deferred work if there's actually an external channel to hit —
   // preserves the exact in-app-only behaviour when no push is configured.
-  if (allChannels().length) scheduleFanOut(input.recipient, doc);
+  if (!input.skipExternalFanOut && allChannels().length) {
+    scheduleFanOut(input.recipient, doc);
+  }
 
   await runHooks({ stage: "afterDispatchCompleted", recipient: input.recipient, input, notification: doc });
 

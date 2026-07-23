@@ -14,6 +14,12 @@ interface BaseInput {
   link?: string;
   /** Structured, cross-platform navigation target. */
   target?: INotificationTarget;
+  /**
+   * Skip the deferred external fan-out (still persists in-app + records the
+   * in-app delivery). Used by the diagnostic test endpoint, which sends to
+   * external channels synchronously so it can report the real outcome.
+   */
+  skipExternalFanOut?: boolean;
 }
 
 /** Raw content supplied by the caller (back-compat path for existing callers). */

@@ -3,9 +3,12 @@ import { auth } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security/request-context";
 import { rateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
-import { allChannels } from "@/lib/notifications/channels";
+import { getChannel, allChannels } from "@/lib/notifications/channels";
+import { resolveDestinations } from "@/lib/notifications/destinations";
+import { buildPayload } from "@/lib/notifications/payload";
 import { connectToDatabase } from "@/lib/db";
 import { Device } from "@/models/Device";
+import { Notification } from "@/models/Notification";
 
 /**
  * Send the CURRENT user a test notification. Diagnostic only: it always creates
@@ -43,7 +46,9 @@ export async function POST(req: Request) {
     disabledAt: null,
   });
 
-  await dispatchNotification({
+  // Persist the in-app notification (bell) but SKIP the deferred fan-out so we
+  // can send to web push synchronously below and capture the real outcome.
+  const result = await dispatchNotification({
     recipient: session.user.id,
     type: "system",
     titleAr: "إشعار تجريبي من FITXNET",
@@ -51,7 +56,31 @@ export async function POST(req: Request) {
     bodyAr: "وصلك هذا الإشعار؟ إذًا كل شيء يعمل بنجاح ✅",
     bodyEn: "Got this? Then everything works ✅",
     link: "/",
+    skipExternalFanOut: true,
   });
 
-  return NextResponse.json({ ok: true, webPushConfigured, devices });
+  // Synchronous diagnostic push: report the actual per-device outcome so the UI
+  // can surface a real reason (e.g. 403 = VAPID key mismatch, 410 = expired).
+  const push: { status: string; error?: string }[] = [];
+  const adapter = getChannel("web_push");
+  if (adapter) {
+    const doc = await Notification.findById(result.id).lean();
+    if (doc) {
+      const targets = await resolveDestinations(session.user.id, "web_push");
+      for (const target of targets) {
+        const payload = buildPayload(doc, target.locale);
+        const outcome = await adapter.send(target, payload);
+        push.push({ status: outcome.status, error: outcome.error });
+      }
+    }
+  }
+
+  const pushFailed = push.find((p) => p.status === "failed");
+  return NextResponse.json({
+    ok: true,
+    webPushConfigured,
+    devices,
+    pushSent: push.some((p) => p.status === "sent" || p.status === "delivered"),
+    pushError: pushFailed?.error ?? null,
+  });
 }

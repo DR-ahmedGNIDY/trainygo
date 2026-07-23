@@ -93,6 +93,10 @@ export interface TestPushResult {
   webPushConfigured?: boolean;
   /** Number of the user's live web-push subscriptions. */
   devices?: number;
+  /** Whether the synchronous diagnostic push actually succeeded. */
+  pushSent?: boolean;
+  /** The push provider's error (e.g. 403 = VAPID mismatch), when it failed. */
+  pushError?: string | null;
 }
 
 /**
@@ -109,6 +113,8 @@ export async function sendTestPush(): Promise<TestPushResult> {
       ok: res.ok && Boolean(data?.ok),
       webPushConfigured: data?.webPushConfigured,
       devices: data?.devices,
+      pushSent: data?.pushSent,
+      pushError: data?.pushError,
     };
   } catch {
     return { ok: false };
