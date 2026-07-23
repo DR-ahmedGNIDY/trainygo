@@ -26,6 +26,7 @@ import {
   PauseCircle,
   PlayCircle,
   Snowflake,
+  XCircle,
 } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -60,7 +61,8 @@ import {
 import { useI18n } from "@/components/providers/i18n-provider";
 import { GOAL_LABELS, label, EXERCISE_CHANGE_QUICK_REASON_LABELS, REQUEST_STATUS_LABELS } from "@/lib/i18n/labels";
 import { updateClientAction, deleteClientAction, resetClientPasswordAction } from "@/lib/actions/clients";
-import { freezeClientAction, resumeClientAction } from "@/lib/actions/subscription-freeze";
+import { resumeClientAction, cancelClientAction } from "@/lib/actions/subscription-freeze";
+import { FreezeDialog, RenewDialog } from "@/components/coach/subscription-dialogs";
 import { startConversationAction } from "@/lib/actions/messages";
 import {
   createBlankProgramAction,
@@ -178,7 +180,10 @@ export function ClientProfileView({
   const [editOpen, setEditOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [freezeOpen, setFreezeOpen] = useState(false);
+  const [renewOpen, setRenewOpen] = useState(false);
   const isFrozen = client.freeze.status === "frozen";
+  const subEndDate = client.freeze.subscriptionEndDate ? new Date(client.freeze.subscriptionEndDate) : null;
+  const isExpired = !isFrozen && subEndDate != null && subEndDate.getTime() < Date.now();
   const [creatingProgram, startCreatingProgram] = useTransition();
   const [creatingPlan, startCreatingPlan] = useTransition();
   const [isPending, startTransition] = useTransition();
@@ -213,6 +218,15 @@ export function ClientProfileView({
     if (!window.confirm(L("استئناف اشتراك هذا العميل؟", "Resume this client's subscription?"))) return;
     startTransition(async () => {
       const res = await resumeClientAction(client.id);
+      if (res.ok) router.refresh();
+      else window.alert(res.error);
+    });
+  }
+
+  function onCancel() {
+    if (!window.confirm(L("إيقاف اشتراك هذا العميل نهائياً؟ سيفقد الوصول فوراً.", "End this client's subscription now? They will lose access immediately."))) return;
+    startTransition(async () => {
+      const res = await cancelClientAction(client.id);
       if (res.ok) router.refresh();
       else window.alert(res.error);
     });
@@ -358,17 +372,31 @@ export function ClientProfileView({
                 {L("الاشتراك", "Subscription")}
               </CardTitle>
               {canWrite && (
-                isFrozen ? (
-                  <Button variant="default" size="sm" className="bg-success text-success-foreground hover:bg-success/90" disabled={isPending} onClick={onResume}>
-                    <PlayCircle className="h-4 w-4" />
-                    {L("استئناف الاشتراك", "Resume subscription")}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={isPending} onClick={() => setRenewOpen(true)}>
+                    <RefreshCw className="h-4 w-4" />
+                    {L("تجديد الاشتراك", "Renew subscription")}
                   </Button>
-                ) : (
-                  <Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive/10" disabled={isPending} onClick={() => setFreezeOpen(true)}>
-                    <PauseCircle className="h-4 w-4" />
-                    {L("تجميد الاشتراك", "Freeze subscription")}
-                  </Button>
-                )
+                  {isFrozen ? (
+                    <Button variant="default" size="sm" className="bg-success text-success-foreground hover:bg-success/90" disabled={isPending} onClick={onResume}>
+                      <PlayCircle className="h-4 w-4" />
+                      {L("استئناف الاشتراك", "Resume subscription")}
+                    </Button>
+                  ) : (
+                    !isExpired && (
+                      <Button variant="outline" size="sm" disabled={isPending} onClick={() => setFreezeOpen(true)}>
+                        <PauseCircle className="h-4 w-4" />
+                        {L("تجميد الاشتراك", "Freeze subscription")}
+                      </Button>
+                    )
+                  )}
+                  {!isExpired && (
+                    <Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive/10" disabled={isPending} onClick={onCancel}>
+                      <XCircle className="h-4 w-4" />
+                      {L("إيقاف الاشتراك", "End subscription")}
+                    </Button>
+                  )}
+                </div>
               )}
             </CardHeader>
             <CardContent>
@@ -635,91 +663,18 @@ export function ClientProfileView({
             open={freezeOpen}
             onOpenChange={setFreezeOpen}
             clientId={client.id}
-            onFrozen={() => { setFreezeOpen(false); router.refresh(); }}
+            onDone={() => { setFreezeOpen(false); router.refresh(); }}
+          />
+          <RenewDialog
+            open={renewOpen}
+            onOpenChange={setRenewOpen}
+            clientId={client.id}
+            expired={isExpired}
+            onDone={() => { setRenewOpen(false); router.refresh(); }}
           />
         </>
       )}
     </div>
-  );
-}
-
-function FreezeDialog({
-  open,
-  onOpenChange,
-  clientId,
-  onFrozen,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  clientId: string;
-  onFrozen: () => void;
-}) {
-  const { t, locale } = useI18n();
-  const L = (ar: string, en: string) => (locale === "ar" ? ar : en);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [reason, setReason] = useState("");
-  const [notes, setNotes] = useState("");
-
-  function close(v: boolean) {
-    onOpenChange(v);
-    if (!v) {
-      setReason("");
-      setNotes("");
-      setError(null);
-    }
-  }
-
-  async function submit() {
-    setSaving(true);
-    setError(null);
-    const res = await freezeClientAction(clientId, { reason, notes });
-    setSaving(false);
-    if (res.ok) onFrozen();
-    else setError(res.error ?? L("تعذّر تجميد الاشتراك", "Could not freeze the subscription"));
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={close}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <PauseCircle className="h-5 w-5 text-destructive" />
-            {L("تجميد الاشتراك", "Freeze subscription")}
-          </DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          {L(
-            "سيتم إيقاف وصول العميل مؤقتاً مع الحفاظ على الأيام المتبقية. يمكنك استئناف الاشتراك في أي وقت.",
-            "The client's access is paused temporarily while their remaining days are preserved. You can resume anytime.",
-          )}
-        </p>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>{L("السبب", "Reason")}</Label>
-            <Input value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder={L("مثال: سفر، إصابة، طلب العميل", "e.g. travel, injury, client request")} />
-          </div>
-          <div className="space-y-2">
-            <Label>{L("ملاحظات (اختياري)", "Notes (optional)")}</Label>
-            <textarea
-              value={notes}
-              maxLength={1000}
-              rows={3}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full resize-none rounded-lg border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => close(false)}>{t.common.cancel}</Button>
-          <Button variant="destructive" onClick={submit} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {L("تجميد", "Freeze")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 

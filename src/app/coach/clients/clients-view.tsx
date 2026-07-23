@@ -12,6 +12,10 @@ import {
   Archive,
   Trash2,
   Snowflake,
+  RefreshCw,
+  PauseCircle,
+  PlayCircle,
+  XCircle,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
@@ -47,6 +51,8 @@ import {
 import { useI18n } from "@/components/providers/i18n-provider";
 import { GOAL_LABELS, label } from "@/lib/i18n/labels";
 import { archiveClientAction, deleteClientAction } from "@/lib/actions/clients";
+import { resumeClientAction, cancelClientAction } from "@/lib/actions/subscription-freeze";
+import { FreezeDialog, RenewDialog } from "@/components/coach/subscription-dialogs";
 import type { AccountStatus, ClientGoal } from "@/lib/constants";
 
 export interface ClientListItem {
@@ -56,6 +62,7 @@ export interface ClientListItem {
   goal?: ClientGoal;
   status: AccountStatus;
   frozen?: boolean;
+  subscriptionEndDate?: string | null;
   weight?: number | null;
   lastLoginAt?: string | null;
 }
@@ -76,6 +83,12 @@ export function ClientsView({
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState(searchParams.get("status") ?? "all");
   const [isPending, startTransition] = useTransition();
+  const [dialog, setDialog] = useState<{ type: "freeze" | "renew"; client: ClientListItem } | null>(null);
+
+  const isExpired = (c: ClientListItem) =>
+    !c.frozen &&
+    (c.status === "expired" ||
+      (c.subscriptionEndDate != null && new Date(c.subscriptionEndDate).getTime() < Date.now()));
 
   const filtered = clients.filter((c) => {
     const q = query.toLowerCase();
@@ -83,7 +96,7 @@ export function ClientsView({
       c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q);
     const matchesStatus =
       status === "all" ||
-      (status === "frozen" ? c.frozen : status === "expired" ? c.status === "expired" && !c.frozen : c.status === status && !c.frozen);
+      (status === "frozen" ? c.frozen : status === "expired" ? isExpired(c) : c.status === status && !c.frozen && !isExpired(c));
     return matchesQuery && matchesStatus;
   });
 
@@ -107,6 +120,24 @@ export function ClientsView({
     startTransition(async () => {
       await deleteClientAction(id);
       router.refresh();
+    });
+  }
+
+  function onResume(id: string) {
+    if (!window.confirm(L("استئناف اشتراك هذا العميل؟", "Resume this client's subscription?"))) return;
+    startTransition(async () => {
+      const res = await resumeClientAction(id);
+      if (res.ok) router.refresh();
+      else window.alert(res.error);
+    });
+  }
+
+  function onCancel(id: string) {
+    if (!window.confirm(L("إيقاف اشتراك هذا العميل نهائياً؟ سيفقد الوصول فوراً.", "End this client's subscription now? They will lose access immediately."))) return;
+    startTransition(async () => {
+      const res = await cancelClientAction(id);
+      if (res.ok) router.refresh();
+      else window.alert(res.error);
     });
   }
 
@@ -240,11 +271,38 @@ export function ClientsView({
                               </DropdownMenuItem>
                               {canWrite && (
                                 <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => setDialog({ type: "renew", client: c })}>
+                                    <RefreshCw className="h-4 w-4" />
+                                    {L("تجديد الاشتراك", "Renew subscription")}
+                                  </DropdownMenuItem>
+                                  {c.frozen ? (
+                                    <DropdownMenuItem onClick={() => onResume(c.id)}>
+                                      <PlayCircle className="h-4 w-4" />
+                                      {L("استئناف الاشتراك", "Resume subscription")}
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    !isExpired(c) && (
+                                      <DropdownMenuItem onClick={() => setDialog({ type: "freeze", client: c })}>
+                                        <PauseCircle className="h-4 w-4" />
+                                        {L("تجميد الاشتراك", "Freeze subscription")}
+                                      </DropdownMenuItem>
+                                    )
+                                  )}
+                                  {!isExpired(c) && (
+                                    <DropdownMenuItem
+                                      onClick={() => onCancel(c.id)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <XCircle className="h-4 w-4" />
+                                      {L("إيقاف الاشتراك", "End subscription")}
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={() => onArchive(c.id)}>
                                     <Archive className="h-4 w-4" />
                                     {locale === "ar" ? "أرشفة" : "Archive"}
                                   </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     onClick={() => onDelete(c.id, c.name)}
                                     className="text-destructive focus:text-destructive"
@@ -264,6 +322,24 @@ export function ClientsView({
               </CardContent>
             </Card>
           )}
+        </>
+      )}
+
+      {canWrite && (
+        <>
+          <FreezeDialog
+            open={dialog?.type === "freeze"}
+            onOpenChange={(v) => { if (!v) setDialog(null); }}
+            clientId={dialog?.type === "freeze" ? dialog.client.id : null}
+            onDone={() => { setDialog(null); router.refresh(); }}
+          />
+          <RenewDialog
+            open={dialog?.type === "renew"}
+            onOpenChange={(v) => { if (!v) setDialog(null); }}
+            clientId={dialog?.type === "renew" ? dialog.client.id : null}
+            expired={dialog?.type === "renew" ? isExpired(dialog.client) : false}
+            onDone={() => { setDialog(null); router.refresh(); }}
+          />
         </>
       )}
     </div>

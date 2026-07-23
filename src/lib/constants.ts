@@ -189,6 +189,8 @@ export const NOTIFICATION_TYPES = [
   "exercise_change_resolved",
   "subscription_frozen",
   "subscription_resumed",
+  "subscription_renewed",
+  "subscription_cancelled",
   "system",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

@@ -162,6 +162,105 @@ export async function resumeClient(
   return { endDate: newEnd, remainingDays };
 }
 
+const MONTH_MS = 30 * DAY_MS;
+
+/**
+ * Renew (extend) a client's subscription by `months`. The new end date is
+ * measured from whichever is later — the current end date (still-running
+ * subscription extends from its end, losing no days) or now (an expired
+ * subscription restarts from today). Since the client regains a future end
+ * date, this clears the "self-expired" lockout — a cancelled subscription is
+ * revived. Blocked while frozen — the coach must resume first. Enforces ownership.
+ */
+export async function renewClient(
+  coachId: string,
+  actingUserId: string,
+  clientId: string,
+  months: number,
+): Promise<{ endDate: Date }> {
+  await connectToDatabase();
+  const client = await getOwnedClient(coachId, clientId);
+  if (!client) throw new FreezeError("العميل غير موجود.", "NOT_FOUND");
+
+  const cp = client.clientProfile!;
+  if (cp.subscriptionFreezeStatus === "frozen") {
+    throw new FreezeError("اشتراك العميل مجمّد، استأنف الاشتراك أولاً قبل التجديد.", "IS_FROZEN");
+  }
+
+  const now = new Date();
+  const current = cp.subscriptionEndDate ?? null;
+  const base = current && current.getTime() > now.getTime() ? current : now;
+  const newEnd = new Date(base.getTime() + months * MONTH_MS);
+
+  if (!cp.subscriptionStartDate || (current && current.getTime() <= now.getTime())) {
+    cp.subscriptionStartDate = now;
+  }
+  cp.subscriptionEndDate = newEnd;
+  cp.lastFreezeBy = new Types.ObjectId(actingUserId);
+  await client.save();
+
+  await createNotification({
+    recipient: clientId,
+    type: "subscription_renewed",
+    titleAr: "تم تجديد اشتراكك.",
+    titleEn: "Your subscription was renewed.",
+    bodyAr: `ينتهي اشتراكك الآن في ${newEnd.toLocaleDateString("en-GB")}`,
+    bodyEn: `Your subscription now ends on ${newEnd.toLocaleDateString("en-GB")}`,
+  });
+
+  return { endDate: newEnd };
+}
+
+/**
+ * Cancel (end) a client's subscription immediately. Sets the end date to now,
+ * which locks the client out via the normal "self-expired" path in
+ * `getClientAccessState`. Leaves `active` untouched — that flag is the archive
+ * state; a cancelled client stays listed (as expired) so they can be renewed.
+ * Clears any active freeze so the state is unambiguous. Enforces ownership.
+ * Reactivation happens through renew.
+ */
+export async function cancelClient(
+  coachId: string,
+  actingUserId: string,
+  clientId: string,
+  reason?: string,
+): Promise<{ endDate: Date }> {
+  await connectToDatabase();
+  const client = await getOwnedClient(coachId, clientId);
+  if (!client) throw new FreezeError("العميل غير موجود.", "NOT_FOUND");
+
+  const cp = client.clientProfile!;
+  const now = new Date();
+
+  // If it was frozen, close the open freeze record so history stays consistent.
+  if (cp.subscriptionFreezeStatus === "frozen") {
+    cp.subscriptionFreezeStatus = "active";
+    cp.freezeEndDate = now;
+    cp.remainingDays = null;
+    await SubscriptionFreezeHistory.findOneAndUpdate(
+      { client: client._id, resumeDate: null },
+      { $set: { resumeDate: now } },
+      { sort: { freezeDate: -1 } },
+    );
+  }
+
+  cp.subscriptionEndDate = now;
+  if (reason) cp.freezeReason = reason;
+  cp.lastFreezeBy = new Types.ObjectId(actingUserId);
+  await client.save();
+
+  await createNotification({
+    recipient: clientId,
+    type: "subscription_cancelled",
+    titleAr: "تم إيقاف اشتراكك بواسطة المدرب.",
+    titleEn: "Your subscription was ended by your coach.",
+    bodyAr: reason || undefined,
+    bodyEn: reason || undefined,
+  });
+
+  return { endDate: now };
+}
+
 /** Number of currently-frozen clients for a coach (dashboard widget). */
 export async function countFrozenClients(coachId: string): Promise<number> {
   await connectToDatabase();

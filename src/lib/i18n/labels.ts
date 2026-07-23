@@ -31,6 +31,8 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, L> = {
   exercise_change_resolved: { ar: "حسم طلب تغيير تمرين", en: "Exercise change resolved" },
   subscription_frozen: { ar: "تجميد الاشتراك", en: "Subscription frozen" },
   subscription_resumed: { ar: "استئناف الاشتراك", en: "Subscription resumed" },
+  subscription_renewed: { ar: "تجديد الاشتراك", en: "Subscription renewed" },
+  subscription_cancelled: { ar: "إيقاف الاشتراك", en: "Subscription ended" },
   system: { ar: "إشعارات النظام", en: "System announcements" },
 };
 

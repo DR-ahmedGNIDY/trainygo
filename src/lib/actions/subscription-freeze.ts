@@ -4,8 +4,21 @@ import { revalidatePath } from "next/cache";
 import { getCoachAreaWriteCtxFor } from "./guards";
 import { canManageClients } from "@/lib/permissions/team";
 import { runAction, ok, fail, type ActionResult } from "./result";
-import { freezeSchema, type FreezeInput } from "@/lib/validations/subscription-freeze";
-import { freezeClient, resumeClient, FreezeError } from "@/lib/services/subscription-freeze";
+import {
+  freezeSchema,
+  renewSchema,
+  cancelSchema,
+  type FreezeInput,
+  type RenewInput,
+  type CancelInput,
+} from "@/lib/validations/subscription-freeze";
+import {
+  freezeClient,
+  resumeClient,
+  renewClient,
+  cancelClient,
+  FreezeError,
+} from "@/lib/services/subscription-freeze";
 
 /**
  * Freeze a client's subscription. Gated by `canManageClients`, which grants
@@ -49,6 +62,50 @@ export async function resumeClientAction(
       revalidatePath("/coach/clients");
       revalidatePath("/coach");
       return ok({ endDate: res.endDate.toISOString(), remainingDays: res.remainingDays });
+    } catch (e) {
+      if (e instanceof FreezeError) return fail(e.message, e.code);
+      throw e;
+    }
+  });
+}
+
+/** Renew (extend) a client's subscription by a number of months. Same permission gate. */
+export async function renewClientAction(
+  clientId: string,
+  input: RenewInput,
+): Promise<ActionResult<{ endDate: string }>> {
+  return runAction(async () => {
+    const parsed = renewSchema.safeParse(input);
+    if (!parsed.success) return fail("بيانات غير صالحة", "VALIDATION");
+    const { coachId, actingUserId } = await getCoachAreaWriteCtxFor(canManageClients);
+    try {
+      const res = await renewClient(coachId, actingUserId, clientId, parsed.data.months);
+      revalidatePath(`/coach/clients/${clientId}`);
+      revalidatePath("/coach/clients");
+      revalidatePath("/coach");
+      return ok({ endDate: res.endDate.toISOString() });
+    } catch (e) {
+      if (e instanceof FreezeError) return fail(e.message, e.code);
+      throw e;
+    }
+  });
+}
+
+/** Cancel (end) a client's subscription immediately. Same permission gate. */
+export async function cancelClientAction(
+  clientId: string,
+  input: CancelInput = {},
+): Promise<ActionResult<{ endDate: string }>> {
+  return runAction(async () => {
+    const parsed = cancelSchema.safeParse(input);
+    if (!parsed.success) return fail("بيانات غير صالحة", "VALIDATION");
+    const { coachId, actingUserId } = await getCoachAreaWriteCtxFor(canManageClients);
+    try {
+      const res = await cancelClient(coachId, actingUserId, clientId, parsed.data.reason || undefined);
+      revalidatePath(`/coach/clients/${clientId}`);
+      revalidatePath("/coach/clients");
+      revalidatePath("/coach");
+      return ok({ endDate: res.endDate.toISOString() });
     } catch (e) {
       if (e instanceof FreezeError) return fail(e.message, e.code);
       throw e;
