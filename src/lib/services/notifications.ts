@@ -1,7 +1,8 @@
 import { connectToDatabase } from "@/lib/db";
-import { Notification } from "@/models/Notification";
+import { Notification, type INotificationTarget } from "@/models/Notification";
 import type { NotificationType } from "@/lib/constants";
 import { serialize } from "@/lib/serialize";
+import { dispatchNotification } from "@/lib/notifications/dispatcher";
 
 export interface CreateNotificationInput {
   recipient: string;
@@ -11,11 +12,34 @@ export interface CreateNotificationInput {
   bodyAr?: string;
   bodyEn?: string;
   link?: string;
+  /** Optional structured target (used by cross-platform channels). */
+  target?: INotificationTarget;
+  /**
+   * Optional idempotency key: when set, retrying the same operation resolves to
+   * the same notification instead of creating a duplicate.
+   */
+  idempotencyKey?: string;
 }
 
+/**
+ * Emit a notification. This is a thin, back-compatible wrapper over the unified
+ * dispatcher: it persists the record (source of truth) and fans out to every
+ * registered channel. The signature is unchanged, so existing callers work as
+ * before; new callers may pass `target` / `idempotencyKey`, or migrate to
+ * versioned templates via `dispatchNotification` directly.
+ */
 export async function createNotification(input: CreateNotificationInput) {
-  await connectToDatabase();
-  await Notification.create(input);
+  await dispatchNotification({
+    recipient: input.recipient,
+    type: input.type,
+    titleAr: input.titleAr,
+    titleEn: input.titleEn,
+    bodyAr: input.bodyAr,
+    bodyEn: input.bodyEn,
+    link: input.link,
+    target: input.target,
+    idempotencyKey: input.idempotencyKey,
+  });
 }
 
 export async function listNotifications(userId: string, limit = 30) {

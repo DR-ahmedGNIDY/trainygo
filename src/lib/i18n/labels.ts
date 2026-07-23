@@ -9,10 +9,30 @@ import type {
   GeneratorGoal,
   Locale,
   MealType,
+  NotificationType,
   RequestStatus,
 } from "@/lib/constants";
 
 type L = { ar: string; en: string };
+
+/** Human labels for notification types (used in the preferences UI). */
+export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, L> = {
+  new_client: { ar: "عميل جديد", en: "New client" },
+  new_checkin: { ar: "متابعة/تقييم جديد", en: "New check-in" },
+  new_message: { ar: "رسالة جديدة", en: "New message" },
+  subscription_expiry: { ar: "قرب انتهاء الاشتراك", en: "Subscription expiring" },
+  new_program: { ar: "برنامج تدريبي جديد", en: "New workout program" },
+  new_nutrition_plan: { ar: "خطة غذائية جديدة", en: "New nutrition plan" },
+  subscription_activated: { ar: "تفعيل الاشتراك", en: "Subscription activated" },
+  workout_report: { ar: "تقرير تدريب", en: "Workout report" },
+  personal_record: { ar: "رقم قياسي شخصي", en: "Personal record" },
+  performance_decline: { ar: "تراجع في الأداء", en: "Performance decline" },
+  exercise_change_request: { ar: "طلب تغيير تمرين", en: "Exercise change request" },
+  exercise_change_resolved: { ar: "حسم طلب تغيير تمرين", en: "Exercise change resolved" },
+  subscription_frozen: { ar: "تجميد الاشتراك", en: "Subscription frozen" },
+  subscription_resumed: { ar: "استئناف الاشتراك", en: "Subscription resumed" },
+  system: { ar: "إشعارات النظام", en: "System announcements" },
+};
 
 export const GOAL_LABELS: Record<ClientGoal, L> = {
   muscle_building: { ar: "زيادة كتلة عضلية", en: "Muscle Building" },

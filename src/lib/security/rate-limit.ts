@@ -54,6 +54,10 @@ export const RATE_LIMITS = {
   passwordReset: { name: "pwreset", limit: 5, windowMs: 60 * 60_000 },
   mediaSignature: { name: "media", limit: 30, windowMs: 60 * 60_000 },
   teamInvite: { name: "team_invite", limit: 20, windowMs: 24 * 60 * 60_000 },
+  pushSubscribe: { name: "push_sub", limit: 30, windowMs: 60 * 60_000 },
+  // Click/delivered pings from the Service Worker + unsubscribe. Per-user and
+  // generous — best-effort analytics, so a spike degrades gracefully to 429.
+  notificationEvent: { name: "notif_event", limit: 300, windowMs: 5 * 60_000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 /**

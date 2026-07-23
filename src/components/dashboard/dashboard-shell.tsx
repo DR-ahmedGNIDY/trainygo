@@ -17,6 +17,7 @@ import {
 import { SidebarNav } from "./sidebar-nav";
 import { UserMenu } from "./user-menu";
 import { NotificationsMenu, type NotificationItem } from "./notifications-menu";
+import { PushRegistrar } from "@/components/notifications/push-registrar";
 import { MobileTabBar } from "./mobile-tab-bar";
 import { getNavForRole } from "./nav-config";
 import { useI18n } from "@/components/providers/i18n-provider";
@@ -129,6 +130,7 @@ export function DashboardShell({
 
           <div className="flex-1" />
 
+          <PushRegistrar />
           <NotificationsMenu items={notifications} unread={unread} />
           <LanguageSwitcher />
           <ThemeToggle />

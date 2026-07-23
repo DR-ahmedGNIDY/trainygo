@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { GOAL_LABELS, label } from "@/lib/i18n/labels";
+import { NotificationPreferencesForm } from "@/components/notifications/notification-preferences-form";
 import { updateOwnProfileAction, changeOwnPasswordAction } from "@/lib/actions/client";
 import type { ClientGoal } from "@/lib/constants";
 import type { ClientPerformanceStats } from "@/lib/services/workout-analytics";
@@ -148,6 +149,8 @@ export function ProfileView({ self, stats }: { self: ClientSelf; stats: ClientPe
           <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Palette className="h-4 w-4 text-primary" />{L("التفضيلات", "Preferences")}</CardTitle></CardHeader>
           <CardContent><p className="text-sm text-muted-foreground">{L("غيّر اللغة والمظهر من الأزرار أعلى الصفحة — تُحفظ مع حسابك.", "Change language and theme from the top buttons — saved to your account.")}</p></CardContent>
         </Card>
+
+        <NotificationPreferencesForm />
       </div>
     </div>
   );

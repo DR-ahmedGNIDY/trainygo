@@ -194,6 +194,46 @@ export const NOTIFICATION_TYPES = [
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 /**
+ * ─── Unified Notification Delivery layer (channel-agnostic) ─────────────────
+ *
+ * A notification (the record) is decoupled from how it is delivered (channels).
+ * Business code emits an event → the dispatcher persists ONE Notification
+ * (source of truth) → the channel resolver fans it out to zero or more
+ * channels. Adding a channel later = one entry here + one adapter, with no
+ * change to business logic, models, or existing channels.
+ */
+export const NOTIFICATION_CHANNELS = [
+  "in_app", // always on — the saved Notification itself (source of truth)
+  "web_push", // VAPID browser push (P2)
+  // future: "fcm", "apns", "email", "sms", "whatsapp"
+] as const;
+export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
+
+/** Physical platform a registered Device lives on. */
+export const DEVICE_PLATFORMS = ["web", "android", "ios"] as const;
+export type DevicePlatform = (typeof DEVICE_PLATFORMS)[number];
+
+/** Push transport a Device speaks — selects the adapter used to reach it. */
+export const DEVICE_TRANSPORTS = ["webpush", "fcm", "apns"] as const;
+export type DeviceTransport = (typeof DEVICE_TRANSPORTS)[number];
+
+/**
+ * Per-channel delivery lifecycle. The Notification record carries user-facing
+ * state (read / clickedAt); a NotificationDelivery (P2) carries transport state
+ * per channel/device. Not all states are written yet, but the enum is complete
+ * so the schema never needs a migration to support them.
+ */
+export const DELIVERY_STATUSES = [
+  "pending",
+  "queued",
+  "sent",
+  "delivered",
+  "clicked",
+  "failed",
+] as const;
+export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
+
+/**
  * Client→coach request/workflow types. This is a GENERIC request system:
  * "exercise_change" is the only type exposed in the UI today, but the model,
  * services and coach dashboard are all keyed on `type` so future request

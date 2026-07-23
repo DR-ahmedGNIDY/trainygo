@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useI18n } from "@/components/providers/i18n-provider";
+import { NotificationPreferencesForm } from "@/components/notifications/notification-preferences-form";
 
 export default function CoachSettingsPage() {
   const { t, locale } = useI18n();
@@ -49,6 +50,8 @@ export default function CoachSettingsPage() {
             </p>
           </CardContent>
         </Card>
+
+        <NotificationPreferencesForm />
 
         <Separator />
         <div className="flex justify-end">
