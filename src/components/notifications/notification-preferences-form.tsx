@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Save, MoonStar } from "lucide-react";
+import { Bell, Save, MoonStar, Send } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { toast } from "@/components/ui/toast";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { NOTIFICATION_TYPES } from "@/lib/constants";
 import { NOTIFICATION_TYPE_LABELS, label } from "@/lib/i18n/labels";
+import { sendTestPush } from "@/lib/notifications/client/push-client";
 import { cn } from "@/lib/utils";
 
 interface PreferenceView {
@@ -56,6 +57,7 @@ export function NotificationPreferencesForm() {
   const ui = t.dashboard.ui;
   const [prefs, setPrefs] = useState<PreferenceView | null>(null);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -225,7 +227,23 @@ export function NotificationPreferencesForm() {
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setTesting(true);
+              try {
+                const ok = await sendTestPush();
+                ok ? toast.success(ui.prefTestSent) : toast.error(ui.prefTestFailed);
+              } finally {
+                setTesting(false);
+              }
+            }}
+            disabled={testing}
+          >
+            <Send className="h-4 w-4" />
+            {ui.prefSendTest}
+          </Button>
           <Button onClick={save} disabled={saving}>
             <Save className="h-4 w-4" />
             {t.common.save}

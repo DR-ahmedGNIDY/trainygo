@@ -40,8 +40,8 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   }
 }
 
-async function postSubscription(subscription: PushSubscription, locale: string): Promise<void> {
-  await fetch("/api/push/subscribe", {
+async function postSubscription(subscription: PushSubscription, locale: string): Promise<boolean> {
+  const res = await fetch("/api/push/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -53,6 +53,7 @@ async function postSubscription(subscription: PushSubscription, locale: string):
       },
     }),
   });
+  return res.ok;
 }
 
 /**
@@ -68,8 +69,12 @@ export async function enablePush(locale: string): Promise<boolean> {
       : Notification.permission;
   if (permission !== "granted") return false;
 
-  const reg = (await navigator.serviceWorker.ready.catch(() => null)) ?? (await registerServiceWorker());
+  // Register the SW FIRST, then wait for it to activate. Awaiting
+  // `serviceWorker.ready` before any registration exists would hang forever
+  // (it never rejects), which previously blocked the very first subscribe.
+  const reg = await registerServiceWorker();
   if (!reg) return false;
+  await navigator.serviceWorker.ready;
 
   const existing = await reg.pushManager.getSubscription();
   const subscription =
@@ -79,8 +84,22 @@ export async function enablePush(locale: string): Promise<boolean> {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
     }));
 
-  await postSubscription(subscription, locale);
-  return true;
+  return postSubscription(subscription, locale);
+}
+
+/**
+ * Ask the backend to send the current user a test notification. Always creates
+ * an in-app notification (visible in the bell) and additionally a web-push if a
+ * subscription + VAPID keys are configured — so it doubles as a diagnostic.
+ */
+export async function sendTestPush(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/push/test", { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    return res.ok && Boolean(data?.ok);
+  } catch {
+    return false;
+  }
 }
 
 /**

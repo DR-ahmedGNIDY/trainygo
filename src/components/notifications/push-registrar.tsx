@@ -9,6 +9,7 @@ import {
   permissionState,
   enablePush,
   syncPushIfGranted,
+  registerServiceWorker,
 } from "@/lib/notifications/client/push-client";
 
 /**
@@ -27,8 +28,9 @@ export function PushRegistrar() {
   useEffect(() => {
     if (!isPushSupported()) return;
     setState(permissionState());
-    // Keep an already-granted subscription fresh; no prompt.
-    void syncPushIfGranted(locale);
+    // Register the SW up front so it's active and ready to receive pushes, then
+    // keep an already-granted subscription fresh (no prompt).
+    void registerServiceWorker().then(() => syncPushIfGranted(locale));
   }, [locale]);
 
   if (state !== "default") return null; // unsupported/granted/denied → nothing to show.
