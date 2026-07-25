@@ -78,7 +78,7 @@ export function RealChatView({
   }
 
   return (
-    <Card className="grid h-[calc(100vh-9.5rem)] overflow-hidden md:grid-cols-[300px_1fr]">
+    <Card className="grid h-[calc(100vh-9.5rem)] grid-rows-[minmax(0,1fr)] overflow-hidden md:grid-cols-[300px_1fr]">
       {hasThreads && (
         <div className="hidden flex-col border-e md:flex">
           <div className="border-b p-3">
@@ -118,7 +118,7 @@ export function RealChatView({
           <p className="text-sm font-semibold">{peerName}</p>
         </div>
 
-        <div className="flex-1 space-y-3 overflow-y-auto scrollbar-thin bg-muted/20 p-4">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto scrollbar-thin bg-muted/20 p-4">
           {messages.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">{L("لا توجد رسائل بعد", "No messages yet")}</p>
           ) : (
