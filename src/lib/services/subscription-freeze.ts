@@ -27,6 +27,15 @@ function daysUntil(end: Date): number {
  * client doesn't exist or belongs to a different coach — the ownership gate
  * every freeze/resume operation depends on.
  */
+/**
+ * Every write below saves with `{ validateModifiedOnly: true }`. A subscription
+ * change touches only a handful of `clientProfile` fields, yet a plain save()
+ * re-validates the WHOLE document — so a legacy value elsewhere (e.g. an
+ * un-migrated `clientProfile.goal` like "general_fitness") would make freeze/
+ * resume/renew/cancel fail with a generic server error even though the coach
+ * never touched that field. Validating only the modified paths keeps these
+ * operations robust against unrelated stale data. See scripts/migrate-goals.ts.
+ */
 async function getOwnedClient(coachId: string, clientId: string) {
   if (!Types.ObjectId.isValid(clientId)) return null;
   return User.findOne({
@@ -82,7 +91,7 @@ export async function freezeClient(
   cp.remainingDays = remainingDays;
   cp.freezeReason = input.reason;
   cp.lastFreezeBy = new Types.ObjectId(actingUserId);
-  await client.save();
+  await client.save({ validateModifiedOnly: true });
 
   await SubscriptionFreezeHistory.create({
     client: client._id,
@@ -141,7 +150,7 @@ export async function resumeClient(
   cp.totalFrozenDays = (cp.totalFrozenDays ?? 0) + frozenFor;
   cp.remainingDays = null;
   cp.lastFreezeBy = new Types.ObjectId(actingUserId);
-  await client.save();
+  await client.save({ validateModifiedOnly: true });
 
   // Close the most recent still-open freeze record for this client.
   await SubscriptionFreezeHistory.findOneAndUpdate(
@@ -197,7 +206,7 @@ export async function renewClient(
   }
   cp.subscriptionEndDate = newEnd;
   cp.lastFreezeBy = new Types.ObjectId(actingUserId);
-  await client.save();
+  await client.save({ validateModifiedOnly: true });
 
   await createNotification({
     recipient: clientId,
@@ -247,7 +256,7 @@ export async function cancelClient(
   cp.subscriptionEndDate = now;
   if (reason) cp.freezeReason = reason;
   cp.lastFreezeBy = new Types.ObjectId(actingUserId);
-  await client.save();
+  await client.save({ validateModifiedOnly: true });
 
   await createNotification({
     recipient: clientId,
