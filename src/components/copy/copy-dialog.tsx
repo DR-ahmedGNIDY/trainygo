@@ -66,8 +66,20 @@ export function CopyDialog({
       ? await copyTemplatesToClientsAction({ workoutTemplateId: wt || undefined, nutritionTemplateId: nt || undefined }, targets)
       : await copyClientToClientsAction(fromClient, what, targets);
     setSaving(false);
-    if (res.ok) { setResult(res.data!); router.refresh(); }
-    else setError({ error: res.error, code: res.code });
+    if (!res.ok) { setError({ error: res.error, code: res.code }); return; }
+    // Copying from a client whose source program/plan doesn't exist yields 0/0.
+    // Surface it as a clear warning instead of a misleading success screen.
+    if (mode === "client" && res.data && "found" in res.data && !res.data.found) {
+      setError({
+        error: L(
+          "العميل المصدر ليس لديه برنامج أو خطة نشطة لنسخها.",
+          "The source client has no active program or plan to copy.",
+        ),
+        code: "NOTHING_TO_COPY",
+      });
+      return;
+    }
+    setResult(res.data!); router.refresh();
   }
 
   function reset() {

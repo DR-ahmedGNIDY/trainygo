@@ -38,8 +38,12 @@ export async function copyTemplatesToClients(
 }
 
 /**
- * Copy a source client's ACTIVE program and/or nutrition plan to many other
- * clients (deep copies). Skips a target silently if the source has nothing.
+ * Copy a source client's current program and/or nutrition plan to many other
+ * clients (deep copies). Picks the client's active item, falling back to the
+ * most recent non-archived one — legacy rows saved without a proper `status`
+ * would otherwise be invisible to a strict `status: "active"` filter and make
+ * the copy silently do nothing. Skips a target silently if the source has
+ * nothing. `found` reports whether a source item existed for `what`.
  */
 export async function copyClientToClients(
   coachId: string,
@@ -49,14 +53,17 @@ export async function copyClientToClients(
 ) {
   await connectToDatabase();
   const coach = new Types.ObjectId(coachId);
+  const client = new Types.ObjectId(fromClientId);
 
   const srcProgram =
     what !== "nutrition"
-      ? await ClientProgram.findOne({ coach, client: new Types.ObjectId(fromClientId), status: "active" }).select("_id").lean()
+      ? (await ClientProgram.findOne({ coach, client, status: "active" }).sort({ createdAt: -1 }).select("_id").lean()) ??
+        (await ClientProgram.findOne({ coach, client, status: { $ne: "archived" } }).sort({ createdAt: -1 }).select("_id").lean())
       : null;
   const srcPlan =
     what !== "workout"
-      ? await NutritionPlan.findOne({ coach, client: new Types.ObjectId(fromClientId), status: "active" }).select("_id").lean()
+      ? (await NutritionPlan.findOne({ coach, client, status: "active" }).sort({ createdAt: -1 }).select("_id").lean()) ??
+        (await NutritionPlan.findOne({ coach, client, status: { $ne: "archived" } }).sort({ createdAt: -1 }).select("_id").lean())
       : null;
 
   let programs = 0;
@@ -72,5 +79,13 @@ export async function copyClientToClients(
       plans++;
     }
   }
-  return { programs, plans };
+  // Whether the source client actually had something to copy for `what`. Lets
+  // the UI tell "nothing to copy" apart from a genuine success with 0 targets.
+  const found =
+    what === "workout"
+      ? Boolean(srcProgram)
+      : what === "nutrition"
+        ? Boolean(srcPlan)
+        : Boolean(srcProgram || srcPlan);
+  return { programs, plans, found };
 }

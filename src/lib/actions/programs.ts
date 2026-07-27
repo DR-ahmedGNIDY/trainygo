@@ -184,11 +184,11 @@ export async function copyClientToClientsAction(
   fromClientId: string,
   what: CopyWhat,
   clientIds: string[],
-): Promise<ActionResult<{ programs: number; plans: number }>> {
+): Promise<ActionResult<{ programs: number; plans: number; found: boolean }>> {
   return runAction(async () => {
     if (clientIds.length === 0) return fail("اختر عميلاً واحداً على الأقل", "VALIDATION");
     const { coachId } = await getCoachAreaWriteCtxFor((ctx) => canAccessWorkout(ctx) || canAccessNutrition(ctx));
-    let res: { programs: number; plans: number };
+    let res: { programs: number; plans: number; found: boolean };
     try {
       res = await copy.copyClientToClients(coachId, fromClientId, what, clientIds);
     } catch (error) {
