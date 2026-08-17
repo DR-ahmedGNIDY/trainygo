@@ -96,9 +96,10 @@ function MotionFadeImage({
  * Renders the best available media for an exercise, in priority order:
  * 1) uploaded video  2) YouTube (thumbnail or real player)  3) start/end photo cross-fade  4) icon.
  *
- * `variant="player"` is reserved for the workout-execution screen, where a YouTube
- * exercise should be a real, playable embed. Everywhere else (libraries, programs,
- * templates, history, reports, PR cards...) stays a lightweight static thumbnail.
+ * `variant="player"` renders a real, playable YouTube embed — use it for single-exercise
+ * detail views (workout-execution, exercise view dialog). Everywhere a list of exercises
+ * is shown (grids, programs, templates, history, reports, PR cards...) stays a lightweight
+ * static thumbnail to avoid loading many iframes at once.
  */
 export function ExerciseMedia({
   media,

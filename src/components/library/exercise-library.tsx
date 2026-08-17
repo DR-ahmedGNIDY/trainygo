@@ -289,6 +289,7 @@ function ExerciseViewDialog({
           <ExerciseMedia
             media={{ videoUrl: exercise.videoUrl, youtubeUrl: exercise.youtubeUrl, imageUrlStart: exercise.imageUrlStart, imageUrlEnd: exercise.imageUrlEnd, gifUrl: exercise.gifUrl }}
             alt={name}
+            variant="player"
             className="absolute inset-0 flex h-full w-full items-center justify-center overflow-hidden"
           />
         </div>
