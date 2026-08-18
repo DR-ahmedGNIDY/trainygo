@@ -275,10 +275,10 @@ export const EXERCISE_CHANGE_QUICK_REASONS = [
 export type ExerciseChangeQuickReason =
   (typeof EXERCISE_CHANGE_QUICK_REASONS)[number];
 
-export const TRIAL_DURATION_DAYS = 7;
+export const TRIAL_DURATION_DAYS = 20;
 
 /** Trial coaches may onboard at most this many clients (the free trial is not unlimited capacity). */
-export const TRIAL_MAX_CLIENTS = 1;
+export const TRIAL_MAX_CLIENTS = 10;
 
 /** Trial coaches may not create team members. */
 export const TRIAL_MAX_TEAM_MEMBERS = 0;
