@@ -1,15 +1,34 @@
-/** Extracts the video id from common YouTube URL formats (watch/short/embed/youtu.be). */
+const VIDEO_ID_RE = /^[\w-]{11}$/;
+
+/** Extracts the video id from any common YouTube URL format (watch/short/embed/live/youtu.be, any query param order, www/m/no-subdomain, youtube-nocookie.com). */
 export function youtubeVideoId(url: string): string | null {
-  const patterns = [
-    /youtube\.com\/watch\?v=([\w-]+)/,
-    /youtu\.be\/([\w-]+)/,
-    /youtube\.com\/shorts\/([\w-]+)/,
-    /youtube\.com\/embed\/([\w-]+)/,
-  ];
-  for (const re of patterns) {
-    const m = url.match(re);
-    if (m?.[1]) return m[1];
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    return null;
   }
+
+  const host = parsed.hostname.replace(/^www\.|^m\./, '');
+  if (!/(^|\.)(youtube\.com|youtube-nocookie\.com|youtu\.be)$/.test(host)) return null;
+
+  // youtu.be/VIDEO_ID
+  if (host === 'youtu.be') {
+    const id = parsed.pathname.split('/').filter(Boolean)[0];
+    return id && VIDEO_ID_RE.test(id) ? id : null;
+  }
+
+  // youtube.com/watch?v=VIDEO_ID (v can be anywhere in the query string)
+  const vParam = parsed.searchParams.get('v');
+  if (vParam && VIDEO_ID_RE.test(vParam)) return vParam;
+
+  // youtube.com/shorts/VIDEO_ID, /embed/VIDEO_ID, /live/VIDEO_ID, /v/VIDEO_ID
+  const segments = parsed.pathname.split('/').filter(Boolean);
+  const prefixIdx = segments.findIndex((s) => ['shorts', 'embed', 'live', 'v'].includes(s));
+  if (prefixIdx !== -1 && segments[prefixIdx + 1] && VIDEO_ID_RE.test(segments[prefixIdx + 1])) {
+    return segments[prefixIdx + 1];
+  }
+
   return null;
 }
 
